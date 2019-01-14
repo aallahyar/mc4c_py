@@ -10,14 +10,14 @@ import pandas as pd
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
     """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     primerSeqs = mc.getPrimerSeqs(settings)
     mc.writePrimerFasta(primerSeqs, args.outfile)
 
 
 def cleaveReads(args):
     """ Cleave the reads by primer sequences. Requires BowTie2 information. """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     primerLens = [len(x) for x in settings['prm_seq']]
     primers = ['']
     primers.extend(settings['prm_seq'])
@@ -29,7 +29,7 @@ def cleaveReads(args):
 
 def splitReads(args):
     """ Split the reads by restriction site information based on the reference genome. """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     restSeqs = settings['re_seq']
     # TODO: Substitute reference genome with reads (?)
     mc.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
@@ -39,14 +39,14 @@ def findRefRestSites(args):
     """ Determine the location of restriction sites on the reference genome. Takes a fasta file
         and stores results as a list per chromosome in a dictionary, which is saved as an npz.
     """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     restSeqs = settings['re_seq']
     restDict = mc.findReferenceRestSites(args.fastafile,restSeqs,lineLen=args.linelen)
     np.savez_compressed(args.restfile,restrsites=restDict)
 
 def getRefResPositions(args):
     """ Extract a subset of restriction site positions from the reference genome. """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     print [settings['vp_chr']],[settings['vp_start'], settings['vp_end']]
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
@@ -72,7 +72,7 @@ def exportToPlot(args):
         Additionally it creates 2 files that link between restrition sites and read ids for
         interaction down the line.
     """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
     print 'Finished loading, moving on'
@@ -97,7 +97,7 @@ def markDuplicates(args):
         Identification is based on having overlap with eachother that is not in the viewport.
         It takes a pandas dataframe and adds a new column to the end of it.
     """
-    settings = mc.loadIni(args.inifile)
+    settings = mc.load_config(args.cnfFile)
     exFile = np.load(args.extra)
 
     try:
@@ -147,7 +147,7 @@ def main():
     descIniFile = 'File containing experiment specific details'
     descFqFile = 'Fastq file containing actual data from sequencing'
 
-    parser = argparse.ArgumentParser(description="MC4C pipeline for processing multi-contact data")
+    parser = argparse.ArgumentParser(description="MC4C pipeline for processing multi-contact 4C data")
     subparsers = parser.add_subparsers()
 
     #

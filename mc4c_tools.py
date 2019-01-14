@@ -13,25 +13,25 @@ fastaIdFormat='>Pr.Id:{};Pr.Wi:{};Pr.Wn:{}\n{}\n'
 #referenceNameFormat='>RD:{};IN:{}'
 
 
-def loadIni(iniFile):
+def load_config(cnfFile):
     """ Read data from file, put it into a dict
 
-    :param iniFile: takes a path to a tab separated file with one variable name and optionally
+    :param cnfFile: takes a path to a tab separated file with one variable name and optionally
     several values per line. Checks if the amount of variables in some lines match.
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
-    settings=dict()
-    with open(iniFile,'r') as iniFile:
-        for line in iniFile:
+    settings = dict()
+    with open(cnfFile, 'r') as cnfFile:
+        for line in cnfFile:
             splitLine = line.split()
             if len(splitLine) <= 1:
                 continue
             settings[splitLine[0]] = [x for x in splitLine[1:] if x != '']
 
     # Integer lists
-    for key in ['prm_start','prm_end','vp_start','vp_end','win_start','win_end']:
-        settings[key]=[int(x) for x in settings[key]]
+    for cnf_name in ['prm_start','prm_end','vp_start','vp_end','win_start','win_end']:
+        settings[cnf_name] = [int(x) for x in settings[cnf_name]]
 
 
     # Check lists that should be of equal length
@@ -49,7 +49,7 @@ def loadIni(iniFile):
 
 ### makeprimerfa implementation ###
 
-def splitStringTo(item,maxLen=50):
+def splitStringTo(item, maxLen=50):
     """ Helper function to make a fasta split at 50 bp per line.
 
     :param item: The input sequence string.
@@ -60,7 +60,7 @@ def splitStringTo(item,maxLen=50):
     return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
 
 
-def seqToFasta(sequence,baseId):
+def seqToFasta(sequence, baseId):
     """ Helper function to create fasta sequences from primer information.
 
     :param sequence: The actual primer sequence.
@@ -399,7 +399,7 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
     :param inFile: The fastq file with reads to be cut by their restriction sites.
     :param outFile: The output fastq file where reads are cut by restriction sites.
 
-    :param restSeqs: List of restriction site basepair sequence(s) as provided in ini file.
+    :param restSeqs: List of restriction site basepair sequence(s) as provided in config file.
     :param cutDesc: The newly added tag to the read name when applying this action.
 
     :returns: A list of all cuts made to all reads.
@@ -467,7 +467,7 @@ def findReferenceRestSites(refFile,restSeqs,lineLen=50):
         etc.
 
     :param refFile: The reference genome reads were mapped to.
-    :param restSeqs: List of restriction site basepair sequence(s) as provided in ini file.
+    :param restSeqs: List of restriction site basepair sequence(s) as provided in config file.
     :param lineLen: The length of basepair sequences per line.
 
     :TODO: Auto detect lineLen, may get into infinite loops if lentgh is wrong.
@@ -531,7 +531,7 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
     """ Exports the processed data to a pandas dataframe object, as well as a handy
         format to filter circles with overlapping locations.
 
-    :param settings: The dict created by loading the ini file.
+    :param settings: The dict created by loading the config file.
     :param restrefs: The restriction site dictionary as created in getRefResPositions().
     :param insam: The final mapped data by BWA.
     :param uniqid: A new unique ID per circle+read is created, one may combine more columns.
@@ -706,7 +706,7 @@ def findDuplicates(settings,byRead,byRegion):
         Duplicates are determined by overlapping fragments in regions other than
         the viewport.
 
-    :param settings: The dict created by loading the ini file.
+    :param settings: The dict created by loading the config file.
     :param restrefs: A dictionary telling per restiction site region what reads mapped there.
         Alternate output from exportToPlot().
     :param byReads: A dictionary telling per read id what restriction site regions were covered.

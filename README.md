@@ -15,10 +15,32 @@ To run the whole pipeline several tools from third parties are required. The fol
 
 ## Preparing
 
-### Base calling
-Please refer to the [wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert raw signals to FAST5 reads.
+### Base calling (depricated)
+The base calling of raw (Squiggle) data is nowadays is automatically done by Nanopore sequencing software.
+In any case, if you have received Squiggle data, please refer to the 
+[wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert the raw 
+signals to FAST5 files which contain the reads.
 
 ### Config file
+Each MC-4C run has certain properties (e.g. view point position, primers sequence used, preferred reference genome, etc.) that need to be 
+provided to the pipeline to properly process the data. These (run specific) "configurations" should be placed in a 
+".cnf" file. Each row in this file represents a property of the run. The property name is separated from its value by 
+a tab (i.e. tab-delimited format). For example, the view point position can be defined in this file in three rows as:
+
+```
+vp_chr  7
+vp_start    100001000
+vp_end  100002000
+```
+
+
+Note: If multiple values need to be given for a property, semicolon (";") can be used between these values. e.g.
+```
+prm_start value1;value2
+```
+
+ To process a certain run using MC-4C pipeline, the user is required to create a config file with
+the following minimum records. 
 You need to have a config file that contains experiment specific details (e.g. primer sequence). You can find an example of such a file in "config_dir" folder.
 
 ### Index reference
