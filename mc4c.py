@@ -3,7 +3,7 @@ import sys
 
 import log
 import numpy as np
-import mc4ctools as mc
+import mc4c_tools as mc
 import pandas as pd
 
 
@@ -147,8 +147,7 @@ def main():
     descIniFile = 'File containing experiment specific details'
     descFqFile = 'Fastq file containing actual data from sequencing'
 
-    parser = argparse.ArgumentParser(
-        description="MC4C pipeline for processing multi-contact data")
+    parser = argparse.ArgumentParser(description="MC4C pipeline for processing multi-contact data")
     subparsers = parser.add_subparsers()
 
     #
@@ -274,6 +273,6 @@ def main():
     log.printArgs(args)
     args.func(args)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     main()

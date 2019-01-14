@@ -1,4 +1,4 @@
-# pymc4c
+# mc4c_python
 A python based approach to processing MC4C data
 
 
@@ -6,8 +6,8 @@ A python based approach to processing MC4C data
 
 ### External Tools:
 To run the whole pipeline several tools from third parties are required. The following tools are what we suggest to use, including the version numbers we tested our pipeline with.
-- BWA (Needs version)
-- bowtie2 (2.2.6)
+- bwa (v0.7.17-r1188)
+- bowtie2 (v2.3.4.3)
 
 ### External Data:
 - A reference genome

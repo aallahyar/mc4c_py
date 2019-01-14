@@ -1,7 +1,7 @@
 import sys
 import re
 import numpy as np
-from mc4ctools import seq_rev_comp
+from mc4c_tools import seq_rev_comp
 
 
 def findSites(refFile, restSeqs, lineLen=50):
