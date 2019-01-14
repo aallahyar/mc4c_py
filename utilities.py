@@ -6,19 +6,13 @@ import xml.etree.ElementTree as ET
 
 
 # I'm going to assume a safe XML here
-def getFastaSequence(genome,chromosome,start,end):
-    response = urllib2.urlopen(
-        'http://genome.ucsc.edu/cgi-bin/das/'
-        + genome
-        + '/dna?segment='
-        + str(chromosome)
-        + ':'
-        + str(start)
-        + ','
-        + str(end))
-    html = response.read()
-    root = ET.fromstring(html)
-    return root[0][0].text.replace('\n', '').replace('\r', '')
+def getFastaSequence(genome, chromosome, pos_start, pos_end):
+    message = 'http://genome.ucsc.edu/cgi-bin/das/{:s}/dna?segment={:s}:{:d},{:d}'.format(
+            genome, chromosome, pos_start, pos_end)
+    response_xml = urllib2.urlopen(message)
+    html = response_xml.read()
+    response_tree = ET.fromstring(html)
+    return response_tree[0][0].text.replace('\n', '').replace('\r', '')
 
 
 def rowSetDataType(row, typefunc, indexes):

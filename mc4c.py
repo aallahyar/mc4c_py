@@ -6,12 +6,13 @@ import numpy as np
 import mc4c_tools as mc
 import pandas as pd
 
+flag_DEBUG = True
 
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
     """
-    settings = mc.load_config(args.cnfFile)
-    primerSeqs = mc.getPrimerSeqs(settings)
+    configs = mc.load_config(args.cnfFile)
+    primerSeqs = mc.getPrimerFragment(configs)
     mc.writePrimerFasta(primerSeqs, args.outfile)
 
 
@@ -153,7 +154,7 @@ def main():
     #
     parser_mkprfa = subparsers.add_parser('makeprimerfa',
                                           description='Make a fasta file of primer sequences')
-    parser_mkprfa.add_argument('inifile',
+    parser_mkprfa.add_argument('cnfFile',
                                type=str,
                                help=descIniFile)
     parser_mkprfa.add_argument('outfile',
@@ -164,7 +165,7 @@ def main():
     #
     parser_clvprm = subparsers.add_parser('cleavereads',
                                           description='Cleave reads by primer sequences')
-    parser_clvprm.add_argument('inifile',
+    parser_clvprm.add_argument('cnfFile',
                                type=str,
                                help=descIniFile)
     parser_clvprm.add_argument('bamfile',
@@ -181,7 +182,7 @@ def main():
     #
     parser_splrest = subparsers.add_parser('splitreads',
                                            description='Split reads by restriction site sequences')
-    parser_splrest.add_argument('inifile',
+    parser_splrest.add_argument('cnfFile',
                                 type=str,
                                 help=descIniFile)
     parser_splrest.add_argument('fastqfile',
@@ -195,7 +196,7 @@ def main():
     #
     parser_refrest = subparsers.add_parser('refrestr',
                                            description='Determine restriction site coordinates on reference by their sequences')
-    parser_refrest.add_argument('inifile',
+    parser_refrest.add_argument('cnfFile',
                                 type=str,
                                 help=descIniFile)
     parser_refrest.add_argument('fastafile',
@@ -213,7 +214,7 @@ def main():
     #
     parser_refregion = subparsers.add_parser('refregion',
                                              description='TODO')
-    parser_refregion.add_argument('inifile',
+    parser_refregion.add_argument('cnfFile',
                                   type=str,
                                   help=descIniFile)
     parser_refregion.add_argument('restfile',
@@ -227,7 +228,7 @@ def main():
     #
     parser_export = subparsers.add_parser('export',
                                           description='Combine and export results for interactive plotting')
-    parser_export.add_argument('inifile',
+    parser_export.add_argument('cnfFile',
                                type=str,
                                help=descIniFile)
     parser_export.add_argument('bamfile',
@@ -244,7 +245,7 @@ def main():
     #
     parser_export = subparsers.add_parser('markdup',
                                           description='Add duplicate info for exported results')
-    parser_export.add_argument('inifile',
+    parser_export.add_argument('cnfFile',
                                type=str,
                                help=descIniFile)
     parser_export.add_argument('pdframe',
@@ -269,6 +270,8 @@ def main():
                                 help='New export file')
     parser_flatten.set_defaults(func=flattenFragments)
 
+    if flag_DEBUG:
+        sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_K562-GATA1.cnf', './prm_files/prm_K562-GATA1.fa']
     args = parser.parse_args(sys.argv[1:])
     log.printArgs(args)
     args.func(args)

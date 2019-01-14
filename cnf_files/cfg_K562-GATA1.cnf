@@ -1,5 +1,5 @@
-vp_name	K562-GATA1
-vp_chr	23
+run_id	K562-GATA1
+vp_chr	chrX
 vp_start	48642461
 vp_end	48646268
 prm_start	48643961;48644749
@@ -9,3 +9,4 @@ re_name	DpnII;HindIII
 re_seq	GATC;AAGCTT
 win_start	48500000
 win_end	49000000
+genome_build	hg19

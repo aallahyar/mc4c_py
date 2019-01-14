@@ -1,6 +1,6 @@
 # TODO: Check correctness of this implementation, might contain some basepair shifts due to 0vs1 based genome stuff
 
-import prep
+import utilities
 import pandas as pd
 
 import re
@@ -24,25 +24,30 @@ def load_config(cnfFile):
     settings = dict()
     with open(cnfFile, 'r') as cnfFile:
         for line in cnfFile:
-            splitLine = line.split()
-            if len(splitLine) <= 1:
+            columns = line.split()
+            if len(columns) <= 1:
                 continue
-            settings[splitLine[0]] = [x for x in splitLine[1:] if x != '']
+            settings[columns[0]] = columns[1].split(';')
 
-    # Integer lists
-    for cnf_name in ['prm_start','prm_end','vp_start','vp_end','win_start','win_end']:
-        settings[cnf_name] = [int(x) for x in settings[cnf_name]]
+    # Convert to Integer
+    for cnf_name in ['run_id', 'vp_chr', 'vp_start', 'vp_end', 'win_start', 'win_end', 'genome_build']:
+        assert len(settings[cnf_name]) == 1
+        if cnf_name in ['run_id', 'genome_build', 'vp_chr']:
+            settings[cnf_name] = settings[cnf_name][0]
+        else:
+            settings[cnf_name] = int(settings[cnf_name][0])
 
+    for cnf_name in ['prm_start','prm_end']:
+        settings[cnf_name] = [int(value) for value in settings[cnf_name]]
 
     # Check lists that should be of equal length
-    linked=[
+    linked_configs = [
         ['prm_seq','prm_start','prm_end'],
         ['re_name','re_seq'],
-        ['win_start','win_end'],
-        ['vp_name','vp_chr','vp_start','vp_end']
     ]
-    for listed in linked:
-        assert len(set([len(settings[x]) for x in listed])) == 1, 'Error: different lengths for linked data:'+','.join(str(x) for x in listed)
+    for cnf_set in linked_configs:
+        assert len(set([len(settings[x]) for x in cnf_set])) == 1, \
+            'Error: different lengths for linked data:'+','.join(str(x) for x in cnf_set)
 
     return settings
 
@@ -85,40 +90,40 @@ def seqToFasta(sequence, baseId):
     return outString
 
 
-def getPrimerSeqs(dataInfo):
-    """ Function to check the primer sequences. Checks wether a sequence
+def getPrimerFragment(configs):
+    """ Function to check the primer sequences. Checks whether a sequence
         occurs in the target region and is unique enough.
 
-    :param dataInfo: The settings dictionary created by loading the ini.
+    :param configs: The settings dictionary created by loading the ini.
 
     :returns: The provided sequences, both forward and reverse versions.
 
     :TODO: Improve error message on faulty primes sequences
     """
     primerSeqs = []
-    for i, val in enumerate(dataInfo['prm_seq']):
-        leftSeq = prep.getFastaSequence(
-            dataInfo['genome_build'][0],
-            dataInfo['vp_chr'][0],
-            dataInfo['prm_start'][i]-300,
-            dataInfo['prm_end'][i]).upper()
-        leftIndex = leftSeq.rfind(dataInfo['re_seq'][0])
+    for idx, cur_prm in enumerate(configs['prm_seq']):
+        leftSeq = utilities.getFastaSequence(
+            configs['genome_build'],
+            configs['vp_chr'],
+            configs['prm_start'][idx] - 300,
+            configs['prm_end'][idx]).upper()
+        leftIndex = leftSeq.rfind(configs['re_seq'][0])
         leftPrimerSeq = seq_rev_comp(leftSeq[leftIndex:])
 
-        rightSeq = prep.getFastaSequence(
-            dataInfo['genome_build'][0],
-            dataInfo['vp_chr'][0],
-            dataInfo['prm_start'][i],
-            dataInfo['prm_end'][i]+300).upper()
-        rightIndex = rightSeq.find(dataInfo['re_seq'][0]) + len(dataInfo['re_seq'][0])
+        rightSeq = utilities.getFastaSequence(
+            configs['genome_build'],
+            configs['vp_chr'],
+            configs['prm_start'][idx],
+            configs['prm_end'][idx] + 300).upper()
+        rightIndex = rightSeq.find(configs['re_seq'][0]) + len(configs['re_seq'][0])
         rightPrimerSeq = rightSeq[:rightIndex]
 
-        assert max(leftPrimerSeq.find(dataInfo['prm_seq'][i]),
-                   rightPrimerSeq.find(dataInfo['prm_seq'][i])) >= 0, 'Primer sequence is wrong\n'+str(dataInfo['prm_seq'][i])
-        assert min(leftPrimerSeq.find(dataInfo['prm_seq'][i]),
-                   rightPrimerSeq.find(dataInfo['prm_seq'][i])) <= 0, 'Primer sequence is ambigious\n'+str(dataInfo['prm_seq'][i])
+        assert max(leftPrimerSeq.find(cur_prm),
+                   rightPrimerSeq.find(cur_prm)) >= 0, 'Primer sequence is wrong\n' + cur_prm
+        assert min(leftPrimerSeq.find(cur_prm),
+                   rightPrimerSeq.find(cur_prm)) <= 0, 'Primer sequence is ambigious\n' + cur_prm
 
-        if rightPrimerSeq.find(dataInfo['prm_seq'][i]) >= 0:
+        if rightPrimerSeq.find(cur_prm) >= 0:
             primerSeqs.append(rightPrimerSeq)
         else:
             primerSeqs.append(leftPrimerSeq)
