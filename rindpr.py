@@ -1,18 +1,17 @@
 import sys
 import re
-from Bio.Seq import Seq
 import numpy as np
+from mc4ctools import seq_rev_comp
 
 
-def findSites(refFile,restSeqs,lineLen=50):
-    compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
+def findSites(refFile, restSeqs, lineLen=50):
+    compRestSeqs = [seq_rev_comp(x) for x in restSeqs]
     restSeqs.extend(compRestSeqs)
     reSeqs='|'.join(restSeqs)
     print reSeqs
     restSitesDict = dict()
 
     with open(refFile,'r') as reference:
-        curChrom = None
         offset = -lineLen
         matches = []
         readSeq = ''
@@ -31,4 +30,4 @@ def findSites(refFile,restSeqs,lineLen=50):
 
     return restSitesDict
 
-np.savez_compressed(sys.argv[2],restrsites=findSites(sys.argv[1],['GACC']))
+np.savez_compressed(sys.argv[2], restrsites=findSites(sys.argv[1], ['GACC']))

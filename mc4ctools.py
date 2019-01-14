@@ -1,9 +1,6 @@
 # TODO: Check correctness of this implementation, might contain some basepair shifts due to 0vs1 based genome stuff
 
-# import m2p
 import prep
-from Bio.Seq import Seq
-import numpy as np
 import pandas as pd
 
 import re
@@ -106,7 +103,7 @@ def getPrimerSeqs(dataInfo):
             dataInfo['prm_start'][i]-300,
             dataInfo['prm_end'][i]).upper()
         leftIndex = leftSeq.rfind(dataInfo['re_seq'][0])
-        leftPrimerSeq = Seq(leftSeq[leftIndex:]).reverse_complement().tostring()
+        leftPrimerSeq = seq_rev_comp(leftSeq[leftIndex:])
 
         rightSeq = prep.getFastaSequence(
             dataInfo['genome_build'][0],
@@ -881,4 +878,15 @@ def findRepeats(pdFrame):
 
     finishRead()
     pdFrame['FlatId'] = pd.Series(flatColumn, index=pdFrame.index)
-	
+
+
+def seq_complement(seq):
+    from string import maketrans
+
+    trans_tbl = maketrans('TCGAtcga', 'AGCTagct')
+    return seq.translate(trans_tbl)
+
+
+def seq_rev_comp(seq):
+    return seq_complement(seq)[::-1]
+
