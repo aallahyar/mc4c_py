@@ -21,6 +21,8 @@ def load_config(cnfFile):
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
+    from utilities import get_chr_info
+
     settings = dict()
     with open(cnfFile, 'r') as cnfFile:
         for line in cnfFile:
@@ -48,6 +50,11 @@ def load_config(cnfFile):
     for cnf_set in linked_configs:
         assert len(set([len(settings[x]) for x in cnf_set])) == 1, \
             'Error: different lengths for linked data:'+','.join(str(x) for x in cnf_set)
+
+    # convert chr name to chromosome number
+    chr_lst = get_chr_info(genome_str=settings['genome_build'], property='chr_name')
+    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+    settings['vp_cid'] = chr_map[settings['vp_chr']]
 
     return settings
 
