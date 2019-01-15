@@ -271,7 +271,7 @@ def main():
     parser_flatten.set_defaults(func=flattenFragments)
 
     if flag_DEBUG:
-        sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_K562-GATA1.cnf', './prm_files/prm_K562-GATA1.fa']
+        sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_LVR-BMaj.cnf', './prm_files/prm_LVR-BMaj.fa']
     args = parser.parse_args(sys.argv[1:])
     log.printArgs(args)
     args.func(args)

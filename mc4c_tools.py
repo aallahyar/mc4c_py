@@ -13,50 +13,49 @@ fastaIdFormat='>Pr.Id:{};Pr.Wi:{};Pr.Wn:{}\n{}\n'
 #referenceNameFormat='>RD:{};IN:{}'
 
 
-def load_config(cnfFile):
+def load_config(cnf_fname):
     """ Read data from file, put it into a dict
 
-    :param cnfFile: takes a path to a tab separated file with one variable name and optionally
+    :param cnf_fname: takes a path to a tab separated file with one variable name and optionally
     several values per line. Checks if the amount of variables in some lines match.
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
     from utilities import get_chr_info
 
-    settings = dict()
-    with open(cnfFile, 'r') as cnfFile:
-        for line in cnfFile:
+    configs = dict()
+    with open(cnf_fname, 'r') as cnf_fid:
+        for line in cnf_fid:
             columns = line.split()
-            if len(columns) <= 1:
-                continue
-            settings[columns[0]] = columns[1].split(';')
+            assert len(columns) == 2
+            configs[columns[0]] = columns[1].split(';')
 
     # Convert to Integer
     for cnf_name in ['run_id', 'vp_chr', 'vp_start', 'vp_end', 'win_start', 'win_end', 'genome_build']:
-        assert len(settings[cnf_name]) == 1
+        assert len(configs[cnf_name]) == 1
         if cnf_name in ['run_id', 'genome_build', 'vp_chr']:
-            settings[cnf_name] = settings[cnf_name][0]
+            configs[cnf_name] = configs[cnf_name][0]
         else:
-            settings[cnf_name] = int(settings[cnf_name][0])
+            configs[cnf_name] = int(configs[cnf_name][0])
 
     for cnf_name in ['prm_start','prm_end']:
-        settings[cnf_name] = [int(value) for value in settings[cnf_name]]
+        configs[cnf_name] = [int(value) for value in configs[cnf_name]]
 
-    # Check lists that should be of equal length
+    # Check configs that should be of equal length
     linked_configs = [
         ['prm_seq','prm_start','prm_end'],
         ['re_name','re_seq'],
     ]
     for cnf_set in linked_configs:
-        assert len(set([len(settings[x]) for x in cnf_set])) == 1, \
-            'Error: different lengths for linked data:'+','.join(str(x) for x in cnf_set)
+        assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
+            'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
 
     # convert chr name to chromosome number
-    chr_lst = get_chr_info(genome_str=settings['genome_build'], property='chr_name')
+    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
     chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
-    settings['vp_cid'] = chr_map[settings['vp_chr']]
+    configs['vp_cnum'] = chr_map[configs['vp_chr']]
 
-    return settings
+    return configs
 
 
 ### makeprimerfa implementation ###
