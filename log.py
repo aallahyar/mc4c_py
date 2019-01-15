@@ -23,7 +23,7 @@ def getVersion():
 
 
 def printArgs(args):
-    argdict=vars(args)
+    argdict = vars(args)
     print 'tool =', str(argdict['func']).split()[1]#[4:]
     for arg in sorted(argdict.keys()):
         if arg != 'func':

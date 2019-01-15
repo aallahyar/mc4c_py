@@ -1,11 +1,11 @@
+
 import argparse
 import sys
-
-import log
 import numpy as np
 import pandas as pd
 
 import mc4c_tools
+import log
 
 flag_DEBUG = True
 
@@ -195,18 +195,19 @@ def main():
     parser_splrest.set_defaults(func=splitReads)
 
     #
-    parser_refrest = subparsers.add_parser('refrestr',
+    parser_refrest = subparsers.add_parser('extRePos',
                                            description='Determine restriction site coordinates on reference by their sequences')
     parser_refrest.add_argument('cnfFile',
                                 type=str,
                                 help=descIniFile)
-    parser_refrest.add_argument('fastafile',
+    parser_refrest.add_argument('--fastafile',
                                 type=str,
+                                default=None,
                                 help='Fasta file of reference genome containing all chromosomes (eg hg19)')
-    parser_refrest.add_argument('restfile',
+    parser_refrest.add_argument('--restfile',
                                 type=str,
                                 help='Numpy compressed file containing restriction site coordinates')
-    parser_refrest.add_argument('-linelen',
+    parser_refrest.add_argument('--linelen',
                                 type=int,
                                 default=50,
                                 help='Number of basepairs per line in reference sequence')
@@ -273,7 +274,8 @@ def main():
 
     if flag_DEBUG:
         # sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_LVR-BMaj.cnf', './prm_files/prm_LVR-BMaj.fa']
-        sys.argv = ['./mc4c.py', 'refrestr', './cnf_files/cfg_LVR-BMaj.cnf', '~/bulk/datasets/reference_genomes/mm9/chrAll.fa', './renz_files/mm9_DpnII.npz']
+        # sys.argv = ['./mc4c.py', 'extRePos', './cnf_files/cfg_LVR-BMaj.cnf'] # , '~/bulk/datasets/reference_genomes/mm9/chrAll.fa', './renz_files/mm9_DpnII.npz'
+        sys.argv = ['./mc4c.py', 'cleavereads', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
     log.printArgs(args)
     args.func(args)

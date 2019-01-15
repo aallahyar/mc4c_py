@@ -484,7 +484,7 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
 
 ### extending mapped read parts to restriction sites ###
 
-def findReferenceRestSites(refFile,restSeqs,lineLen=50):
+def findReferenceRestSites(refFile, restSeqs, lineLen=50):
     """ Find restriction sites on the reference genome. Goal is to be able
         to extend a fragment later on to match the restriction sites it was
         mapped between, allowing us to check if there was actually a cut made
