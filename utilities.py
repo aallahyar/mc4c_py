@@ -45,7 +45,9 @@ def get_chr_info(genome_str, property='chr_name'):
     return chr_details[genome_str][property]
 
 
-def get_re_info(re_name='DpnII', property='seq', genome_str=None):
+def get_re_info(genome_str, re_name='DpnII', property='seq'):
+    from os.path import isfile
+
     re_details = dict({
         'DpnII': dict({'seq': 'GATC'}),
         'Csp6I': dict({'seq': 'GTAC'}),
@@ -55,9 +57,55 @@ def get_re_info(re_name='DpnII', property='seq', genome_str=None):
 
     if property == 'pos':
         re_fname = './renz_files/{:s}_{:s}.npz'.format(genome_str, re_name)
+        if not isfile(re_fname):
+            extract_re_positions(genome_str, [re_name])
         return np.load(re_fname)['arr_0'][0]
     else:
         return re_details[re_name][property]
+
+
+def extract_re_positions(genome_str, re_name_lst):
+    import numpy as np
+    from os.path import isfile
+    import pysam
+    import re
+
+    # Initialization
+    chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+    chr_map = dict(zip(chr_lst, np.arange(len(chr_lst))))
+    output_fname = './renz_files/{:s}_{:s}.npz'.format(genome_str, '-'.join(re_name_lst))
+    if isfile(output_fname):
+        print '[w] Restriction enzyme file exists: ' + output_fname
+        return
+
+    seq_lst = []
+    for re_name in re_name_lst:
+        seq_lst.append(get_re_info(genome_str=genome_str, re_name=re_name, property='seq'))
+    re_regex = '|'.join(seq_lst)
+
+    ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa'
+    print 'Searching in reference: ' + ref_fasta
+
+    # Loop over chromosomes
+    re_pos_lst = [None] * len(chr_lst)
+    chr_name_lst = [None] * len(chr_lst)
+    with pysam.FastxFile(ref_fasta) as ref_fid:
+        for chr_ind, chr in enumerate(ref_fid):
+            if not chr.name in chr_lst:
+                print '\tIgnoring [{:s}]'.format(chr.name)
+            else:
+                print '\tNow in [{:s}]'.format(chr.name)
+
+                cut_sites = []
+                for frg in re.finditer(re_regex, chr.sequence, re.IGNORECASE):
+                    cut_sites.append(frg.start() + 1)
+                re_pos_lst[chr_map[chr.name]] = np.array(cut_sites, dtype=np.uint32)
+                chr_name_lst[chr_map[chr.name]] = chr.name
+        if not np.array_equal(chr_lst, chr_name_lst):
+            raise Exception('[e] Inconsistent reference genome!')
+
+    # Save the result
+    np.savez(output_fname, [re_pos_lst, chr_name_lst])
 
 
 # I'm going to assume a safe XML here
@@ -174,12 +222,19 @@ def prepAnnotation(dataInf,antBeds):
 
 # This is where the rest of S03 should be
 
-
-
-
 def prepareMeta(args):
     dataInf = dataInformation(args.infile)
     soi =  prepSOfInterest(args.soibeds)
     ant =  prepSOfInterest(args.antbeds)
 
     prepAnnotation(dataInf,ant)
+
+def seq_complement(seq):
+    from string import maketrans
+
+    trans_tbl = maketrans('TCGAtcga', 'AGCTagct')
+    return seq.translate(trans_tbl)
+
+
+def seq_rev_comp(seq):
+    return seq_complement(seq)[::-1]

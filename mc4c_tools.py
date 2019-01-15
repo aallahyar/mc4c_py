@@ -9,9 +9,6 @@ import collections
 
 import bisect as bs
 
-fastaIdFormat='>Pr.Id:{};Pr.Wi:{};Pr.Wn:{}\n{}\n'
-#referenceNameFormat='>RD:{};IN:{}'
-
 
 def load_config(cnf_fname):
     """ Read data from file, put it into a dict
@@ -59,7 +56,6 @@ def load_config(cnf_fname):
 
 
 ### makeprimerfa implementation ###
-
 def splitStringTo(item, maxLen=50):
     """ Helper function to make a fasta split at 50 bp per line.
 
@@ -68,30 +64,38 @@ def splitStringTo(item, maxLen=50):
 
     :returns: List of strings per required length
     """
-    return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
+    n_nt = len(item)
+    if n_nt <= maxLen:
+        return [item]
+
+    splt_str = []
+    for idx in range(0, n_nt, maxLen / 2):
+        if n_nt - idx < maxLen:
+            splt_str.append(item[max(0, idx - maxLen/2):])
+        else:
+            splt_str.append(item[idx:idx + maxLen])
+
+    return splt_str
 
 
-def seqToFasta(sequence, baseId):
+def seqToFasta(sequence, prm_id):
     """ Helper function to create fasta sequences from primer information.
 
     :param sequence: The actual primer sequence.
-    :param baseId: Identifier for the primer, used to make the fasta identifier.
+    :param prm_id: Identifier for the primer, used to make the fasta identifier.
 
     :returns: A fasta string with a formatted sequence id.
 
     :note: In case of leftover sequence the last bit is attached to the preceding chunk.
     """
     targetLen = 50
-    split = splitStringTo(sequence,maxLen=targetLen)
-    if len(split) > 1:
-        while len(split[0]) != len(split[-1]):
-            popper = split.pop(-1)
-        split[-1] = split[-1][:targetLen/2]+popper
+    win_lst = splitStringTo(sequence, maxLen=targetLen)
+    n_win = len(win_lst)
+
     outString = ''
-    for i,val in enumerate(split):
-        outString+=fastaIdFormat.format(
-            baseId, i+1, len(split),
-            val)
+    for win_idx, win_seq in enumerate(win_lst):
+        outString += '>Pr.Id:{:s};Pr.Wi:{:d};Pr.Wn:{:d}\n{:s}\n'.format(
+            prm_id, win_idx + 1, n_win, win_seq)
 
     return outString
 
@@ -105,7 +109,11 @@ def getPrimerFragment(configs):
     :returns: The provided sequences, both forward and reverse versions.
 
     :TODO: Improve error message on faulty primes sequences
+    :TODO: We assume that the first primer is the left and second is the right primer!
     """
+
+    from utilities import seq_rev_comp
+
     primerSeqs = []
     for idx, cur_prm in enumerate(configs['prm_seq']):
         leftSeq = utilities.getFastaSequence(
@@ -125,28 +133,33 @@ def getPrimerFragment(configs):
         rightPrimerSeq = rightSeq[:rightIndex]
 
         assert max(leftPrimerSeq.find(cur_prm),
-                   rightPrimerSeq.find(cur_prm)) >= 0, 'Primer sequence is wrong\n' + cur_prm
+                   rightPrimerSeq.find(cur_prm)) >= 0, 'Primer sequence is wrong: ' + cur_prm
         assert min(leftPrimerSeq.find(cur_prm),
-                   rightPrimerSeq.find(cur_prm)) <= 0, 'Primer sequence is ambigious\n' + cur_prm
+                   rightPrimerSeq.find(cur_prm)) <= 0, 'Primer sequence is ambiguous: ' + cur_prm
 
         if rightPrimerSeq.find(cur_prm) >= 0:
             primerSeqs.append(rightPrimerSeq)
         else:
             primerSeqs.append(leftPrimerSeq)
 
+    # adjust right primer seq
+    primerSeqs[1] = seq_rev_comp(primerSeqs[1])
+
+    assert primerSeqs[0][-len(configs['re_seq'][0]):] == configs['re_seq'][0]
+    assert primerSeqs[1][:len(configs['re_seq'][0])] == configs['re_seq'][0]
     return primerSeqs
 
 
-def writePrimerFasta(primerSeqs,targetFile):
+def writePrimerFasta(primerSeqs, targetFile):
     """ Write the primer information as obtained through functions above to
         a fasta file.
 
     :param primerSeqs: The various primers as returned by getPrimerSeqs().
     :param targetFile: The target output file to write to.
     """
-    with open(targetFile,'w') as outFasta:
-        for i,seq in enumerate(primerSeqs):
-            outFasta.write(seqToFasta(seq,str(i+1)))
+    with open(targetFile, 'w') as outFasta:
+        for i, seq in enumerate(primerSeqs):
+            outFasta.write(seqToFasta(seq, str(i+1)))
 
 
 ### cleavereads implementation ###
@@ -891,13 +904,4 @@ def findRepeats(pdFrame):
     pdFrame['FlatId'] = pd.Series(flatColumn, index=pdFrame.index)
 
 
-def seq_complement(seq):
-    from string import maketrans
-
-    trans_tbl = maketrans('TCGAtcga', 'AGCTagct')
-    return seq.translate(trans_tbl)
-
-
-def seq_rev_comp(seq):
-    return seq_complement(seq)[::-1]
 

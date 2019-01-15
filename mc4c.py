@@ -3,56 +3,57 @@ import sys
 
 import log
 import numpy as np
-import mc4c_tools as mc
 import pandas as pd
+
+import mc4c_tools
 
 flag_DEBUG = True
 
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
     """
-    configs = mc.load_config(args.cnfFile)
-    primerSeqs = mc.getPrimerFragment(configs)
-    mc.writePrimerFasta(primerSeqs, args.outfile)
+    configs = mc4c_tools.load_config(args.cnfFile)
+    primerSeqs = mc4c_tools.getPrimerFragment(configs)
+    mc4c_tools.writePrimerFasta(primerSeqs, args.outfile)
 
 
 def cleaveReads(args):
     """ Cleave the reads by primer sequences. Requires BowTie2 information. """
-    settings = mc.load_config(args.cnfFile)
+    settings = mc4c_tools.load_config(args.cnfFile)
     primerLens = [len(x) for x in settings['prm_seq']]
     primers = ['']
     primers.extend(settings['prm_seq'])
     #print primers
-    prmCuts = mc.combinePrimers(args.bamfile,primerLens)
+    prmCuts = mc4c_tools.combinePrimers(args.bamfile,primerLens)
     #print prmCuts[:10]
-    mc.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
+    mc4c_tools.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
 
 
 def splitReads(args):
     """ Split the reads by restriction site information based on the reference genome. """
-    settings = mc.load_config(args.cnfFile)
+    settings = mc4c_tools.load_config(args.cnfFile)
     restSeqs = settings['re_seq']
     # TODO: Substitute reference genome with reads (?)
-    mc.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
+    mc4c_tools.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
 
 
 def findRefRestSites(args):
     """ Determine the location of restriction sites on the reference genome. Takes a fasta file
         and stores results as a list per chromosome in a dictionary, which is saved as an npz.
     """
-    settings = mc.load_config(args.cnfFile)
-    restSeqs = settings['re_seq']
-    restDict = mc.findReferenceRestSites(args.fastafile,restSeqs,lineLen=args.linelen)
-    np.savez_compressed(args.restfile,restrsites=restDict)
+    from utilities import extract_re_positions
+
+    configs = mc4c_tools.load_config(args.cnfFile)
+    extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'])
 
 def getRefResPositions(args):
     """ Extract a subset of restriction site positions from the reference genome. """
-    settings = mc.load_config(args.cnfFile)
+    settings = mc4c_tools.load_config(args.cnfFile)
     print [settings['vp_chr']],[settings['vp_start'], settings['vp_end']]
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
     print 'Finished loading, moving on'
-    result = mc.mapToRefSite(restrefs[settings['vp_chr'][0]],[settings['vp_start'][0], settings['vp_end'][0]])
+    result = mc4c_tools.mapToRefSite(restrefs[settings['vp_chr'][0]],[settings['vp_start'][0], settings['vp_end'][0]])
 
     refPosList = []
 
@@ -73,13 +74,13 @@ def exportToPlot(args):
         Additionally it creates 2 files that link between restrition sites and read ids for
         interaction down the line.
     """
-    settings = mc.load_config(args.cnfFile)
+    settings = mc4c_tools.load_config(args.cnfFile)
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
     print 'Finished loading, moving on'
-    byRegion,byRead,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
+    byRegion,byRead,pdFrame = mc4c_tools.exportToPlot(settings,restrefs,args.bamfile)
 
-    #dupSet = mc.findDuplicates(settings,byRead,byRegion)
+    #dupSet = mc4c_tools.findDuplicates(settings,byRead,byRegion)
     #pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
 
     #print pdFrame
@@ -98,7 +99,7 @@ def markDuplicates(args):
         Identification is based on having overlap with eachother that is not in the viewport.
         It takes a pandas dataframe and adds a new column to the end of it.
     """
-    settings = mc.load_config(args.cnfFile)
+    settings = mc4c_tools.load_config(args.cnfFile)
     exFile = np.load(args.extra)
 
     try:
@@ -109,7 +110,7 @@ def markDuplicates(args):
 
     pdFile = np.load(args.pdframe)
     pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
-    dupSet = mc.findDuplicates(settings,byRead,byRegion)
+    dupSet = mc4c_tools.findDuplicates(settings,byRead,byRegion)
 
     #df['dup']=np.where(pd.Series(df.index).isin([1,5]),True,False)
     #pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
@@ -130,7 +131,7 @@ def flattenFragments(args):
 
     pdFile = np.load(args.pdframe)
     pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
-    mc.findRepeats(pdFrame)
+    mc4c_tools.findRepeats(pdFrame)
 
     print pdFrame.iloc[:10].T
     np.savez_compressed(args.outfile,
@@ -271,7 +272,8 @@ def main():
     parser_flatten.set_defaults(func=flattenFragments)
 
     if flag_DEBUG:
-        sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_LVR-BMaj.cnf', './prm_files/prm_LVR-BMaj.fa']
+        # sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_LVR-BMaj.cnf', './prm_files/prm_LVR-BMaj.fa']
+        sys.argv = ['./mc4c.py', 'refrestr', './cnf_files/cfg_LVR-BMaj.cnf', '~/bulk/datasets/reference_genomes/mm9/chrAll.fa', './renz_files/mm9_DpnII.npz']
     args = parser.parse_args(sys.argv[1:])
     log.printArgs(args)
     args.func(args)

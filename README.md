@@ -39,18 +39,17 @@ Note: If multiple values need to be given for a property, semicolon (";") can be
 prm_start value1;value2
 ```
 
- To process a certain run using MC-4C pipeline, the user is required to create a config file with
-the following minimum records. 
-You need to have a config file that contains experiment specific details (e.g. primer sequence). You can find an example of such a file in "config_dir" folder.
-
 ### Index reference
-Ensure the reference genome, `reference.fa`, is prepared for the mapper you apply later on. In the examples given here, that means it is indexed for BWA.
+Ensure the reference genome, `reference.fa`, is prepared for the mapper you apply later on. 
+In the examples given here, that means it is indexed for BWA.
 ```
 bwa index reference.fa
 ```
 
 ### Create primer fasta (4C Data)
-Sometimes molecules attach to eachother, creating a single molecule that originates from multiple, unrelated, circles. To split these, reads are split where primer sequences map on the read. To enable mapping primers to other data, the primers need to be in fasta format, as created in this step.
+Sometimes molecules attach to each other, creating a single molecule that originates from multiple, unrelated, circles. 
+To split these, reads are split where primer sequences map on the read. 
+To enable mapping primers to other data, the primers need to be in fasta format, as created in this step.
 
 ```
 python mc4c.py makeprimerfa \
@@ -59,7 +58,8 @@ python mc4c.py makeprimerfa \
 ```
 
 ### Find restriction sites
-The export function, described later, uses the restriction sites identified in the reference genome to define regions. This enables determining the amount of circles that overlapped such regions.
+The export function, described later, uses the restriction sites identified in the reference genome to define regions. 
+This enables determining the amount of circles that overlapped such regions.
 This step obtains the genomic positions where restriction sites are found and stores them for later use.
 
 ```
