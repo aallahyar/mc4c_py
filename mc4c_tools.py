@@ -905,3 +905,32 @@ def findRepeats(pdFrame):
 
 
 
+#############################################3
+
+
+def mapToBins(edge_lst, pos):
+    """ Determine most likely restriction sites on the reference genome causing
+        the cuts at the end of the fragments.
+
+    :param refSiteList: Restriction sites on a single chromosome.
+    :param mappedPos: Start and end positions of the read fragment on that chromosome.
+
+    :returns: Indexes of reference sites and their bp positions.
+    """
+    # Use bisect implementation to quickly find a matching position
+    edge_left, edge_right = bs.bisect_left(edge_lst, pos)
+    raise Exception('Needs to be implemented/tested')
+    refLen = len(edge_lst)-1
+
+    # Don't bother beyond the last position in the list
+    pos = min(pos, refLen)
+
+    # Move start and end positions to match our heuristic
+    left = pos
+    right = pos
+    while edge_lst[left][0] >= pos[0] + 10 and left > 0:
+        left -= 1
+    while edge_lst[right][1] <= pos[1] - 10 and right < refLen:
+        right += 1
+
+    return [left, right, edge_lst[left][0], edge_lst[right][1]]

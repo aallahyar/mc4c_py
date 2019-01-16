@@ -3,9 +3,10 @@ import argparse
 import sys
 import numpy as np
 import pandas as pd
+from os import path
 
 import mc4c_tools
-import log
+import loger
 
 flag_DEBUG = True
 
@@ -24,17 +25,17 @@ def cleaveReads(args):
     primers = ['']
     primers.extend(settings['prm_seq'])
     #print primers
-    prmCuts = mc4c_tools.combinePrimers(args.bamfile,primerLens)
+    prmCuts = mc4c_tools.combinePrimers(args.bamfile, primerLens)
     #print prmCuts[:10]
     mc4c_tools.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
 
 
-def splitReads(args):
-    """ Split the reads by restriction site information based on the reference genome. """
-    settings = mc4c_tools.load_config(args.cnfFile)
-    restSeqs = settings['re_seq']
-    # TODO: Substitute reference genome with reads (?)
-    mc4c_tools.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
+# def splitReads(args):
+#     """ Split the reads by restriction site information based on the reference genome. """
+#     settings = mc4c_tools.load_config(args.cnfFile)
+#     restSeqs = settings['re_seq']
+#     # TODO: Substitute reference genome with reads (?)
+#     mc4c_tools.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
 
 
 def findRefRestSites(args):
@@ -138,6 +139,254 @@ def flattenFragments(args):
                         pdframe=pdFrame,
                         pdcolumns=pdFrame.columns,
                         pdindex=pdFrame.index)
+#############################################
+
+
+def initialize_run(args):
+    # TODO:
+    # test refrence genome path
+    # test existance of bwa
+    # test if bwa index is present
+    # check and make RE position file if non existant
+    # test existance of samtools
+    print '[TO DO] Checking the pipeline for related files for given experiment'
+
+
+def setReadIds(args):
+    from os import path
+    import gzip
+
+    configs = mc4c_tools.load_config(args.cnfFile)
+
+    if args.input_file is None:
+        args.input_file = './raw_files/raw_' + configs['run_id'] + '.fastq.gz'
+    if args.output_file is None:
+        args.output_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
+    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
+    print('Writing sequencing data to: {:s}'.format(args.output_file))
+
+    # loop over reads
+    with gzip.open(args.output_file, 'w') as out_fid:
+        input_flist = args.input_file.split(';')
+        for inp_fidx, inp_fname in enumerate(input_flist):
+            print('{:d}/{:d}: reading from [{:s}]'.format(inp_fidx + 1, len(input_flist), inp_fname))
+            rd_idx = 0
+            with gzip.open(inp_fname, 'r') as inp_fid:
+                while True:
+                    rd_idx = rd_idx + 1
+                    rd_oid = inp_fid.readline().rstrip('\n')
+                    rd_seq = inp_fid.readline().rstrip('\n')
+                    rd_plus = inp_fid.readline().rstrip('\n')
+                    rd_pred = inp_fid.readline().rstrip('\n')
+                    if rd_oid == '':
+                        break
+                    if rd_oid[0] != '@' or rd_plus != '+':
+                        raise Exception('The input file is corrupted.\n' +
+                                        'Read #{:d}:\n'.format(rd_idx) +
+                                        '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
+                    if rd_idx % 50000 == 0:
+                        print('Processed {:,d} reads.'.format(rd_idx))
+
+                    rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
+                    out_fid.write('>' + rd_sid + '\n')
+                    out_fid.write(rd_seq + '\n')
+
+
+def splitReads(args):
+    from utilities import get_re_info
+    import re
+    import gzip
+
+    configs = mc4c_tools.load_config(args.cnfFile)
+
+    if args.input_file is None:
+        args.input_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
+    if args.output_file is None:
+        args.output_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
+    print('Writing fragments to: {:s}'.format(args.output_file))
+
+    MAX_FRG_SIZE = 1000
+    re_seq_lst = [get_re_info(re_name=re_name, property='seq') for re_name in configs['res_cutters'].split(';')]
+    regex_ptr = '|'.join(re_seq_lst)
+
+    rd_ind = 1
+    frg_ind = 1
+    n_reduced = 0
+    with gzip.open(args.input_file, 'r') as inp_fid, \
+            gzip.open(args.output_file, 'w') as out_fid:
+        while True:
+            rd_sid = inp_fid.readline().rstrip('\n')
+            rd_seq = inp_fid.readline().rstrip('\n')
+            if rd_sid == '':
+                break
+            if rd_ind % 50000 == 0:
+                print('Processed {:,d} reads and produced {:,d} fragments.'.format(rd_ind, frg_ind))
+
+            frg_be = 0
+            for re_item in re.finditer(regex_ptr, rd_seq):
+                frg_en = re_item.end()
+                if frg_en - frg_be > MAX_FRG_SIZE:
+                    n_reduced += 1
+                    frg_en = MAX_FRG_SIZE
+                out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be, frg_en))
+                out_fid.write(rd_seq[frg_be:frg_en] + '\n')
+                frg_ind = frg_ind + 1
+                frg_be = re_item.end() - len(re_item.group())
+            frg_en = len(rd_seq)
+
+            if frg_en - frg_be > MAX_FRG_SIZE:
+                n_reduced += 1
+                frg_en = MAX_FRG_SIZE
+            out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be, frg_en))
+            out_fid.write(rd_seq[frg_be:frg_en] + '\n')
+            frg_ind = frg_ind + 1
+            rd_ind = rd_ind + 1
+
+    if n_reduced != 0:
+        print '[i] [{:,d}] fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
+
+
+def mapFragments(args):
+    # get configs
+    configs = mc4c_tools.load_config(args.cnfFile)
+    with open('./mc4c.cnf', 'r') as cnf_fid:
+        for line in cnf_fid:
+            fld_name, fld_value = line.split('\t')
+            if fld_name not in configs.keys():
+                configs[fld_name] = fld_value
+
+    # Map split fragments to genome
+    inp_fname = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+    bam_fname = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
+    assert not path.isfile(bam_fname)
+    bwa_index_path = configs['bwa_index_path']
+    bwa_index_path.replace('%%', configs['genome'])
+
+    cmd_str = \
+        configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
+        bwa_index_path + ' ' + inp_fname + \
+        ' | samtools view -q 1 -hbS - ' + \
+        '> ' + bam_fname
+
+    if args.return_command:
+        print '{:s}'.format(cmd_str)
+    else:
+        import subprocess
+        map_prs = subprocess.Popen(cmd_str, shell=True, stdout = subprocess.PIPE)
+        std_out, std_err = map_prs.communicate()
+        assert std_err == ''
+
+
+def process_mapped_fragments(args):
+    import gzip
+    import h5py
+    import os
+    from pandas import read_csv
+    import pysam
+
+    from utilities import get_chr_info, get_re_info
+
+    configs = mc4c_tools.load_config(args.cnfFile)
+
+    if args.input_file is None:
+        args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
+    if args.output_file is None:
+        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '.hdf5'
+    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
+
+    chr_lst = get_chr_info(configs['genome'], 'chr_name')
+    chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
+
+    # extend fragment coordinates to reference genome
+    re_pos_fname = './renz_files/{:s}_{:s}.npz'.format(configs['genome'], configs['genome'].replace(';', '-'))
+    re_pos = np.load(re_pos_fname)
+
+    # Read file line by line
+    ReadID_old = -1
+    FrgID_old = -1
+    n_frg_info = 12
+    n_processed = 0
+    frg_template = '\t'.join(['{:d}'] * n_frg_info) + '\n'
+    frg_set = np.empty([0, n_frg_info], dtype=np.int64)
+    tmp_fname = args.output_file + '.tmp'
+    print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
+    with pysam.AlignmentFile(args.input_file, 'rb') as bam_fid, gzip.open(tmp_fname, 'wb') as gz_fid:
+        gz_fid.write(
+            '\t'.join(['ReadID', 'Chr', 'RefStart', 'RefEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
+                       'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'TrueHop']) + '\n'
+        )
+        for que_idx, que_line in enumerate(bam_fid):
+            if que_idx % 100000 == 0:
+                print('Processed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
+
+            if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
+                continue
+            FileID, ReadID, ReadLength, FrgID, SeqStart, SeqEnd = \
+                [int(x.split(':')[1]) for x in que_line.query_name.split(';')]
+            RefChrNid = chr_map[que_line.reference_name]
+            RefStart = que_line.reference_start
+            RefEnd = que_line.reference_end
+            RefStrand = 1 - (que_line.is_reverse * 2)
+
+            # extending coordinates to nearby restriction site
+            nei_left = np.searchsorted(re_pos[RefChrNid - 1], RefStart, side='right')
+            nei_right = np.searchsorted(re_pos[RefChrNid - 1], RefEnd, side='left')
+            if nei_left == nei_right:
+                dist_left = RefStart - re_pos[RefChrNid - 1][nei_left]
+                dist_right = RefEnd - re_pos[RefChrNid - 1][nei_right]
+                if dist_right > dist_left:
+                    nei_left = nei_left - 1
+                else:
+                    nei_right = nei_right - 1
+            ExtStart = re_pos[RefChrNid - 1][nei_left]
+            ExtEnd = re_pos[RefChrNid - 1][nei_right]
+
+            # combine into an array
+            frg_info = np.array([
+                ReadID, RefChrNid, RefStart, RefEnd, RefStrand, ExtStart, ExtEnd, que_line.mapping_quality,
+                FileID, FrgID, SeqStart, SeqEnd, ReadLength, 1]).reshape([1, -1])
+
+            # Check order of fragments
+            if FrgID < FrgID_old:
+                raise Exception('Order of fragments are lost.')
+            FrgID_old = FrgID
+
+            # Check if read has ended
+            if ReadID == ReadID_old:
+                frg_set = np.vstack([frg_set, frg_info])
+                continue
+
+            # Save the read
+            for frg in frg_set:
+                gz_fid.write(frg_template.format(*frg))
+            frg_set = frg_info.copy()
+            ReadID_old = ReadID
+
+            n_processed += 1
+
+        if frg_set.shape[0] != 0:  # Saving the last read after file has finished
+            for frg in frg_set:
+                gz_fid.write(frg_template.format(*frg))
+
+    # Load fragments in pandas format and sort fragments within a read according to their relative positions
+    print('Reading temporary file: {:s}'.format(tmp_fname))
+    frg_pd = read_csv(tmp_fname, delimiter='\t', compression='gzip')
+    frg_pd = frg_pd.iloc[np.lexsort([frg_pd['SeqStart'], frg_pd['ReadID']])]
+
+    print('Writing: {:s}'.format(args.output_file))
+    h5_fid = h5py.File(args.output_file, 'w')
+    if frg_pd.shape[1] > 5000:
+        h5_fid.create_dataset('frg_np', data=frg_pd.values, compression='gzip', compression_opts=5,
+                              chunks=(5000, frg_pd.shape[1]))
+    else:
+        h5_fid.create_dataset('frg_np', data=frg_pd.values, compression='gzip', compression_opts=5)
+    h5_fid.create_dataset('frg_np_header_lst', data=list(frg_pd.columns.values))
+    h5_fid.create_dataset('chr_lst', data=chr_lst)
+    h5_fid.close()
+
+    print('Removing temporary file: {:s}'.format(tmp_fname))
+    os.remove(tmp_fname)
 
 
 # Huge wall of argparse text starts here
@@ -146,138 +395,96 @@ def main():
         Anything being run will just call a similarly named function
         above.
     """
-    descIniFile = 'File containing experiment specific details'
-    descFqFile = 'Fastq file containing actual data from sequencing'
 
     parser = argparse.ArgumentParser(description="MC4C pipeline for processing multi-contact 4C data")
     subparsers = parser.add_subparsers()
 
-    #
-    parser_mkprfa = subparsers.add_parser('makeprimerfa',
-                                          description='Make a fasta file of primer sequences')
-    parser_mkprfa.add_argument('cnfFile',
+    # init command
+    parser_init = subparsers.add_parser('initRun',
+                                          description='Initialize and prepare the pipeline for given configuration')
+    parser_init.add_argument('cnfFile',
                                type=str,
-                               help=descIniFile)
-    parser_mkprfa.add_argument('outfile',
-                               type=str,
-                               help='Fasta file with primer sequences')
-    parser_mkprfa.set_defaults(func=makePrimerFasta)
+                               help='Configuration file containing experiment specific details')
+    parser_init.set_defaults(func=initialize_run)
 
-    #
-    parser_clvprm = subparsers.add_parser('cleavereads',
-                                          description='Cleave reads by primer sequences')
-    parser_clvprm.add_argument('cnfFile',
+    # Set read identifiers
+    parser_readid = subparsers.add_parser('setReadIds',
+                                         description='Defining identifiers for sequenced reads')
+    parser_readid.add_argument('cnfFile',
+                              type=str,
+                              help='Configuration file containing experiment specific details')
+    parser_readid.add_argument('--input_file',
+                               default=None,
                                type=str,
-                               help=descIniFile)
-    parser_clvprm.add_argument('bamfile',
+                               help='Input file (in FASTQ format) containing raw sequenced reads')
+    parser_readid.add_argument('--output_file',
+                               default=None,
                                type=str,
-                               help='Bam file that is created after makeprimerfa results were mapped by bowtie2')
-    parser_clvprm.add_argument('fastqfile',
-                               type=str,
-                               help=descFqFile)
-    parser_clvprm.add_argument('outfile',
-                               type=str,
-                               help='Fastq file to dump primer cleaved sequences into')
-    parser_clvprm.set_defaults(func=cleaveReads)
+                               help='Output file (in FASTA format) containing sequenced reads with traceable IDs')
+    parser_readid.set_defaults(func=setReadIds)
 
-    #
-    parser_splrest = subparsers.add_parser('splitreads',
-                                           description='Split reads by restriction site sequences')
-    parser_splrest.add_argument('cnfFile',
-                                type=str,
-                                help=descIniFile)
-    parser_splrest.add_argument('fastqfile',
-                                type=str,
-                                help=descFqFile)
-    parser_splrest.add_argument('outfile',
-                                type=str,
-                                help='Fasta file to dump restriction site split sequences into')
-    parser_splrest.set_defaults(func=splitReads)
+    # Split reads into fragments
+    parser_readid = subparsers.add_parser('splitReads',
+                                         description='Splitting reads into fragments using restriction enzyme recognition sequence')
+    parser_readid.add_argument('cnfFile',
+                              type=str,
+                              help='Configuration file containing experiment specific details')
+    parser_readid.add_argument('--input_file',
+                               default=None,
+                               type=str,
+                               help='Input file (in FASTA format) containing reads with traceable IDs.')
+    parser_readid.add_argument('--output_file',
+                               default=None,
+                               type=str,
+                               help='Output file (in FASTA format) containing fragments with traceable IDs')
+    parser_readid.set_defaults(func=splitReads)
 
-    #
-    parser_refrest = subparsers.add_parser('extRePos',
-                                           description='Determine restriction site coordinates on reference by their sequences')
-    parser_refrest.add_argument('cnfFile',
-                                type=str,
-                                help=descIniFile)
-    parser_refrest.add_argument('--fastafile',
-                                type=str,
-                                default=None,
-                                help='Fasta file of reference genome containing all chromosomes (eg hg19)')
-    parser_refrest.add_argument('--restfile',
-                                type=str,
-                                help='Numpy compressed file containing restriction site coordinates')
-    parser_refrest.add_argument('--linelen',
-                                type=int,
-                                default=50,
-                                help='Number of basepairs per line in reference sequence')
-    parser_refrest.set_defaults(func=findRefRestSites)
+    # Mapping fragments to reference genome
+    parser_readid = subparsers.add_parser('mapFragments',
+                                          description='Mapping fragments to reference genome')
+    parser_readid.add_argument('cnfFile',
+                               type=str,
+                               help='Configuration file containing experiment specific details')
+    parser_readid.add_argument('--input_file',
+                               default=None,
+                               type=str,
+                               help='Input file (in FASTA format) containing fragments with traceable IDs')
+    parser_readid.add_argument('--output_file',
+                               default=None,
+                               type=str,
+                               help='Output file (in BAM format) containing fragments with traceable IDs')
+    parser_readid.add_argument('--n_thread',
+                               default=1,
+                               type=int,
+                               help='Number of threads should be used by the aligner')
+    parser_readid.add_argument('--return_command',
+                               action="store_true",
+                               help='Return only mapping command instead of running it ' +
+                                    '(useful for running the pipeline in a cluster)')
+    parser_readid.set_defaults(func=mapFragments)
 
-    #
-    parser_refregion = subparsers.add_parser('refregion',
-                                             description='TODO')
-    parser_refregion.add_argument('cnfFile',
-                                  type=str,
-                                  help=descIniFile)
-    parser_refregion.add_argument('restfile',
-                                  type=str,
-                                  help='Numpy compressed file containing restriction site coordinates')
-    parser_refregion.add_argument('outfile',
-                                  type=str,
-                                  help='File to dump relevant restriction site locations into')
-    parser_refregion.set_defaults(func=getRefResPositions)
-
-    #
-    parser_export = subparsers.add_parser('export',
-                                          description='Combine and export results for interactive plotting')
-    parser_export.add_argument('cnfFile',
+    # Process mapped fragments
+    parser_readid = subparsers.add_parser('makeDataset',
+                                          description='Processed the mapped fragments and create a MC-4C dataset')
+    parser_readid.add_argument('cnfFile',
                                type=str,
-                               help=descIniFile)
-    parser_export.add_argument('bamfile',
+                               help='Configuration file containing experiment specific details')
+    parser_readid.add_argument('--input_file',
+                               default=None,
                                type=str,
-                               help='Bam file after mapping previously split fastq data to reference genome (eg hg19) using BWA')
-    parser_export.add_argument('restfile',
+                               help='Input file (in BAM format) containing fragments with traceable IDs')
+    parser_readid.add_argument('--output_file',
+                               default=None,
                                type=str,
-                               help='Numpy compressed file containing restriction site coordinates')
-    parser_export.add_argument('plotfile',
-                               type=str,
-                               help='Numpy compressed file containing restriction site coordinates')
-    parser_export.set_defaults(func=exportToPlot)
-
-    #
-    parser_export = subparsers.add_parser('markdup',
-                                          description='Add duplicate info for exported results')
-    parser_export.add_argument('cnfFile',
-                               type=str,
-                               help=descIniFile)
-    parser_export.add_argument('pdframe',
-                               type=str,
-                               help='The main file previously exported')
-    parser_export.add_argument('extra',
-                               type=str,
-                               help='The _extra file created during previous export')
-    parser_export.add_argument('outfile',
-                               type=str,
-                               help='New export file')
-    parser_export.set_defaults(func=markDuplicates)
-
-    #
-    parser_flatten = subparsers.add_parser('flatten',
-                                           description='Mark within-circle-repeated-fragments in exported results')
-    parser_flatten.add_argument('pdframe',
-                                type=str,
-                                help='The main file previously exported')
-    parser_flatten.add_argument('outfile',
-                                type=str,
-                                help='New export file')
-    parser_flatten.set_defaults(func=flattenFragments)
+                               help='Output file (in HDF5 format) containing processed fragments')
+    parser_readid.set_defaults(func=process_mapped_fragments)
 
     if flag_DEBUG:
-        # sys.argv = ['./mc4c.py', 'makeprimerfa', './cnf_files/cfg_LVR-BMaj.cnf', './prm_files/prm_LVR-BMaj.fa']
-        # sys.argv = ['./mc4c.py', 'extRePos', './cnf_files/cfg_LVR-BMaj.cnf'] # , '~/bulk/datasets/reference_genomes/mm9/chrAll.fa', './renz_files/mm9_DpnII.npz'
-        sys.argv = ['./mc4c.py', 'cleavereads', './cnf_files/cfg_LVR-BMaj.cnf']
+        pass
+        # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
-    log.printArgs(args)
+    loger.printArgs(args)
     args.func(args)
 
 

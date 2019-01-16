@@ -45,7 +45,7 @@ def get_chr_info(genome_str, property='chr_name'):
     return chr_details[genome_str][property]
 
 
-def get_re_info(genome_str, re_name='DpnII', property='seq'):
+def get_re_info(re_name='DpnII', property='seq', genome_str=None):
     from os.path import isfile
 
     re_details = dict({
@@ -56,6 +56,7 @@ def get_re_info(genome_str, re_name='DpnII', property='seq'):
     })
 
     if property == 'pos':
+        assert genome_str is not None
         re_fname = './renz_files/{:s}_{:s}.npz'.format(genome_str, re_name)
         if not isfile(re_fname):
             extract_re_positions(genome_str, [re_name])
