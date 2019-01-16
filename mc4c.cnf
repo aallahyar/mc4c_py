@@ -1,0 +1,3 @@
+bwa_path	~/bulk/bin/bwa/bwa-0.7.17/bwa
+bwa_index_path	~/bulk/datasets/reference_genomes/%%/chrAll.fa_BWA
+ref_genome	~/bulk/datasets/reference_genomes/%%/chrAll.fa
