@@ -276,7 +276,7 @@ def mapFragments(args):
         import subprocess
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
-        if std_err != '':
+        if std_err is not None:
             raise Exception('[e] Error: BWA failed to run properly.')
         print '[i] Fragments are mapped to genome successfully.'
 
@@ -287,40 +287,43 @@ def process_mapped_fragments(args):
     from pandas import read_csv
     import pysam
 
-    from utilities import get_chr_info, get_re_info
+    from utilities import get_chr_info
 
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
-        args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
+        args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
     if args.output_file is None:
         args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '.hdf5'
-    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+    # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
 
-    chr_lst = get_chr_info(configs['genome'], 'chr_name')
+    chr_lst = get_chr_info(configs['genome_build'], 'chr_name')
     chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
 
     # extend fragment coordinates to reference genome
-    re_pos_fname = './renz_files/{:s}_{:s}.npz'.format(configs['genome'], configs['genome'].replace(';', '-'))
-    re_pos = np.load(re_pos_fname)
+    re_pos_fname = './renz_files/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
+    re_pos, re_chr_lst = np.load(re_pos_fname)['arr_0']
+    assert np.array_equal(re_chr_lst, chr_lst)
 
     # Read file line by line
     ReadID_old = -1
     FrgID_old = -1
-    n_frg_info = 12
+    n_field = 14
     n_processed = 0
-    frg_template = '\t'.join(['{:d}'] * n_frg_info) + '\n'
-    frg_set = np.empty([0, n_frg_info], dtype=np.int64)
+    frg_template = '\t'.join(['{:d}'] * n_field) + '\n'
+    frg_set = np.empty([0, n_field], dtype=np.int64)
     tmp_fname = args.output_file + '.tmp'
     print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
     with pysam.AlignmentFile(args.input_file, 'rb') as bam_fid, gzip.open(tmp_fname, 'wb') as gz_fid:
         gz_fid.write(
-            '\t'.join(['ReadID', 'Chr', 'RefStart', 'RefEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
-                       'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'TrueHop']) + '\n'
+            '\t'.join(['ReadID', 'Chr', 'MapStart', 'MapEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
+                       'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsUnique']) + '\n'
         )
         for que_idx, que_line in enumerate(bam_fid):
             if que_idx % 100000 == 0:
-                print('Processed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
+                print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
 
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
@@ -486,7 +489,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
     # loger.printArgs(args)
     args.func(args)
