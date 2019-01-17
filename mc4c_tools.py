@@ -25,7 +25,7 @@ def load_configs(cnf_fname):
     for fname in ['./mc4c.cnf', cnf_fname]:
         with open(fname, 'r') as cnf_fid:
             for line in cnf_fid:
-                if line[0] == '#':
+                if (line[0] == '#') or (len(line) == 1):
                     continue
                 columns = line.rstrip('\n').split('\t')
                 assert len(columns) == 2

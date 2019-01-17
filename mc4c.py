@@ -154,6 +154,8 @@ def initialize_run(args):
 
 
 def setReadIds(args):
+    print '%% Assigning traceable identifiers to reads ...'
+
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     # initialize
@@ -199,6 +201,7 @@ def splitReads(args):
     from utilities import get_re_info
     import re
 
+    print '%% Splitting reads into fragments ...'
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
@@ -241,9 +244,12 @@ def splitReads(args):
             rd_ind = rd_ind + 1
     if n_reduced != 0:
         print '[i] [{:,d}] fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
+    print '[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind, frg_ind)
 
 
 def mapFragments(args):
+    print '%% Mapping fragments to genome ...'
+
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     # Map split fragments to genome
@@ -266,10 +272,13 @@ def mapFragments(args):
     if args.return_command:
         print '{:s}'.format(cmd_str)
     else:
+        print 'Running BWA by: {:s}'.format(cmd_str)
         import subprocess
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
-        assert std_err == ''
+        if std_err != '':
+            raise Exception('[e] Error: BWA failed to run properly.')
+        print '[i] Fragments are mapped to genome successfully.'
 
 
 def process_mapped_fragments(args):
@@ -448,7 +457,7 @@ def main():
                                type=str,
                                help='Output file (in BAM format) containing fragments with traceable IDs')
     parser_readid.add_argument('--n_thread',
-                               default=1,
+                               default=6,
                                type=int,
                                help='Number of threads should be used by the aligner')
     parser_readid.add_argument('--return_command',
