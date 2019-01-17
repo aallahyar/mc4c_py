@@ -246,27 +246,20 @@ def splitReads(args):
 def mapFragments(args):
     configs = mc4c_tools.load_configs(args.cnfFile)
 
-    # load global configs
-    with open('./mc4c.cnf', 'r') as cnf_fid:
-        for line in cnf_fid:
-            fld_name, fld_value = line.rstrip('\n').split('\t')
-            if fld_name not in configs.keys():
-                configs[fld_name] = fld_value
-
     # Map split fragments to genome
     if args.input_file is None:
         args.input_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
+        args.output_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file)
-    print('Reading reads from: {:s}'.format(args.input_file))
-    print('Writing fragments to: {:s}'.format(args.output_file))
+    print('Reading fragments from: {:s}'.format(args.input_file))
+    print('Writing mapped fragments to: {:s}'.format(args.output_file))
 
     cmd_str = \
         configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
-        configs['bwa_index_path'].replace('%%', configs['genome']) + ' ' + args.input_file + \
+        configs['bwa_index_path'].replace('%%', configs['genome_build']) + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
 
@@ -274,7 +267,7 @@ def mapFragments(args):
         print '{:s}'.format(cmd_str)
     else:
         import subprocess
-        map_prs = subprocess.Popen(cmd_str, shell=True, stdout = subprocess.PIPE)
+        map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
         assert std_err == ''
 

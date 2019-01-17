@@ -20,20 +20,24 @@ def load_configs(cnf_fname):
     """
     from utilities import get_chr_info
 
+    # Load global and then given configs
     configs = dict()
-    with open(cnf_fname, 'r') as cnf_fid:
-        for line in cnf_fid:
-            columns = line.rstrip('\n').split()
-            assert len(columns) == 2
-            configs[columns[0]] = columns[1].split(';')
+    for fname in ['./mc4c.cnf', cnf_fname]:
+        with open(fname, 'r') as cnf_fid:
+            for line in cnf_fid:
+                if line[0] == '#':
+                    continue
+                columns = line.rstrip('\n').split('\t')
+                assert len(columns) == 2
+                fld_lst = columns[1].split(';')
+                if len(fld_lst) == 1:
+                    configs[columns[0]] = fld_lst[0]
+                else:
+                    configs[columns[0]] = fld_lst
 
     # Convert to Integer
-    for cnf_name in ['run_id', 'vp_chr', 'vp_start', 'vp_end', 'win_start', 'win_end', 'genome_build']:
-        assert len(configs[cnf_name]) == 1
-        if cnf_name in ['run_id', 'genome_build', 'vp_chr']:
-            configs[cnf_name] = configs[cnf_name][0]
-        else:
-            configs[cnf_name] = int(configs[cnf_name][0])
+    for cnf_name in ['vp_start', 'vp_end', 'win_start', 'win_end']:
+        configs[cnf_name] = int(configs[cnf_name])
 
     for cnf_name in ['prm_start', 'prm_end']:
         configs[cnf_name] = [int(value) for value in configs[cnf_name]]
