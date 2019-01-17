@@ -10,11 +10,11 @@ import collections
 import bisect as bs
 
 
-def load_config(cnf_fname):
-    """ Read data from file, put it into a dict
+def load_configs(cnf_fname):
+    """ Read configurations from given file, put it into a dict
 
-    :param cnf_fname: takes a path to a tab separated file with one variable name and optionally
-    several values per line. Checks if the amount of variables in some lines match.
+    :param cnf_fname: takes a path to a tab-separated file with one variable name and value per line, multiple values
+    are seprated by ";").
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
@@ -35,7 +35,7 @@ def load_config(cnf_fname):
         else:
             configs[cnf_name] = int(configs[cnf_name][0])
 
-    for cnf_name in ['prm_start','prm_end']:
+    for cnf_name in ['prm_start', 'prm_end']:
         configs[cnf_name] = [int(value) for value in configs[cnf_name]]
 
     # Check configs that should be of equal length

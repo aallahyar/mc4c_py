@@ -1,9 +1,10 @@
 
 import argparse
 import sys
+import gzip
+from os import path, makedirs
 import numpy as np
 import pandas as pd
-from os import path
 
 import mc4c_tools
 import loger
@@ -13,14 +14,14 @@ flag_DEBUG = True
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
     """
-    configs = mc4c_tools.load_config(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.cnfFile)
     primerSeqs = mc4c_tools.getPrimerFragment(configs)
     mc4c_tools.writePrimerFasta(primerSeqs, args.outfile)
 
 
 def cleaveReads(args):
     """ Cleave the reads by primer sequences. Requires BowTie2 information. """
-    settings = mc4c_tools.load_config(args.cnfFile)
+    settings = mc4c_tools.load_configs(args.cnfFile)
     primerLens = [len(x) for x in settings['prm_seq']]
     primers = ['']
     primers.extend(settings['prm_seq'])
@@ -44,12 +45,12 @@ def findRefRestSites(args):
     """
     from utilities import extract_re_positions
 
-    configs = mc4c_tools.load_config(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.cnfFile)
     extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'])
 
 def getRefResPositions(args):
     """ Extract a subset of restriction site positions from the reference genome. """
-    settings = mc4c_tools.load_config(args.cnfFile)
+    settings = mc4c_tools.load_configs(args.cnfFile)
     print [settings['vp_chr']],[settings['vp_start'], settings['vp_end']]
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
@@ -75,7 +76,7 @@ def exportToPlot(args):
         Additionally it creates 2 files that link between restrition sites and read ids for
         interaction down the line.
     """
-    settings = mc4c_tools.load_config(args.cnfFile)
+    settings = mc4c_tools.load_configs(args.cnfFile)
     print 'Loading restrsites, this takes a while...'
     restrefs=np.load(args.restfile)['restrsites'].item()
     print 'Finished loading, moving on'
@@ -100,7 +101,7 @@ def markDuplicates(args):
         Identification is based on having overlap with eachother that is not in the viewport.
         It takes a pandas dataframe and adds a new column to the end of it.
     """
-    settings = mc4c_tools.load_config(args.cnfFile)
+    settings = mc4c_tools.load_configs(args.cnfFile)
     exFile = np.load(args.extra)
 
     try:
@@ -153,23 +154,22 @@ def initialize_run(args):
 
 
 def setReadIds(args):
-    from os import path
-    import gzip
+    configs = mc4c_tools.load_configs(args.cnfFile)
 
-    configs = mc4c_tools.load_config(args.cnfFile)
-
+    # initialize
     if args.input_file is None:
         args.input_file = './raw_files/raw_' + configs['run_id'] + '.fastq.gz'
     if args.output_file is None:
         args.output_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
-    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
-    print('Writing sequencing data to: {:s}'.format(args.output_file))
+    # assert not path.isfile(args.output_file), '[e] output file already exists: {:s}'.format(args.output_file)
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+    print('writing reads with traceable identifiers to: {:s}'.format(args.output_file))
 
     # loop over reads
     with gzip.open(args.output_file, 'w') as out_fid:
-        input_flist = args.input_file.split(';')
-        for inp_fidx, inp_fname in enumerate(input_flist):
-            print('{:d}/{:d}: reading from [{:s}]'.format(inp_fidx + 1, len(input_flist), inp_fname))
+        for inp_fidx, inp_fname in enumerate(args.input_file.split(';')):
+            print('reading from: {:s}'.format(inp_fname))
             rd_idx = 0
             with gzip.open(inp_fname, 'r') as inp_fid:
                 while True:
@@ -181,28 +181,30 @@ def setReadIds(args):
                     if rd_oid == '':
                         break
                     if rd_oid[0] != '@' or rd_plus != '+':
-                        raise Exception('The input file is corrupted.\n' +
+                        raise Exception('[e] the input file is corrupted.\n' +
                                         'Read #{:d}:\n'.format(rd_idx) +
                                         '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
                     if rd_idx % 50000 == 0:
-                        print('Processed {:,d} reads.'.format(rd_idx))
+                        print('\tprocessed {:,d} reads.'.format(rd_idx))
 
                     rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
                     out_fid.write('>' + rd_sid + '\n')
                     out_fid.write(rd_seq + '\n')
+    print '[i] read identifier conversion is completed successfully.'
 
 
 def splitReads(args):
     from utilities import get_re_info
     import re
-    import gzip
 
-    configs = mc4c_tools.load_config(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
         args.input_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
         args.output_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
     assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
     print('Writing fragments to: {:s}'.format(args.output_file))
 
@@ -248,8 +250,9 @@ def splitReads(args):
 
 
 def mapFragments(args):
-    # get configs
-    configs = mc4c_tools.load_config(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.cnfFile)
+
+    # load global configs
     with open('./mc4c.cnf', 'r') as cnf_fid:
         for line in cnf_fid:
             fld_name, fld_value = line.split('\t')
@@ -279,15 +282,14 @@ def mapFragments(args):
 
 
 def process_mapped_fragments(args):
-    import gzip
     import h5py
-    import os
+    from os import remove
     from pandas import read_csv
     import pysam
 
     from utilities import get_chr_info, get_re_info
 
-    configs = mc4c_tools.load_config(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
         args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
@@ -341,6 +343,7 @@ def process_mapped_fragments(args):
                     nei_right = nei_right - 1
             ExtStart = re_pos[RefChrNid - 1][nei_left]
             ExtEnd = re_pos[RefChrNid - 1][nei_right]
+            # TODO: Needs to account for unmapped fragments
 
             # combine into an array
             frg_info = np.array([
@@ -386,7 +389,7 @@ def process_mapped_fragments(args):
     h5_fid.close()
 
     print('Removing temporary file: {:s}'.format(tmp_fname))
-    os.remove(tmp_fname)
+    remove(tmp_fname)
 
 
 # Huge wall of argparse text starts here
@@ -413,11 +416,11 @@ def main():
     parser_readid.add_argument('cnfFile',
                               type=str,
                               help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input_file',
+    parser_readid.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in FASTQ format) containing raw sequenced reads')
-    parser_readid.add_argument('--output_file',
+    parser_readid.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in FASTA format) containing sequenced reads with traceable IDs')
@@ -429,11 +432,11 @@ def main():
     parser_readid.add_argument('cnfFile',
                               type=str,
                               help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input_file',
+    parser_readid.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in FASTA format) containing reads with traceable IDs.')
-    parser_readid.add_argument('--output_file',
+    parser_readid.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in FASTA format) containing fragments with traceable IDs')
@@ -445,11 +448,11 @@ def main():
     parser_readid.add_argument('cnfFile',
                                type=str,
                                help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input_file',
+    parser_readid.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
-    parser_readid.add_argument('--output_file',
+    parser_readid.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in BAM format) containing fragments with traceable IDs')
@@ -469,20 +472,19 @@ def main():
     parser_readid.add_argument('cnfFile',
                                type=str,
                                help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input_file',
+    parser_readid.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in BAM format) containing fragments with traceable IDs')
-    parser_readid.add_argument('--output_file',
+    parser_readid.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in HDF5 format) containing processed fragments')
     parser_readid.set_defaults(func=process_mapped_fragments)
 
     if flag_DEBUG:
-        pass
         # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
     loger.printArgs(args)
     args.func(args)
