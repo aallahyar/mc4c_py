@@ -233,6 +233,7 @@ def prepareMeta(args):
 
     prepAnnotation(dataInf,ant)
 
+######################################
 
 def seq_complement(seq):
     from string import maketrans
@@ -243,3 +244,31 @@ def seq_complement(seq):
 
 def seq_rev_comp(seq):
     return seq_complement(seq)[::-1]
+
+
+def hasOL(que_item, ref_lst, include_ref_left=False, include_ref_right=False, offset=0):
+    if isinstance(que_item, list):
+        que_item = np.array(que_item)
+    que_dim = que_item.shape[0]
+    [n_ref, ref_dim] = np.shape(ref_lst)
+    result = np.ones(n_ref, dtype=bool)
+    if que_dim<>ref_dim or que_item.ndim<>1:
+        raise ValueError('Query or reference are inconsistent')
+    crd_ind = 0
+
+    if que_dim == 4:  # Orientation
+        result = que_item[3] == ref_lst[:, 3]
+    if que_dim >= 3:  # Chromosome
+        result = np.logical_and(result, que_item[0] == ref_lst[:, 0])
+        crd_ind = 1
+    if include_ref_left:
+        OvlL = ref_lst[:, crd_ind] <= que_item[crd_ind+1] + offset
+    else:
+        OvlL = ref_lst[:, crd_ind] <  que_item[crd_ind+1] + offset
+    if include_ref_right:
+        OvlR = ref_lst[:, crd_ind+1] >= que_item[crd_ind] - offset
+    else:
+        OvlR = ref_lst[:, crd_ind+1] >  que_item[crd_ind] - offset
+    result = np.logical_and(result, np.logical_and(OvlL, OvlR))
+    return result
+

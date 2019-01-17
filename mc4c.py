@@ -10,6 +10,7 @@ import mc4c_tools
 import loger
 
 flag_DEBUG = True
+np.set_printoptions(linewidth=180) #, suppress=True, formatter={'float_kind':'{:0.5f}'.format}
 
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
@@ -287,7 +288,7 @@ def process_mapped_fragments(args):
     from pandas import read_csv
     import pysam
 
-    from utilities import get_chr_info
+    from utilities import get_chr_info, hasOL
 
     configs = mc4c_tools.load_configs(args.cnfFile)
 
@@ -310,21 +311,20 @@ def process_mapped_fragments(args):
     # Read file line by line
     ReadID_old = -1
     FrgID_old = -1
-    n_field = 14
     n_processed = 0
-    frg_template = '\t'.join(['{:d}'] * n_field) + '\n'
-    frg_set = np.empty([0, n_field], dtype=np.int64)
+    header_lst = ['ReadID', 'Chr', 'MapStart', 'MapEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
+                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsUnique']
+    n_header = len(header_lst)
     tmp_fname = args.output_file + '.tmp'
     print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
     with pysam.AlignmentFile(args.input_file, 'rb') as bam_fid, gzip.open(tmp_fname, 'wb') as gz_fid:
-        gz_fid.write(
-            '\t'.join(['ReadID', 'Chr', 'MapStart', 'MapEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
-                       'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsUnique']) + '\n'
-        )
+        gz_fid.write('\t'.join(header_lst) + '\n')
+        frg_template = '\t'.join(['{:d}'] * n_header) + '\n'
+
+        frg_set = np.empty([0, n_header], dtype=np.int64)
         for que_idx, que_line in enumerate(bam_fid):
             if que_idx % 50000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
-
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
             FileID, ReadID, ReadLength, FrgID, SeqStart, SeqEnd = \
@@ -335,15 +335,20 @@ def process_mapped_fragments(args):
             MapStrand = 1 - (que_line.is_reverse * 2)
 
             # extending coordinates to nearby restriction site
-            nei_left = np.searchsorted(re_pos[MapChrNid - 1], MapStart, side='right')
+            nei_left = np.searchsorted(re_pos[MapChrNid - 1], MapStart, side='left') - 1
+            if np.abs(re_pos[MapChrNid - 1][nei_left + 1] - MapStart) < 10:
+                nei_left = nei_left + 1
             nei_right = np.searchsorted(re_pos[MapChrNid - 1], MapEnd, side='left')
+            if np.abs(MapEnd - re_pos[MapChrNid - 1][nei_right - 1]) < 10:
+                nei_right = nei_right - 1
+
             if nei_left == nei_right:
-                dist_left = MapStart - re_pos[MapChrNid - 1][nei_left]
-                dist_right = MapEnd - re_pos[MapChrNid - 1][nei_right]
-                if dist_right > dist_left:
+                dist_left = np.abs(MapStart - re_pos[MapChrNid - 1][nei_left])
+                dist_right = np.abs(MapEnd - re_pos[MapChrNid - 1][nei_right])
+                if dist_right < dist_left:
                     nei_left = nei_left - 1
                 else:
-                    nei_right = nei_right - 1
+                    nei_right = nei_right + 1
             ExtStart = re_pos[MapChrNid - 1][nei_left]
             ExtEnd = re_pos[MapChrNid - 1][nei_right]
             # TODO: Needs to account for unmapped fragments
@@ -364,6 +369,21 @@ def process_mapped_fragments(args):
                 continue
 
             # Save the read
+            fi = 0
+            while fi < frg_set.shape[0] - 1:
+                if hasOL(frg_set[fi, [1, 5, 6]], frg_set[fi + 1:fi + 2, [1, 5, 6]], offset=20)[0]:
+                    # this still occurs if A1- and A2+ are adjacent (ignoring strand)
+                    frg_set[fi, 2] = np.min(frg_set[fi:fi + 2, 2])
+                    frg_set[fi, 3] = np.max(frg_set[fi:fi + 2, 3])
+                    frg_set[fi, 5] = np.min(frg_set[fi:fi + 2, 5])
+                    frg_set[fi, 6] = np.max(frg_set[fi:fi + 2, 6])
+                    frg_set[fi, 7] = np.max(frg_set[fi:fi + 2, 7])
+                    frg_set[fi, 10] = np.min(frg_set[fi:fi + 2, 10])
+                    frg_set[fi, 11] = np.max(frg_set[fi:fi + 2, 11])
+                    frg_set = np.delete(frg_set, fi+1, axis=0)
+                else:
+                    fi = fi + 1
+
             for frg in frg_set:
                 gz_fid.write(frg_template.format(*frg))
             frg_set = frg_info.copy()
@@ -376,13 +396,13 @@ def process_mapped_fragments(args):
                 gz_fid.write(frg_template.format(*frg))
 
     # Load fragments in pandas format and sort fragments within a read according to their relative positions
-    print('Reading temporary file: {:s}'.format(tmp_fname))
+    print('Loading temporary file: {:s}'.format(tmp_fname))
     frg_pd = read_csv(tmp_fname, delimiter='\t', compression='gzip')
     frg_pd = frg_pd.iloc[np.lexsort([frg_pd['SeqStart'], frg_pd['ReadID']])]
 
-    print('Writing: {:s}'.format(args.output_file))
+    print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')
-    if frg_pd.shape[1] > 5000:
+    if frg_pd.shape[0] > 5000:
         h5_fid.create_dataset('frg_np', data=frg_pd.values, compression='gzip', compression_opts=5,
                               chunks=(5000, frg_pd.shape[1]))
     else:
