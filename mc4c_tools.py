@@ -23,7 +23,7 @@ def load_configs(cnf_fname):
     configs = dict()
     with open(cnf_fname, 'r') as cnf_fid:
         for line in cnf_fid:
-            columns = line.split()
+            columns = line.rstrip('\n').split()
             assert len(columns) == 2
             configs[columns[0]] = columns[1].split(';')
 

@@ -164,12 +164,14 @@ def setReadIds(args):
     # assert not path.isfile(args.output_file), '[e] output file already exists: {:s}'.format(args.output_file)
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
-    print('writing reads with traceable identifiers to: {:s}'.format(args.output_file))
+    print('Writing reads with traceable identifiers to: {:s}'.format(args.output_file))
 
     # loop over reads
     with gzip.open(args.output_file, 'w') as out_fid:
-        for inp_fidx, inp_fname in enumerate(args.input_file.split(';')):
-            print('reading from: {:s}'.format(inp_fname))
+        inp_flst = args.input_file.split(';')
+        print 'Total of [{:d}] files are given as input.'.format(len(inp_flst))
+        for inp_fidx, inp_fname in enumerate(inp_flst):
+            print('\t{:d}. Reading from: {:s}'.format(inp_fidx + 1, inp_fname))
             rd_idx = 0
             with gzip.open(inp_fname, 'r') as inp_fid:
                 while True:
@@ -184,13 +186,13 @@ def setReadIds(args):
                         raise Exception('[e] the input file is corrupted.\n' +
                                         'Read #{:d}:\n'.format(rd_idx) +
                                         '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
-                    if rd_idx % 50000 == 0:
-                        print('\tprocessed {:,d} reads.'.format(rd_idx))
+                    if rd_idx % 10000 == 0:
+                        print('\t\tprocessed {:,d} reads.'.format(rd_idx))
 
                     rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
                     out_fid.write('>' + rd_sid + '\n')
                     out_fid.write(rd_seq + '\n')
-    print '[i] read identifier conversion is completed successfully.'
+    print '[i] Read identifier conversion is completed successfully.'
 
 
 def splitReads(args):
@@ -205,11 +207,12 @@ def splitReads(args):
         args.output_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
-    assert not path.isfile(args.output_file), 'Output file already exists: {:s}'.format(args.output_file)
+    # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
+    print('Reading reads from: {:s}'.format(args.input_file))
     print('Writing fragments to: {:s}'.format(args.output_file))
 
-    MAX_FRG_SIZE = 1000
-    re_seq_lst = [get_re_info(re_name=re_name, property='seq') for re_name in configs['res_cutters'].split(';')]
+    MAX_FRG_SIZE = 2000
+    re_seq_lst = [get_re_info(re_name=re_name, property='seq') for re_name in configs['re_name']] + ['$']
     regex_ptr = '|'.join(re_seq_lst)
 
     rd_ind = 1
@@ -222,29 +225,20 @@ def splitReads(args):
             rd_seq = inp_fid.readline().rstrip('\n')
             if rd_sid == '':
                 break
-            if rd_ind % 50000 == 0:
-                print('Processed {:,d} reads and produced {:,d} fragments.'.format(rd_ind, frg_ind))
+            if rd_ind % 10000 == 0:
+                print('\tprocessed {:,d} reads and produced {:,d} fragments.'.format(rd_ind, frg_ind))
 
             frg_be = 0
-            for re_item in re.finditer(regex_ptr, rd_seq):
-                frg_en = re_item.end()
+            for res_enz in re.finditer(regex_ptr, rd_seq):
+                frg_en = res_enz.end()
                 if frg_en - frg_be > MAX_FRG_SIZE:
                     n_reduced += 1
                     frg_en = MAX_FRG_SIZE
-                out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be, frg_en))
+                out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be + 1, frg_en))
                 out_fid.write(rd_seq[frg_be:frg_en] + '\n')
                 frg_ind = frg_ind + 1
-                frg_be = re_item.end() - len(re_item.group())
-            frg_en = len(rd_seq)
-
-            if frg_en - frg_be > MAX_FRG_SIZE:
-                n_reduced += 1
-                frg_en = MAX_FRG_SIZE
-            out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be, frg_en))
-            out_fid.write(rd_seq[frg_be:frg_en] + '\n')
-            frg_ind = frg_ind + 1
+                frg_be = res_enz.start()
             rd_ind = rd_ind + 1
-
     if n_reduced != 0:
         print '[i] [{:,d}] fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
 
@@ -255,22 +249,26 @@ def mapFragments(args):
     # load global configs
     with open('./mc4c.cnf', 'r') as cnf_fid:
         for line in cnf_fid:
-            fld_name, fld_value = line.split('\t')
+            fld_name, fld_value = line.rstrip('\n').split('\t')
             if fld_name not in configs.keys():
                 configs[fld_name] = fld_value
 
     # Map split fragments to genome
-    inp_fname = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
-    bam_fname = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
-    assert not path.isfile(bam_fname)
-    bwa_index_path = configs['bwa_index_path']
-    bwa_index_path.replace('%%', configs['genome'])
+    if args.input_file is None:
+        args.input_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+    if args.output_file is None:
+        args.output_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome'])
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+    # assert not path.isfile(args.output_file)
+    print('Reading reads from: {:s}'.format(args.input_file))
+    print('Writing fragments to: {:s}'.format(args.output_file))
 
     cmd_str = \
         configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
-        bwa_index_path + ' ' + inp_fname + \
+        configs['bwa_index_path'].replace('%%', configs['genome']) + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
-        '> ' + bam_fname
+        '> ' + args.output_file
 
     if args.return_command:
         print '{:s}'.format(cmd_str)
@@ -484,9 +482,11 @@ def main():
 
     if flag_DEBUG:
         # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
-    loger.printArgs(args)
+    # loger.printArgs(args)
     args.func(args)
 
 
