@@ -11,6 +11,9 @@ import loger
 
 flag_DEBUG = True
 np.set_printoptions(linewidth=180) #, suppress=True, formatter={'float_kind':'{:0.5f}'.format}
+pd.set_option('display.width', 180)
+pd.set_option('display.max_rows', 200)
+pd.set_option('display.max_columns', 15)
 
 def makePrimerFasta(args):
     """ Turn primer sequences into a fasta file.
@@ -282,7 +285,7 @@ def mapFragments(args):
         print '[i] Fragments are mapped to genome successfully.'
 
 
-def process_mapped_fragments(args):
+def processMappedFragments(args):
     import h5py
     from os import remove
     from pandas import read_csv
@@ -295,10 +298,11 @@ def process_mapped_fragments(args):
     if args.input_file is None:
         args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
     if args.output_file is None:
-        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '.hdf5'
+        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '_all.hdf5'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
+    print('Reading fragments from: {:s}'.format(args.input_file))
 
     chr_lst = get_chr_info(configs['genome_build'], 'chr_name')
     chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
@@ -313,7 +317,7 @@ def process_mapped_fragments(args):
     FrgID_old = -1
     n_processed = 0
     header_lst = ['ReadID', 'Chr', 'MapStart', 'MapEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
-                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsUnique']
+                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength']
     n_header = len(header_lst)
     tmp_fname = args.output_file + '.tmp'
     print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
@@ -356,7 +360,7 @@ def process_mapped_fragments(args):
             # combine into an array
             frg_info = np.array([
                 ReadID, MapChrNid, MapStart, MapEnd, MapStrand, ExtStart, ExtEnd, que_line.mapping_quality,
-                FileID, FrgID, SeqStart, SeqEnd, ReadLength, 1]).reshape([1, -1])
+                FileID, FrgID, SeqStart, SeqEnd, ReadLength]).reshape([1, -1])
 
             # Check order of fragments
             if FrgID < FrgID_old:
@@ -413,6 +417,75 @@ def process_mapped_fragments(args):
 
     print('Removing temporary file: {:s}'.format(tmp_fname))
     remove(tmp_fname)
+    print '[i] MC4C dataset is created successfully.'
+
+
+def removeDuplicates(args):
+    import h5py
+    from utilities import hasOL
+
+    configs = mc4c_tools.load_configs(args.cnfFile)
+
+    if args.input_file is None:
+        args.input_file = './mc4c_files/mc4c_' + configs['run_id'] + '_all.hdf5'
+    if args.output_file is None:
+        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '_uniq.hdf5'
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+    print('Reading MC4C dataset from: {:s}'.format(args.input_file))
+    print('Writing unique MC4C reads to: {:s}'.format(args.output_file))
+
+    # load mc4c data
+    h5_fid = h5py.File(args.input_file, 'r')
+    target_field = 'frg_np'
+    data_np = h5_fid[target_field].value
+
+    header_lst = list(h5_fid[target_field + '_header_lst'].value)
+    chr_lst = list(h5_fid['chr_lst'].value)
+    h5_fid.close()
+    mc4c_pd = pd.DataFrame(data_np, columns=header_lst)
+
+    # select farcis/trans fragments
+    roi_size = configs['roi_end'] - configs['roi_start']
+    local_area = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
+    trs_np = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    is_roi = hasOL(local_area, trs_np[:, 1:])
+    trs_np = trs_np[~is_roi, :]
+
+    # loop over trans fragments
+    trs_np = trs_np[np.lexsort([trs_np[:, 2], trs_np[:, 1]]), :]
+    trs_idx = 0
+    while trs_idx < trs_np.shape[0]:
+        if trs_idx % 50000 == 0:
+            print '\tscanned {:,d} fragments.'.format(trs_idx)
+        tj = trs_idx + 1
+        while tj < trs_np.shape[0]:
+            has_ol = hasOL(trs_np[trs_idx, 1:], trs_np[tj:tj+1, 1:], offset=-10)[0]
+            if not has_ol:
+                break
+            else:
+                tj = tj + 1
+        if tj - trs_idx > 1:
+            del_ind = trs_np[trs_idx:tj, 0]
+            del_ind = np.delete(del_ind, np.random.randint(len(del_ind))) # keep one read
+            is_in = np.isin(trs_np[:, 0], del_ind)
+            trs_np = trs_np[~is_in, :]
+        else:
+            trs_idx = trs_idx + 1
+
+    # select and save uniq reads
+    is_uniq = np.isin(mc4c_pd['ReadID'], trs_np[:, 0])
+    uniq_pd = mc4c_pd.loc[is_uniq, :]
+    print('Writing dataset to: {:s}'.format(args.output_file))
+    h5_fid = h5py.File(args.output_file, 'w')
+    h5_fid.create_dataset('frg_np', data=uniq_pd.values, compression='gzip', compression_opts=5)
+    h5_fid.create_dataset('frg_np_header_lst', data=list(uniq_pd.columns.values))
+    h5_fid.create_dataset('chr_lst', data=chr_lst)
+    h5_fid.close()
+    print 'Result statistics:'
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(uniq_pd['ReadID'])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], uniq_pd['ReadID'].shape[0])
+    print '[i] PCR duplicates are removed from MC4C dataset successfully.'
 
 
 # Huge wall of argparse text starts here
@@ -503,14 +576,31 @@ def main():
                                default=None,
                                type=str,
                                help='Output file (in HDF5 format) containing processed fragments')
-    parser_readid.set_defaults(func=process_mapped_fragments)
+    parser_readid.set_defaults(func=processMappedFragments)
+
+    # Remove PCR duplicated
+    parser_readid = subparsers.add_parser('removeDuplicates',
+                                          description='Remove PCR duplicates from a given MC-4C dataset')
+    parser_readid.add_argument('cnfFile',
+                               type=str,
+                               help='Configuration file containing experiment specific details')
+    parser_readid.add_argument('--input-file',
+                               default=None,
+                               type=str,
+                               help='Input file (in HDF5 format) containing MC4C data.')
+    parser_readid.add_argument('--output-file',
+                               default=None,
+                               type=str,
+                               help='Output file (in HDF5 format) containing MC4C data.')
+    parser_readid.set_defaults(func=removeDuplicates)
 
     if flag_DEBUG:
         # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
     # loger.printArgs(args)
     args.func(args)
