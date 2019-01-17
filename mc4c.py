@@ -322,35 +322,35 @@ def process_mapped_fragments(args):
                        'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsUnique']) + '\n'
         )
         for que_idx, que_line in enumerate(bam_fid):
-            if que_idx % 100000 == 0:
+            if que_idx % 50000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
 
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
             FileID, ReadID, ReadLength, FrgID, SeqStart, SeqEnd = \
                 [int(x.split(':')[1]) for x in que_line.query_name.split(';')]
-            RefChrNid = chr_map[que_line.reference_name]
-            RefStart = que_line.reference_start
-            RefEnd = que_line.reference_end
-            RefStrand = 1 - (que_line.is_reverse * 2)
+            MapChrNid = chr_map[que_line.reference_name]
+            MapStart = que_line.reference_start
+            MapEnd = que_line.reference_end
+            MapStrand = 1 - (que_line.is_reverse * 2)
 
             # extending coordinates to nearby restriction site
-            nei_left = np.searchsorted(re_pos[RefChrNid - 1], RefStart, side='right')
-            nei_right = np.searchsorted(re_pos[RefChrNid - 1], RefEnd, side='left')
+            nei_left = np.searchsorted(re_pos[MapChrNid - 1], MapStart, side='right')
+            nei_right = np.searchsorted(re_pos[MapChrNid - 1], MapEnd, side='left')
             if nei_left == nei_right:
-                dist_left = RefStart - re_pos[RefChrNid - 1][nei_left]
-                dist_right = RefEnd - re_pos[RefChrNid - 1][nei_right]
+                dist_left = MapStart - re_pos[MapChrNid - 1][nei_left]
+                dist_right = MapEnd - re_pos[MapChrNid - 1][nei_right]
                 if dist_right > dist_left:
                     nei_left = nei_left - 1
                 else:
                     nei_right = nei_right - 1
-            ExtStart = re_pos[RefChrNid - 1][nei_left]
-            ExtEnd = re_pos[RefChrNid - 1][nei_right]
+            ExtStart = re_pos[MapChrNid - 1][nei_left]
+            ExtEnd = re_pos[MapChrNid - 1][nei_right]
             # TODO: Needs to account for unmapped fragments
 
             # combine into an array
             frg_info = np.array([
-                ReadID, RefChrNid, RefStart, RefEnd, RefStrand, ExtStart, ExtEnd, que_line.mapping_quality,
+                ReadID, MapChrNid, MapStart, MapEnd, MapStrand, ExtStart, ExtEnd, que_line.mapping_quality,
                 FileID, FrgID, SeqStart, SeqEnd, ReadLength, 1]).reshape([1, -1])
 
             # Check order of fragments
