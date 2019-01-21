@@ -453,38 +453,44 @@ def removeDuplicates(args):
     # select farcis/trans fragments
     roi_size = configs['roi_end'] - configs['roi_start']
     local_area = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
-    trs_np = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
-    is_roi = hasOL(local_area, trs_np[:, 1:])
-    trs_np = trs_np[~is_roi, :]
+    frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    is_roi = hasOL(local_area, frg_trs[:, 1:])
+    frg_trs = frg_trs[~is_roi, :]
 
     # sort reads according to #trans
-    trs_freq = np.bincount(trs_np[:, 0])
-    trs_np = np.hstack([trs_np, trs_freq[trs_np[:, 0], np.newaxis]])
-    trs_sid = np.lexsort([trs_np[:, 2], trs_np[:, 1], trs_np[:, 4]])[::-1]
-    trs_np = trs_np[trs_sid, :]
+    trs_freq = np.bincount(frg_trs[:, 0])
+    frg_trs = np.hstack([frg_trs, trs_freq[frg_trs[:, 0], np.newaxis]])
+    trs_sid = np.lexsort([frg_trs[:, 2], frg_trs[:, 1], frg_trs[:, 4]])[::-1]
+    frg_trs = frg_trs[trs_sid, :]
 
     # loop over trans fragments
     trs_idx = 0
-    while trs_idx < trs_np.shape[0]:
+    roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']]).reshape(1, -1)
+    while trs_idx < frg_trs.shape[0]:
         if trs_idx % 10000 == 0:
-            print '\tscanned {:,d} fragments.'.format(trs_idx)
-        tj = trs_idx + 1
-        while tj < trs_np.shape[0]:
-            has_ol = hasOL(trs_np[trs_idx, 1:], trs_np[tj:tj+1, 1:], offset=-10)[0]
-            if not has_ol:
-                break
-            else:
-                tj = tj + 1
-        if tj - trs_idx > 1:
-            del_ind = trs_np[trs_idx:tj, 0]
-            del_ind = np.delete(del_ind, np.random.randint(len(del_ind))) # keep one read
-            is_in = np.isin(trs_np[:, 0], del_ind)
-            trs_np = trs_np[~is_in, :]
-        else:
-            trs_idx = trs_idx + 1
+            print '\tscanned {:,d} fragments for duplicates.'.format(trs_idx)
+        has_ol = hasOL(frg_trs[trs_idx, 1:], frg_trs[:, 1:], offset=-10)[0]
+        if np.sum(has_ol) > 1:
+            # select duplicates
+            frg_dup = frg_trs[has_ol, :]
+            is_roi = hasOL(frg_dup[:, 1:], roi_crd, offset=0)
+
+            # sort by #fragments in roi
+            frg_roi = frg_dup[is_roi, :]
+            roi_freq = np.bincount(frg_roi[:, 0])
+            frg_dup = np.hstack([frg_dup, roi_freq[frg_dup[:, 0], np.newaxis]])
+            roi_sid = np.argsort(frg_dup[:, -1])[::-1]
+
+            # keep largest read
+            keep_rid = frg_dup[roi_sid[0], 0]
+            frg_dup = frg_dup[frg_dup[:, 0] != keep_rid, :]
+
+            # remove extra duplicates
+            frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], frg_dup[:, 0]), :]
+        trs_idx = trs_idx + 1
 
     # select and save uniq reads
-    is_uniq = np.isin(mc4c_pd['ReadID'], trs_np[:, 0])
+    is_uniq = np.isin(mc4c_pd['ReadID'], frg_trs[:, 0])
     uniq_pd = mc4c_pd.loc[is_uniq, :]
     print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')
