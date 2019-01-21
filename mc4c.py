@@ -450,6 +450,7 @@ def removeDuplicates(args):
     h5_fid.close()
     mc4c_pd = pd.DataFrame(data_np, columns=header_lst)
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
+    print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # select far-cis/trans fragments
     roi_size = configs['roi_end'] - configs['roi_start']
@@ -457,16 +458,23 @@ def removeDuplicates(args):
     frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     is_lcl = hasOL(local_area, frg_trs[:, 1:4])
     frg_trs = frg_trs[np.isin(frg_trs[:, 0], frg_trs[~is_lcl, 0])]
+    print 'Selecting for reads with #trans-fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
 
     # count #frg in roi
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
     is_roi = hasOL(roi_crd, frg_trs[:, 1:4], offset=0)
     frg_roi = frg_trs[is_roi, :]
-    roi_freq = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
+    roi_freq = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
 
     # sort reads according to #trans
-    trs_freq = np.bincount(frg_trs[:, 0], minlength=MAX_ReadID + 1)
-    frg_trs = np.hstack([frg_trs, roi_freq[frg_trs[:, 0], np.newaxis], trs_freq[frg_trs[:, 0], np.newaxis]])
+    trs_freq = np.bincount(frg_trs[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
+    frg_trs = np.hstack([frg_trs, roi_freq[frg_trs[:, 0], :], trs_freq[frg_trs[:, 0], :]])
+
+    # filter reads with #roi-frg > 1
+    frg_trs = frg_trs[frg_trs[:, 4] > 1, :]
+    print 'Selecting for reads with #roi-fragment > 1: {:d} reads are left.'.format(len(np.unique(frg_trs[:, 0])))
+
+    # sort reads according to #trans
     trs_sid = np.lexsort([frg_trs[:, 0], frg_trs[:, -1]])[::-1]
     frg_trs = frg_trs[trs_sid, :]
 
@@ -481,7 +489,7 @@ def removeDuplicates(args):
             frg_dup = frg_trs[np.isin(frg_trs[:, 0], frg_trs[has_ol, 0]), :]
 
             # keep largest read
-            keep_rid = frg_dup[np.argmax(frg_dup[:, 3]), 0]
+            keep_rid = frg_dup[np.argmax(frg_dup[:, 4]), 0]
             frg_dup = frg_dup[frg_dup[:, 0] != keep_rid, :]
 
             # remove extra duplicates
