@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 
 import argparse
 import sys
@@ -73,79 +74,6 @@ def getRefResPositions(args):
                         pdframe=pdFrame,
                         pdcolumns=pdFrame.columns,
                         pdindex=pdFrame.index)
-
-def exportToPlot(args):
-    """ Originally written to easily import the data into interactive plotting tools.
-        Converts the mapped data to a pandas dataframe and adds restriction site information.
-        Additionally it creates 2 files that link between restrition sites and read ids for
-        interaction down the line.
-    """
-    settings = mc4c_tools.load_configs(args.cnfFile)
-    print 'Loading restrsites, this takes a while...'
-    restrefs=np.load(args.restfile)['restrsites'].item()
-    print 'Finished loading, moving on'
-    byRegion,byRead,pdFrame = mc4c_tools.exportToPlot(settings,restrefs,args.bamfile)
-
-    #dupSet = mc4c_tools.findDuplicates(settings,byRead,byRegion)
-    #pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
-
-    #print pdFrame
-    np.savez_compressed(args.plotfile,
-                        pdframe=pdFrame,
-                        pdcolumns=pdFrame.columns,
-                        pdindex=pdFrame.index)
-
-    np.savez_compressed(args.plotfile+'_extra',
-                        byregion=byRegion,
-                        byread=byRead)
-
-
-def markDuplicates(args):
-    """ This function aims to identify reads that are most likely PCR duplicates.
-        Identification is based on having overlap with eachother that is not in the viewport.
-        It takes a pandas dataframe and adds a new column to the end of it.
-    """
-    settings = mc4c_tools.load_configs(args.cnfFile)
-    exFile = np.load(args.extra)
-
-    try:
-        byRead = exFile['byread'].item()
-    except KeyError:
-        byRead = exFile['byreads'].item()
-    byRegion = exFile['byregion'].item()
-
-    pdFile = np.load(args.pdframe)
-    pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
-    dupSet = mc4c_tools.findDuplicates(settings,byRead,byRegion)
-
-    #df['dup']=np.where(pd.Series(df.index).isin([1,5]),True,False)
-    #pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
-
-    pdFrame['Duplicate'] = np.where(pd.Series(pdFrame.index).isin(dupSet), True, False)
-
-    np.savez_compressed(args.outfile,
-                        pdframe=pdFrame,
-                        pdcolumns=pdFrame.columns,
-                        pdindex=pdFrame.index)
-
-
-def flattenFragments(args):
-    """ This function aims to identify parts of reads that are repeats of themselves, overlapping
-        the same regions multiple times.
-        It takes a pandas dataframe and adds a new column to the end of it.
-    """
-
-    pdFile = np.load(args.pdframe)
-    pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
-    mc4c_tools.findRepeats(pdFrame)
-
-    print pdFrame.iloc[:10].T
-    np.savez_compressed(args.outfile,
-                        pdframe=pdFrame,
-                        pdcolumns=pdFrame.columns,
-                        pdindex=pdFrame.index)
-#############################################
-
 
 def initialize_run(args):
     # try:
@@ -527,12 +455,12 @@ def main():
     subparsers = parser.add_subparsers()
 
     # init command
-    parser_init = subparsers.add_parser('initRun',
-                                          description='Initialize and prepare the pipeline for given configuration')
-    parser_init.add_argument('cnfFile',
-                               type=str,
-                               help='Configuration file containing experiment specific details')
-    parser_init.set_defaults(func=initialize_run)
+    # parser_init = subparsers.add_parser('initRun',
+    #                                       description='Initialize and prepare the pipeline for given configuration')
+    # parser_init.add_argument('cnfFile',
+    #                            type=str,
+    #                            help='Configuration file containing experiment specific details')
+    # parser_init.set_defaults(func=initialize_run)
 
     # Set read identifiers
     parser_readid = subparsers.add_parser('setReadIds',
@@ -626,13 +554,13 @@ def main():
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_readid.set_defaults(func=removeDuplicates)
 
-    if flag_DEBUG:
-        # sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
+    # if flag_DEBUG:
+    #     sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
     # loger.printArgs(args)
     args.func(args)
