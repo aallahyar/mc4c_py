@@ -10,7 +10,7 @@ import mc4c_tools
 import loger
 
 flag_DEBUG = True
-np.set_printoptions(linewidth=180) #, suppress=True, formatter={'float_kind':'{:0.5f}'.format}
+np.set_printoptions(linewidth=180, threshold=5000) #, suppress=True, formatter={'float_kind':'{:0.5f}'.format}
 pd.set_option('display.width', 180)
 pd.set_option('display.max_rows', 200)
 pd.set_option('display.max_columns', 15)
@@ -148,6 +148,11 @@ def flattenFragments(args):
 
 
 def initialize_run(args):
+    # try:
+    #     configs = mc4c_tools.load_configs(args.cnfFile)
+    # except:
+    #     raise Exception('Configuration file is missing required fields or not formatted correctly.')
+
     # TODO:
     # test refrence genome path
     # test existance of bwa
@@ -452,11 +457,16 @@ def removeDuplicates(args):
     is_roi = hasOL(local_area, trs_np[:, 1:])
     trs_np = trs_np[~is_roi, :]
 
+    # sort reads according to #trans
+    trs_freq = np.bincount(trs_np[:, 0])
+    trs_np = np.hstack([trs_np, trs_freq[trs_np[:, 0], np.newaxis]])
+    trs_sid = np.lexsort([trs_np[:, 2], trs_np[:, 1], trs_np[:, 4]])[::-1]
+    trs_np = trs_np[trs_sid, :]
+
     # loop over trans fragments
-    trs_np = trs_np[np.lexsort([trs_np[:, 2], trs_np[:, 1]]), :]
     trs_idx = 0
     while trs_idx < trs_np.shape[0]:
-        if trs_idx % 50000 == 0:
+        if trs_idx % 10000 == 0:
             print '\tscanned {:,d} fragments.'.format(trs_idx)
         tj = trs_idx + 1
         while tj < trs_np.shape[0]:
