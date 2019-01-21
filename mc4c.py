@@ -444,29 +444,33 @@ def removeDuplicates(args):
     h5_fid = h5py.File(args.input_file, 'r')
     target_field = 'frg_np'
     data_np = h5_fid[target_field].value
-
     header_lst = list(h5_fid[target_field + '_header_lst'].value)
+    mc4c_pd = pd.DataFrame(data_np, columns=header_lst)
     chr_lst = list(h5_fid['chr_lst'].value)
     h5_fid.close()
-    mc4c_pd = pd.DataFrame(data_np, columns=header_lst)
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
+
+    # Filtering reads according to their MQ
+    print 'Ignoring fragments with MQ < {:d}:'.format(args.min_mq)
+    frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
+    frg_trs = frg_trs[frg_trs[:, 4] >= args.min_mq, :4]
+    print '{:d} reads are left after MQ filtering.'.format(len(np.unique(frg_trs[:, 0])))
 
     # select far-cis/trans fragments
     roi_size = configs['roi_end'] - configs['roi_start']
     local_area = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
-    frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     is_lcl = hasOL(local_area, frg_trs[:, 1:4])
-    frg_trs = frg_trs[np.isin(frg_trs[:, 0], frg_trs[~is_lcl, 0])]
+    frg_trs = frg_trs[np.isin(frg_trs[:, 0], frg_trs[~is_lcl, 0]), :]
     print 'Selecting for reads with #trans-fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
 
-    # count #frg in roi
+    # count #roi-frag per read
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
     is_roi = hasOL(roi_crd, frg_trs[:, 1:4], offset=0)
     frg_roi = frg_trs[is_roi, :]
     roi_freq = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
 
-    # sort reads according to #trans
+    # count #tras-frag per read
     trs_freq = np.bincount(frg_trs[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
     frg_trs = np.hstack([frg_trs, roi_freq[frg_trs[:, 0], :], trs_freq[frg_trs[:, 0], :]])
 
@@ -480,8 +484,9 @@ def removeDuplicates(args):
 
     # loop over trans fragments
     trs_idx = 0
+    print 'Scanning for duplicated trans-fragments:'
     while trs_idx < frg_trs.shape[0]:
-        if trs_idx % 1000 == 0:
+        if trs_idx % 10000 == 0:
             print '\tscanned {:,d} fragments for duplicates.'.format(trs_idx)
         has_ol = hasOL(frg_trs[trs_idx, 1:4], frg_trs[:, 1:4], offset=-10)
         if np.sum(has_ol) > 1:
@@ -495,6 +500,9 @@ def removeDuplicates(args):
             # remove extra duplicates
             frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], frg_dup[:, 0]), :]
         trs_idx = trs_idx + 1
+    print 'Result statistics:'
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(frg_trs[:, 0])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], frg_trs.shape[0])
 
     # select and save unique reads
     is_uniq = np.isin(mc4c_pd['ReadID'], frg_trs[:, 0])
@@ -505,9 +513,6 @@ def removeDuplicates(args):
     h5_fid.create_dataset('frg_np_header_lst', data=list(uniq_pd.columns.values))
     h5_fid.create_dataset('chr_lst', data=chr_lst)
     h5_fid.close()
-    print 'Result statistics:'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(uniq_pd['ReadID'])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], uniq_pd['ReadID'].shape[0])
     print '[i] PCR duplicates are removed from MC4C dataset successfully.'
 
 
@@ -615,6 +620,10 @@ def main():
                                default=None,
                                type=str,
                                help='Output file (in HDF5 format) containing MC4C data.')
+    parser_readid.add_argument('--min-mq',
+                               default=20,
+                               type=int,
+                               help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_readid.set_defaults(func=removeDuplicates)
 
     if flag_DEBUG:
