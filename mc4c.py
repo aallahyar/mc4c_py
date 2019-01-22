@@ -193,7 +193,7 @@ def mapFragments(args):
     if args.input_file is None:
         args.input_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
+        args.output_file = './bam_files/bam_{:s}.bam'.format(configs['run_id'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file)
@@ -229,7 +229,7 @@ def processMappedFragments(args):
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
-        args.input_file = './bam_files/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
+        args.input_file = './bam_files/bam_{:s}.bam'.format(configs['run_id'])
     if args.output_file is None:
         args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '_all.hdf5'
     if not path.isdir(path.dirname(args.output_file)):
