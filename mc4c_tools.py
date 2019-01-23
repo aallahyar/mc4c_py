@@ -117,7 +117,6 @@ def plot_ReadSizeDistribution(configs):
         import matplotlib
         matplotlib.use('Agg')
     from matplotlib import pyplot as plt
-    from os import path
     import pysam
 
     # initializations
@@ -125,28 +124,28 @@ def plot_ReadSizeDistribution(configs):
         configs['input_file'] = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
-    MAX_SIZE = 25000
-    edge_lst = np.linspace(0, MAX_SIZE, 51)
+    MAX_SIZE = 8000
+    edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1
 
     # loop over reads
     nbp_total = 0
-    nbp_inf = 0
-    nrd_inf = 0
-    n_read = 0
+    nrd_all = 0
+    nbp_lrg = 0
+    nrd_lrg = 0
     size_dist = np.zeros(n_bin, dtype=np.int64)
-    print 'Computing read size for: {:s}'.format(configs['input_file'])
+    print 'Calculating read size distribution for: {:s}'.format(configs['input_file'])
     with pysam.FastxFile(configs['input_file'], persist=False) as gz_fid:
         for rd_idx, read in enumerate(gz_fid):
             if rd_idx % 50000 == 0:
                 print('{:,d} reads are processed.'.format(rd_idx))
             seq_size = len(read.sequence)
 
-            n_read += 1
+            nrd_all += 1
             nbp_total = nbp_total + seq_size
             if seq_size > 1500:
-                nrd_inf += 1
-                nbp_inf = nbp_inf + seq_size
+                nrd_lrg += 1
+                nbp_lrg = nbp_lrg + seq_size
 
             if seq_size >= MAX_SIZE:
                 seq_size = MAX_SIZE - 1
@@ -165,11 +164,11 @@ def plot_ReadSizeDistribution(configs):
     y_ticks = plt.yticks()[0]
     y_tick_lbl = ['{:0,.0f}k'.format(x / 1e3) for x in y_ticks]
     plt.yticks(y_ticks, y_tick_lbl)
-    plt.ylabel('#Reads')
+    plt.ylabel('#reads')
 
     plt.title('Read size distribution, {:s}\n'.format(configs['run_id']) +
-              '#read={:,d}; #read (>1.5kb)={:,d}\n'.format(n_read, nrd_inf) +
-              '#bases={:,d}; #bases (>1.5kb)={:,d}'.format(nbp_total, nbp_inf)
+              '#read={:,d}; #read (>1.5kb)={:,d}\n'.format(nrd_all, nrd_lrg) +
+              '#bases={:,d}; #bases (>1.5kb)={:,d}'.format(nbp_total, nbp_lrg)
               )
 
     plt.savefig(configs['output_file'], bbox_inches='tight')

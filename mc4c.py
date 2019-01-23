@@ -397,10 +397,8 @@ def getSumRep(args):
         makedirs(configs['output_dir'])
     configs['input_file'] = args.input_file
     configs['output_file'] = args.output_file
-    print('Reading MC4C dataset from: {:s}'.format(args.input_file))
 
-
-    # read size distribution
+    # call the requested function
     if args.report_type == 'readSizeDist':
         mc4c_tools.plot_ReadSizeDistribution(configs)
     elif args.report_type == 'fragSizeDist':
