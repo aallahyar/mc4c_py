@@ -5,20 +5,18 @@ import h5py
 
 def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
               min_mq=20, only_unique=True, reindex_reads=True, max_rows=np.inf):
-    MAX_N_CIR = 100000000
+    MAX_N_CIR = 1000000000000
     out_pd = pd.DataFrame()
     if not isinstance(config_lst, list):
         config_lst = [config_lst]
 
     header_lst = []
     for vi, configs in enumerate(config_lst):
-        if 'input_file' in configs.keys():
-            input_fname = configs['input_file']
-        else:
-            input_fname = data_path + 'mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
-        print('Loading mc4c dataset: {:s}'.format(input_fname))
+        if configs['input_file'] is None:
+            configs['input_file'] = data_path + 'mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+        print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
 
-        h5_fid = h5py.File(input_fname, 'r')
+        h5_fid = h5py.File(configs['input_file'], 'r')
         if np.isinf(max_rows):
             data_np = h5_fid[target_field].value
         else:
@@ -33,7 +31,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
         if min_mq:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq].copy()
         if only_unique:
-            part_pd = part_pd.loc[part_pd['isUnique'] > 0].copy()
+            part_pd = part_pd.loc[part_pd['IsUnique'] > 0].copy()
 
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
@@ -194,32 +192,24 @@ def plot_cirSizeDistribution(configs):
     n_edge = len(edge_lst)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=False, only_hops=False)
-    frg_np = frg_dp[['ReadID', 'Chr', 'RefStart', 'RefEnd', 'MQ', 'ReadLength']].values
+    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
+    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ReadLength']].values
     del frg_dp
 
     # group circles
-    read_uid = np.unique(frg_np[:, 0], return_inverse=True)[1]
-    read_grp = accum_array(read_uid, frg_np)
+    read_grp = accum_array(frg_np[:, 0] - 1, frg_np)
     n_grp = len(read_grp)
 
     # Looping over circles
     size_dist = np.zeros([4, n_edge], dtype=np.int64)
     print 'Computing circle size from {:d} reads:'.format(n_grp)
     for read_idx, frg_set in enumerate(read_grp):
-        if frg_set.shape[0] == 0:
-            continue
         if read_idx % 10000 == 0:
-            print('{:,d}/{:,d} Reads are processed.'.format(read_idx, n_grp))
-
-        is_val = frg_set[:, 4] >= 20
-        for frg_idx, frg in enumerate(frg_set[is_val, :]):
-            has_nei = hasOL(frg[1:4], frg_set[is_val, 1:4], offset=5000)
-            if np.sum(has_nei) > 1:
-                is_val[frg_idx] = False
-        n_frg = np.sum(is_val)
+            print('\t{:,d}/{:,d} Reads are processed.'.format(read_idx, n_grp))
+        n_frg = frg_set.shape[0]
         if n_frg == 0:
             continue
+
         if n_frg > MAX_SIZE:
             n_frg = MAX_SIZE
         bin_idx = np.digitize(n_frg, edge_lst) - 1
@@ -237,7 +227,7 @@ def plot_cirSizeDistribution(configs):
     # Plotting
     clr_map = [cm.Blues(x) for x in np.linspace(0.3, 1.0, 3)] + [(1.0, 0.5, 0.25)]
     plt.figure(figsize=(10, 5))
-    plt_h = [None] * 5
+    plt_h = [None] * 4
     for cls_idx in range(4):
         plt_h[cls_idx] = plt.bar(edge_lst, size_dist[cls_idx, :] * 100.0 / np.sum(size_dist[cls_idx, :]),
                                  width=0.95 - cls_idx / 4.0, color=clr_map[cls_idx])[0]

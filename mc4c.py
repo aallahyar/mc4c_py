@@ -9,7 +9,9 @@ import pandas as pd
 
 import mc4c_tools
 
-flag_DEBUG = True
+import platform  # ###
+flag_DEBUG = platform.system() != 'Linux'
+
 np.set_printoptions(linewidth=180, threshold=5000)  # , suppress=True, formatter={'float_kind':'{:0.5f}'.format}
 pd.set_option('display.width', 180)
 pd.set_option('display.max_rows', 200)
@@ -143,7 +145,7 @@ def mapFragments(args):
 
     cmd_str = \
         configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
-        configs['bwa_index_path'].replace('%%', configs['genome_build']) + ' ' + args.input_file + \
+        configs['bwa_index_path'].replace('%REF%', configs['genome_build']) + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
 
