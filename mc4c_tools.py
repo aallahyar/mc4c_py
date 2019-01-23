@@ -13,7 +13,10 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
     header_lst = []
     for vi, configs in enumerate(config_lst):
         if configs['input_file'] is None:
-            configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+            if only_unique:
+                configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+            else:
+                configs['input_file'] = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
         print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
 
         h5_fid = h5py.File(configs['input_file'], 'r')
@@ -30,8 +33,6 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
         # Filtering fragments
         if min_mq:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq].copy()
-        if only_unique:
-            part_pd = part_pd.loc[part_pd['IsUnique'] > 0].copy()
 
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
@@ -188,7 +189,7 @@ def plot_cvgDistribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_cvgDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_CvgDistribution.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
@@ -217,9 +218,10 @@ def plot_cvgDistribution(configs):
         ref_re_sd += np.bincount(bin_idx, minlength=n_bin)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False)
+    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, only_unique=False)
     frg_np = frg_dp[['Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
     del frg_dp
+    print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
 
     # calculate chromosome coverage
     frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
@@ -243,7 +245,7 @@ def plot_cvgDistribution(configs):
 
     # calculate raw fragment size
     frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print 'Reading {:s}'.format(frg_fname)
+    print 'Scanning raw fragments in {:s}'.format(frg_fname)
     dist_mq00 = np.zeros(n_bin, dtype=np.int64)
     n_mq00 = 0
     with gzip.open(frg_fname, 'r') as splt_fid:
