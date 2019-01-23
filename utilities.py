@@ -55,9 +55,9 @@ def get_re_info(re_name='DpnII', property='seq', genome_str=None):
 
     if property == 'pos':
         assert genome_str is not None
-        re_fname = './renz_files/{:s}_{:s}.npz'.format(genome_str, re_name)
+        re_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, re_name)
         if not isfile(re_fname):
-            extract_re_positions(genome_str, [re_name])
+            extract_re_positions(genome_str, re_name.split('-'))
         return np.load(re_fname)['arr_0'][0]
     else:
         return re_details[re_name][property]
@@ -74,7 +74,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     chr_map = dict(zip(chr_lst, np.arange(len(chr_lst))))
 
     if output_fname is None:
-        output_fname = './renz_files/{:s}_{:s}.npz'.format(genome_str, '-'.join(re_name_lst))
+        output_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, '-'.join(re_name_lst))
     if isfile(output_fname):
         print '[w] Restriction enzyme file exists: ' + output_fname
         return

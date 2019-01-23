@@ -405,6 +405,8 @@ def getSumRep(args):
         mc4c_tools.plot_readSizeDistribution(configs)
     elif args.report_type == 'cirSizeDist':
         mc4c_tools.plot_cirSizeDistribution(configs)
+    elif args.report_type =='cvgDist':
+        mc4c_tools.plot_cvgDistribution(configs)
     else:
         raise Exception()
 
@@ -545,7 +547,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 

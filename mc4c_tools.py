@@ -175,6 +175,151 @@ def plot_readSizeDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
+def plot_cvgDistribution(configs):
+    import sys
+    import numpy as np
+    import gzip
+    import platform
+    if platform.system() == 'Linux':
+        import matplotlib
+        matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+
+    from utilities import get_chr_info, get_re_info
+
+    # initialization
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_cvgDistribution.pdf'
+    MAX_SIZE = 1500
+    edge_lst = np.linspace(0, MAX_SIZE, 31)
+    n_bin = len(edge_lst) - 1
+
+    genome_str = configs['genome']
+    re_str = configs['res_cutters']
+
+    # get chr info
+    chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+    n_chr = len(chr_lst)
+
+    # Read reference genome
+    re_pos_lst = get_re_info(re_name=re_str.replace(';', '-'), property='pos', genome_str=genome_str)
+    re_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, re_str.replace(';', '-'))
+    print 'Loading RE positions from: {:s}'.format(re_fname)
+    re_data = np.load(re_fname)
+    re_pos_lst = re_data['re_pos']
+    assert re_str == re_data['re_name']
+    ref_re_sd = np.zeros(n_bin, dtype=np.int64)
+    for chr_idx, chr_name in enumerate(chr_lst):
+        assert re_data['chr_lst'][chr_idx] == chr_name
+        re_size = np.diff(re_pos_lst[chr_idx][1:-1])
+        re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
+
+        bin_idx = np.digitize(re_size, edge_lst) - 1
+        ref_re_sd += np.bincount(bin_idx, minlength=n_bin)
+
+    # loop over runs
+    ccvg_mq01 = np.zeros(n_chr, dtype=np.int64)
+    ccvg_mq20 = np.zeros(n_chr, dtype=np.int64)
+    dist_mq00 = np.zeros(n_bin, dtype=np.int64)
+    dist_mq01 = np.zeros(n_bin, dtype=np.int64)
+    dist_mq20 = np.zeros(n_bin, dtype=np.int64)
+    n_mq00 = 0
+    n_mq01 = 0
+    n_mq20 = 0
+    n_bp_mq01 = 0
+    n_bp_mq20 = 0
+
+    # Load MC-HC data
+    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False)
+    frg_np = frg_dp[['Chr', 'RefStart', 'RefEnd', 'MQ']].values
+    del frg_dp
+
+    # Looping over fragment
+    frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
+    # assert np.all(frg_size > 0)
+    frg_size[frg_size >= MAX_SIZE] = MAX_SIZE - 1
+    is_mq20 = frg_np[:, 3] >= 20
+
+    # calculate chromosome coverage
+    ccvg_mq01 += np.bincount(frg_np[:, 0] - 1, minlength=n_chr)
+    ccvg_mq20 += np.bincount(frg_np[is_mq20, 0] - 1, minlength=n_chr)
+    n_bp_mq01 += np.sum(frg_np[:, 2] - frg_np[:, 1] + 1)
+    n_bp_mq20 += np.sum(frg_np[is_mq20, 2] - frg_np[is_mq20, 1] + 1)
+    del frg_np
+
+    # calculate fragment size distribution
+    bin_idx = np.digitize(frg_size, edge_lst) - 1
+    dist_mq01 += np.bincount(bin_idx, minlength=n_bin)
+    n_mq01 += len(frg_size)
+
+    bin_idx = np.digitize(frg_size[is_mq20], edge_lst) - 1
+    dist_mq20 += np.bincount(bin_idx, minlength=n_bin)
+    n_mq20 += np.sum(is_mq20)
+    del frg_size
+
+    # calculate raw fragment size
+    splt_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
+    print 'Reading {:s}'.format(splt_fname)
+    with gzip.open(splt_fname, 'r') as splt_fid:
+        while True:
+            frg_sid = splt_fid.readline()
+            frg_seq = splt_fid.readline().rstrip('\n')
+            if frg_sid == '':
+                break
+            if n_mq00 % 100000 == 0:
+                print('{:,d} fragments are read.'.format(n_mq00))
+
+            seq_size = len(frg_seq)
+            if seq_size >= MAX_SIZE:
+                seq_size = MAX_SIZE - 1
+
+            bin_idx = np.digitize(seq_size, edge_lst) - 1
+            dist_mq00[bin_idx] += 1
+            n_mq00 += 1
+
+    # Plotting
+    plt.figure(figsize=(15, 5))
+    plt.subplot(1, 2, 1)
+    q01_h = plt.bar(range(n_chr), ccvg_mq01, color='#bc85ff', width=0.80, alpha=0.7)
+    q20_h = plt.bar(range(n_chr), ccvg_mq20, color='#8929ff', width=0.60, alpha=0.7)
+    plt.legend([q01_h, q20_h], [
+        'MQ>=1, #mapped bp: {:,d}'.format(n_bp_mq01),
+        'MQ>=20, #mapped bp: {:,d}'.format(n_bp_mq20)
+    ])
+    plt.xticks(range(n_chr), chr_lst, rotation=35, ha='right')
+    plt.xlim([-0.5, n_chr - 0.5])
+    y_ticks = plt.yticks()[0]
+    y_tick_lbl = ['{:0,.1f}m'.format(y / 1e6) for y in y_ticks]
+    plt.yticks(y_ticks, y_tick_lbl)
+    plt.ylabel('#Fragments')
+    plt.title('Chromosome coverage, {:s}\n'.format(configs['run_id']) +
+              '#unmapped MQ1={:0,.1f}m; MQ20={:0,.1f}m'.format((n_mq00 - n_mq01) / 1e6, (n_mq00 - n_mq20) / 1e6))
+
+    plt.subplot(1, 2, 2)
+    ref_h = plt.bar(range(n_bin), ref_re_sd * float(n_mq00) / np.sum(ref_re_sd), width=1.00, color='#dddddd')
+    q00_h = plt.bar(range(n_bin), dist_mq00, width=0.90, color='#aaaaaa')
+    q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
+    q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
+    plt.legend([ref_h, q00_h, q01_h, q20_h], [
+        'Ref (#frg={:0,.1f}m), normed'.format(np.sum(ref_re_sd) / 1e6),
+        'Raw (#frg={:0,.1f}m)'.format(n_mq00 / 1e6),
+        'MQ1 (#frg={:0,.1f}m)'.format(n_mq01 / 1e6),
+        'MQ20 (#frg={:0,.1f}m)'.format(n_mq20 / 1e6)])
+    plt.xlim([-1, n_bin + 1])
+    x_ticks_idx = range(1, n_bin, 2)
+    plt.xticks(x_ticks_idx, ['{:0.0f}'.format(edge_lst[i + 1]) for i in x_ticks_idx], rotation=35)
+    plt.xlabel('#base pairs')
+
+    y_ticks = plt.yticks()[0]
+    y_tick_lbl = ['{:0,.1f}m'.format(y / 1e6) for y in y_ticks]
+    plt.yticks(y_ticks, y_tick_lbl)
+    plt.ylabel('#Fragments')
+
+    plt.title('Fragment size distribution, {:s}'.format(configs['run_id']) +
+              '\nMap success rate MQ1={:0.1f}%; MQ20={:0.1f}%]'.format(n_mq01 * 100 / n_mq00, n_mq20 * 100 / n_mq00))
+    plt.savefig(configs['output_file'], bbox_inches='tight')
+
+
 def plot_cirSizeDistribution(configs):
     import platform
     if platform.system() == 'Linux':
@@ -249,5 +394,6 @@ def plot_cirSizeDistribution(configs):
         'All (n={:,d})'.format(np.sum(size_dist[3, :]))
     ])
     plt.savefig(configs['output_file'], bbox_inches='tight')
+
 
 
