@@ -120,9 +120,16 @@ def plot_ReadSizeDistribution(configs):
     from os import path
     import pysam
 
+    # initializations
+    if configs['input_file'] is None:
+        configs['input_file'] = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
     MAX_SIZE = 25000
     edge_lst = np.linspace(0, MAX_SIZE, 51)
     n_bin = len(edge_lst) - 1
+
+    # loop over reads
     nbp_total = 0
     nbp_inf = 0
     nrd_inf = 0
@@ -165,8 +172,6 @@ def plot_ReadSizeDistribution(configs):
               '#bases={:,d}; #bases (>1.5kb)={:,d}'.format(nbp_total, nbp_inf)
               )
 
-    if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + 'rep_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 

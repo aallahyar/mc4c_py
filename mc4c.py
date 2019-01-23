@@ -389,9 +389,6 @@ def getSumRep(args):
     import mc4c_tools
 
     configs = mc4c_tools.load_configs(args.config_file)
-
-    if args.input_file is None:
-        args.input_file = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if args.output_file is None:
         configs['output_dir'] = './plots/'
     else:
