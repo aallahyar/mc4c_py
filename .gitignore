@@ -2,9 +2,8 @@
 *.gz
 
 .idea/
-frg_files/
-mc4c_files/
-read_files/
-renz_files/
-bam_files/
-prm_files/
+fragments/
+datasets/
+reads/
+renzs/
+bams/

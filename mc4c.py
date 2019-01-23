@@ -38,9 +38,9 @@ def setReadIds(args):
 
     # initialize
     if args.input_file is None:
-        args.input_file = './raw_files/raw_' + configs['run_id'] + '.fastq.gz'
+        args.input_file = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if args.output_file is None:
-        args.output_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
+        args.output_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     # assert not path.isfile(args.output_file), '[e] output file already exists: {:s}'.format(args.output_file)
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
@@ -83,9 +83,9 @@ def splitReads(args):
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
-        args.input_file = './read_files/rd_' + configs['run_id'] + '.fasta.gz'
+        args.input_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+        args.output_file = './frgments/frg_' + configs['run_id'] + '.fasta.gz'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
@@ -132,9 +132,9 @@ def mapFragments(args):
 
     # Map split fragments to genome
     if args.input_file is None:
-        args.input_file = './frg_files/frg_' + configs['run_id'] + '.fasta.gz'
+        args.input_file = './fragments/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './bam_files/bam_{:s}.bam'.format(configs['run_id'])
+        args.output_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file)
@@ -170,9 +170,9 @@ def processMappedFragments(args):
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
-        args.input_file = './bam_files/bam_{:s}.bam'.format(configs['run_id'])
+        args.input_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
     if args.output_file is None:
-        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '_all.hdf5'
+        args.output_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
@@ -301,9 +301,9 @@ def removeDuplicates(args):
     configs = mc4c_tools.load_configs(args.cnfFile)
 
     if args.input_file is None:
-        args.input_file = './mc4c_files/mc4c_' + configs['run_id'] + '_all.hdf5'
+        args.input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
     if args.output_file is None:
-        args.output_file = './mc4c_files/mc4c_' + configs['run_id'] + '_uniq.hdf5'
+        args.output_file = './datasets/mc4c_' + configs['run_id'] + '_uniq.hdf5'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     print('Reading MC4C dataset from: {:s}'.format(args.input_file))
@@ -495,8 +495,10 @@ def main():
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_remDup.set_defaults(func=removeDuplicates)
 
+    # produce dashboard plots
+
     # if flag_DEBUG:
-    #     sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
+    #     sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
     #     sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
     #     sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
     #     sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']

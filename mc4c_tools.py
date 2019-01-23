@@ -50,21 +50,33 @@ def get_mchc_data(config_lst, target_field='frg_np', data_path='./mc4c_files/',
     return out_pd[header_lst]
 
 
-def load_configs(cnf_fname):
+def load_configs(cfg_fname):
     """ Read configurations from given file, put it into a dict
 
-    :param cnf_fname: takes a path to a tab-separated file with one variable name and value per line, multiple values
+    :param cfg_fname: takes a path to a tab-separated file with one variable name and value per line, multiple values
     are seprated by ";").
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
+    from os import path
     from utilities import get_chr_info
+
+    # check if config_file is a file
+    if cfg_fname[-4:] != '.cfg':
+        print 'Configuration file does not end with ".cfg". Assuming the given name as a run ID.'
+        cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
+
+    # add global config file to list
+    if path.isfile('./mc4c.cfg'):
+        cfg_flist = ['./mc4c.cfg', cfg_fname]
+    else:
+        cfg_flist = [cfg_fname]
 
     # Load global and then given configs
     configs = dict()
-    for fname in ['./mc4c.cnf', cnf_fname]:
-        with open(fname, 'r') as cnf_fid:
-            for line in cnf_fid:
+    for fname in cfg_flist:
+        with open(fname, 'r') as cfg_fid:
+            for line in cfg_fid:
                 if (line[0] == '#') or (len(line) == 1):
                     continue
                 columns = line.rstrip('\n').split('\t')
