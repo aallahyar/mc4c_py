@@ -18,7 +18,7 @@ pd.set_option('display.max_columns', 15)
 
 def initialize_run(args):
     # try:
-    #     configs = mc4c_tools.load_configs(args.cnfFile)
+    #     configs = mc4c_tools.load_configs(args.config_file)
     # except:
     #     raise Exception('Configuration file is missing required fields or not formatted correctly.')
 
@@ -34,7 +34,7 @@ def initialize_run(args):
 def setReadIds(args):
     print '%% Assigning traceable identifiers to reads ...'
 
-    configs = mc4c_tools.load_configs(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.config_file)
 
     # initialize
     if args.input_file is None:
@@ -80,7 +80,7 @@ def splitReads(args):
     import re
 
     print '%% Splitting reads into fragments ...'
-    configs = mc4c_tools.load_configs(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.config_file)
 
     if args.input_file is None:
         args.input_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
@@ -128,7 +128,7 @@ def splitReads(args):
 def mapFragments(args):
     print '%% Mapping fragments to genome ...'
 
-    configs = mc4c_tools.load_configs(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.config_file)
 
     # Map split fragments to genome
     if args.input_file is None:
@@ -167,7 +167,7 @@ def processMappedFragments(args):
 
     from utilities import get_chr_info, hasOL
 
-    configs = mc4c_tools.load_configs(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.config_file)
 
     if args.input_file is None:
         args.input_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
@@ -298,7 +298,7 @@ def removeDuplicates(args):
     import h5py
     from utilities import hasOL
 
-    configs = mc4c_tools.load_configs(args.cnfFile)
+    configs = mc4c_tools.load_configs(args.config_file)
 
     if args.input_file is None:
         args.input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
@@ -385,6 +385,30 @@ def removeDuplicates(args):
     print '[i] PCR duplicates are removed from MC4C dataset successfully.'
 
 
+def getSumRep(args):
+    import mc4c_tools
+
+    configs = mc4c_tools.load_configs(args.config_file)
+
+    if args.input_file is None:
+        args.input_file = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
+    if args.output_file is None:
+        args.output_file = './plots/rep_' + configs['run_id'] + '_{:s}.pdf'
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+    configs['input_file'] = args.input_file
+    configs['output_file'] = args.output_file
+    print('Reading MC4C dataset from: {:s}'.format(args.input_file))
+
+
+    # read size distribution
+    if args.report_type == 'readSizeDist':
+        mc4c_tools.plot_ReadSizeDistribution(configs)
+    elif args.report_type == 'fragSizeDist':
+        mc4c_tools.plot_FragSizeDistribution(configs)
+    else:
+        raise Exception()
+
 # Huge wall of argparse text starts here
 def main():
     """ Everything in here is to interpret calls from a command line.
@@ -398,7 +422,7 @@ def main():
     # init command
     # parser_init = subparsers.add_parser('initRun',
     #                                       description='Initialize and prepare the pipeline for given configuration')
-    # parser_init.add_argument('cnfFile',
+    # parser_init.add_argument('config_file', metavar='config-file',
     #                            type=str,
     #                            help='Configuration file containing experiment specific details')
     # parser_init.set_defaults(func=initialize_run)
@@ -406,7 +430,7 @@ def main():
     # Set read identifiers
     parser_readid = subparsers.add_parser('setReadIds',
                                           description='Defining identifiers for sequenced reads')
-    parser_readid.add_argument('cnfFile',
+    parser_readid.add_argument('config_file', metavar='config-file',
                                type=str,
                                help='Configuration file containing experiment specific details')
     parser_readid.add_argument('--input-file',
@@ -422,7 +446,7 @@ def main():
     # Split reads into fragments
     parser_readSplt = subparsers.add_parser('splitReads',
                                             description='Splitting reads into fragments using restriction enzyme recognition sequence')
-    parser_readSplt.add_argument('cnfFile',
+    parser_readSplt.add_argument('config_file', metavar='config-file',
                                  type=str,
                                  help='Configuration file containing experiment specific details')
     parser_readSplt.add_argument('--input-file',
@@ -438,7 +462,7 @@ def main():
     # Mapping fragments to reference genome
     parser_mapFrg = subparsers.add_parser('mapFragments',
                                           description='Mapping fragments to reference genome')
-    parser_mapFrg.add_argument('cnfFile',
+    parser_mapFrg.add_argument('config_file', metavar='config-file',
                                type=str,
                                help='Configuration file containing experiment specific details')
     parser_mapFrg.add_argument('--input-file',
@@ -462,7 +486,7 @@ def main():
     # Process mapped fragments
     parser_mkDataset = subparsers.add_parser('makeDataset',
                                              description='Processed the mapped fragments and create a MC-4C dataset')
-    parser_mkDataset.add_argument('cnfFile',
+    parser_mkDataset.add_argument('config_file', metavar='config-file',
                                   type=str,
                                   help='Configuration file containing experiment specific details')
     parser_mkDataset.add_argument('--input-file',
@@ -478,7 +502,7 @@ def main():
     # Remove PCR duplicated
     parser_remDup = subparsers.add_parser('removeDuplicates',
                                           description='Remove PCR duplicates from a given MC-4C dataset')
-    parser_remDup.add_argument('cnfFile',
+    parser_remDup.add_argument('config_file', metavar='config-file',
                                type=str,
                                help='Configuration file containing experiment specific details')
     parser_remDup.add_argument('--input-file',
@@ -495,15 +519,34 @@ def main():
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_remDup.set_defaults(func=removeDuplicates)
 
-    # produce dashboard plots
+    # produce statistics plots
+    parser_sumReport = subparsers.add_parser('getSumRep',
+                                            description='Generate various summary reports about a MC-4C dataset.')
+    parser_sumReport.add_argument('report_type', metavar='report-type',
+                                 choices=['readSizeDist', 'fragSizeDist'],
+                                 type=str,
+                                 help='Type of summary report that needs to be generated')
+    parser_sumReport.add_argument('config_file', metavar='config-file',
+                                 type=str,
+                                 help='Configuration file containing experiment specific details')
+    parser_sumReport.add_argument('--input-file',
+                                 default=None,
+                                 type=str,
+                                 help='Input file (in HDF5 format) containing MC4C data.')
+    parser_sumReport.add_argument('--output-file',
+                                 default=None,
+                                 type=str,
+                                 help='Output file (in PDF format) containing the requested summary report.')
+    parser_sumReport.set_defaults(func=getSumRep)
 
-    # if flag_DEBUG:
-    #     sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
-    #     sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
-    #     sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
-    #     sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
-    #     sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
-    #     sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
+    if flag_DEBUG:
+        # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
