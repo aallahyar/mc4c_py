@@ -393,9 +393,11 @@ def getSumRep(args):
     if args.input_file is None:
         args.input_file = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if args.output_file is None:
-        args.output_file = './plots/rep_' + configs['run_id'] + '_{:s}.pdf'
-    if not path.isdir(path.dirname(args.output_file)):
-        makedirs(path.dirname(args.output_file))
+        configs['output_dir'] = './plots/'
+    else:
+        configs['output_dir'] = path.dirname(args.output_file)
+    if not path.isdir(configs['output_dir']):
+        makedirs(configs['output_dir'])
     configs['input_file'] = args.input_file
     configs['output_file'] = args.output_file
     print('Reading MC4C dataset from: {:s}'.format(args.input_file))

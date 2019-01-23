@@ -63,7 +63,7 @@ def load_configs(cfg_fname):
 
     # check if config_file is a file
     if cfg_fname[-4:] != '.cfg':
-        print 'Configuration file does not end with ".cfg". Assuming the given name as a run ID.'
+        # print 'Configuration file does not end with ".cfg". Assuming the given name as a run ID.'
         cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
 
     # add global config file to list
@@ -117,6 +117,7 @@ def plot_ReadSizeDistribution(configs):
         import matplotlib
         matplotlib.use('Agg')
     from matplotlib import pyplot as plt
+    from os import path
     import pysam
 
     MAX_SIZE = 25000
@@ -163,7 +164,10 @@ def plot_ReadSizeDistribution(configs):
               '#read={:,d}; #read (>1.5kb)={:,d}\n'.format(n_read, nrd_inf) +
               '#bases={:,d}; #bases (>1.5kb)={:,d}'.format(nbp_total, nbp_inf)
               )
-    plt.savefig(configs['output_file'].format('ReadSizeDistribution'), bbox_inches='tight')
+
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + 'rep_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
+    plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
 def plot_FragSizeDistribution(configs):
