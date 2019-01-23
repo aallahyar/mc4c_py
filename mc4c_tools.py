@@ -11,11 +11,14 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
         config_lst = [config_lst]
 
     header_lst = []
-    for vi, vp_info in enumerate(config_lst):
-        tsv_name = data_path + 'frg_{:s}_{:s}.hdf5'.format(vp_info['run_id'], vp_info['genome'])
-        print('Loading [{:d}: {:s}] data from: {:s}'.format(vp_info['row_index'], vp_info['run_id'], tsv_name))
+    for vi, configs in enumerate(config_lst):
+        if 'input_file' in configs.keys():
+            input_fname = configs['input_file']
+        else:
+            input_fname = data_path + 'mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+        print('Loading mc4c dataset: {:s}'.format(input_fname))
 
-        h5_fid = h5py.File(tsv_name, 'r')
+        h5_fid = h5py.File(input_fname, 'r')
         if np.isinf(max_rows):
             data_np = h5_fid[target_field].value
         else:
@@ -111,7 +114,7 @@ def load_configs(cfg_fname):
     return configs
 
 
-def plot_ReadSizeDistribution(configs):
+def plot_readSizeDistribution(configs):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -155,8 +158,8 @@ def plot_ReadSizeDistribution(configs):
     # plotting
     plt.figure(figsize=(7, 5))
     plt.bar(range(n_bin), size_dist, width=0.95)
-    x_ticks_idx = range(1, n_bin, 2)
-    plt.xticks(x_ticks_idx, ['{:0.0f}'.format(edge_lst[i + 1] / 1e3) for i in x_ticks_idx],
+    x_ticks_idx = range(0, n_bin, 5)
+    plt.xticks(x_ticks_idx, ['{:0.1f}'.format(edge_lst[i] / 1e3) for i in x_ticks_idx],
                rotation=0, fontsize=10)
     plt.xlim([-1, n_bin])
     plt.xlabel('#base pairs (kbp)')
@@ -174,6 +177,87 @@ def plot_ReadSizeDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_FragSizeDistribution(configs):
-    print 'Fragment size distribution'
+def plot_cirSizeDistribution(configs):
+    import platform
+    if platform.system() == 'Linux':
+        import matplotlib
+        matplotlib.use('Agg')
+    from matplotlib import pyplot as plt, cm
+
+    from utilities import accum_array, hasOL
+
+    # initialization
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_CirSizeDistribution.pdf'
+    MAX_SIZE = 8
+    edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
+    n_edge = len(edge_lst)
+
+    # Load MC-HC data
+    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=False, only_hops=False)
+    frg_np = frg_dp[['ReadID', 'Chr', 'RefStart', 'RefEnd', 'MQ', 'ReadLength']].values
+    del frg_dp
+
+    # group circles
+    read_uid = np.unique(frg_np[:, 0], return_inverse=True)[1]
+    read_grp = accum_array(read_uid, frg_np)
+    n_grp = len(read_grp)
+
+    # Looping over circles
+    size_dist = np.zeros([4, n_edge], dtype=np.int64)
+    print 'Computing circle size from {:d} reads:'.format(n_grp)
+    for read_idx, frg_set in enumerate(read_grp):
+        if frg_set.shape[0] == 0:
+            continue
+        if read_idx % 10000 == 0:
+            print('{:,d}/{:,d} Reads are processed.'.format(read_idx, n_grp))
+
+        is_val = frg_set[:, 4] >= 20
+        for frg_idx, frg in enumerate(frg_set[is_val, :]):
+            has_nei = hasOL(frg[1:4], frg_set[is_val, 1:4], offset=5000)
+            if np.sum(has_nei) > 1:
+                is_val[frg_idx] = False
+        n_frg = np.sum(is_val)
+        if n_frg == 0:
+            continue
+        if n_frg > MAX_SIZE:
+            n_frg = MAX_SIZE
+        bin_idx = np.digitize(n_frg, edge_lst) - 1
+
+        if frg_set[0, 5] < 3000:
+            read_cls = 0
+        elif frg_set[0, 5] < 7000:
+            read_cls = 1
+        else:
+            read_cls = 2
+
+        size_dist[read_cls, bin_idx] += 1
+    size_dist[3, :] = np.sum(size_dist, axis=0)
+
+    # Plotting
+    clr_map = [cm.Blues(x) for x in np.linspace(0.3, 1.0, 3)] + [(1.0, 0.5, 0.25)]
+    plt.figure(figsize=(10, 5))
+    plt_h = [None] * 5
+    for cls_idx in range(4):
+        plt_h[cls_idx] = plt.bar(edge_lst, size_dist[cls_idx, :] * 100.0 / np.sum(size_dist[cls_idx, :]),
+                                 width=0.95 - cls_idx / 4.0, color=clr_map[cls_idx])[0]
+
+    plt.xlim([0, MAX_SIZE + 1])
+    plt.xticks(edge_lst)
+    plt.xlabel('Read size (#fragment)')
+    plt.ylabel('Frequency (%)')
+    plt.ylim([0, 70])
+    plt.title(configs['run_id'] + '\n' +
+              '#mapped={:,d}; '.format(np.sum(size_dist[3, :])) +
+              '#map>1={:,d}; '.format(np.sum(size_dist[3, 1:])) +
+              '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
+              )
+    plt.legend(plt_h, [
+        'read size <3kb (n={:,d})'.format(np.sum(size_dist[0, :])),
+        'read size <7kb (n={:,d})'.format(np.sum(size_dist[1, :])),
+        'read size >7kb (n={:,d})'.format(np.sum(size_dist[2, :])),
+        'All (n={:,d})'.format(np.sum(size_dist[3, :]))
+    ])
+    plt.savefig(configs['output_file'], bbox_inches='tight')
+
 
