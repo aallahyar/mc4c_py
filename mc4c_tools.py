@@ -13,7 +13,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
     header_lst = []
     for vi, configs in enumerate(config_lst):
         if configs['input_file'] is None:
-            configs['input_file'] = data_path + 'mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+            configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
         print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
 
         h5_fid = h5py.File(configs['input_file'], 'r')
@@ -88,12 +88,16 @@ def load_configs(cfg_fname):
                 else:
                     configs[columns[0]] = fld_lst
 
-    # Convert to Integer
+    # Conversions
     for cnf_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
         configs[cnf_name] = int(configs[cnf_name])
-
     for cnf_name in ['prm_start', 'prm_end']:
         configs[cnf_name] = [int(value) for value in configs[cnf_name]]
+    for cnf_name in ['bwa_index_path', 'ref_genome_file']:
+        configs[cnf_name] = configs[cnf_name].replace('%REF%', configs['genome_build'])
+    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
+    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+    configs['vp_cnum'] = chr_map[configs['vp_chr']]
 
     # Check configs that should be of equal length
     linked_configs = [
@@ -103,11 +107,6 @@ def load_configs(cfg_fname):
     for cnf_set in linked_configs:
         assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
             'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
-
-    # convert chr name to chromosome number
-    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
-    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
-    configs['vp_cnum'] = chr_map[configs['vp_chr']]
 
     return configs
 
@@ -124,7 +123,7 @@ def plot_readSizeDistribution(configs):
     if configs['input_file'] is None:
         configs['input_file'] = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
     MAX_SIZE = 8000
     edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1
@@ -176,9 +175,9 @@ def plot_readSizeDistribution(configs):
 
 
 def plot_cvgDistribution(configs):
-    import sys
     import numpy as np
     import gzip
+    from os import path
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -189,78 +188,65 @@ def plot_cvgDistribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_cvgDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_cvgDistribution.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
-
-    genome_str = configs['genome']
-    re_str = configs['res_cutters']
+    re_set_name = '-'.join(configs['re_name'])
 
     # get chr info
-    chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
     n_chr = len(chr_lst)
 
-    # Read reference genome
-    re_pos_lst = get_re_info(re_name=re_str.replace(';', '-'), property='pos', genome_str=genome_str)
-    re_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, re_str.replace(';', '-'))
+    # Read res-enz positions
+    re_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
     print 'Loading RE positions from: {:s}'.format(re_fname)
-    re_data = np.load(re_fname)
-    re_pos_lst = re_data['re_pos']
-    assert re_str == re_data['re_name']
+    if not path.isfile(re_fname):
+        from utilities import extract_re_positions
+        extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
+                             output_fname=re_fname, ref_fasta=configs['ref_genome_file'])
+    re_pos_lst = get_re_info(re_name=re_set_name, property='pos', genome_str=configs['genome_build'])
+
+    # compute ref fragment size
     ref_re_sd = np.zeros(n_bin, dtype=np.int64)
     for chr_idx, chr_name in enumerate(chr_lst):
-        assert re_data['chr_lst'][chr_idx] == chr_name
-        re_size = np.diff(re_pos_lst[chr_idx][1:-1])
+        re_size = np.diff(re_pos_lst[chr_idx])
         re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
 
         bin_idx = np.digitize(re_size, edge_lst) - 1
         ref_re_sd += np.bincount(bin_idx, minlength=n_bin)
 
-    # loop over runs
-    ccvg_mq01 = np.zeros(n_chr, dtype=np.int64)
-    ccvg_mq20 = np.zeros(n_chr, dtype=np.int64)
-    dist_mq00 = np.zeros(n_bin, dtype=np.int64)
-    dist_mq01 = np.zeros(n_bin, dtype=np.int64)
-    dist_mq20 = np.zeros(n_bin, dtype=np.int64)
-    n_mq00 = 0
-    n_mq01 = 0
-    n_mq20 = 0
-    n_bp_mq01 = 0
-    n_bp_mq20 = 0
-
     # Load MC-HC data
     frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False)
-    frg_np = frg_dp[['Chr', 'RefStart', 'RefEnd', 'MQ']].values
+    frg_np = frg_dp[['Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
     del frg_dp
 
-    # Looping over fragment
-    frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
-    # assert np.all(frg_size > 0)
-    frg_size[frg_size >= MAX_SIZE] = MAX_SIZE - 1
-    is_mq20 = frg_np[:, 3] >= 20
-
     # calculate chromosome coverage
-    ccvg_mq01 += np.bincount(frg_np[:, 0] - 1, minlength=n_chr)
-    ccvg_mq20 += np.bincount(frg_np[is_mq20, 0] - 1, minlength=n_chr)
-    n_bp_mq01 += np.sum(frg_np[:, 2] - frg_np[:, 1] + 1)
-    n_bp_mq20 += np.sum(frg_np[is_mq20, 2] - frg_np[is_mq20, 1] + 1)
+    frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
+    is_mq20 = frg_np[:, 3] >= 20
+    ccvg_mq01 = np.bincount(frg_np[:, 0] - 1, minlength=n_chr)
+    ccvg_mq20 = np.bincount(frg_np[is_mq20, 0] - 1, minlength=n_chr)
     del frg_np
+    n_bp_mq01 = np.sum(frg_size)
+    n_bp_mq20 = np.sum(frg_size[is_mq20])
 
     # calculate fragment size distribution
+    frg_size[frg_size >= MAX_SIZE] = MAX_SIZE - 1
     bin_idx = np.digitize(frg_size, edge_lst) - 1
-    dist_mq01 += np.bincount(bin_idx, minlength=n_bin)
-    n_mq01 += len(frg_size)
+    dist_mq01 = np.bincount(bin_idx, minlength=n_bin)
+    n_mq01 = len(frg_size)
 
     bin_idx = np.digitize(frg_size[is_mq20], edge_lst) - 1
-    dist_mq20 += np.bincount(bin_idx, minlength=n_bin)
-    n_mq20 += np.sum(is_mq20)
+    dist_mq20 = np.bincount(bin_idx, minlength=n_bin)
+    n_mq20 = np.sum(is_mq20)
     del frg_size
 
     # calculate raw fragment size
-    splt_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print 'Reading {:s}'.format(splt_fname)
-    with gzip.open(splt_fname, 'r') as splt_fid:
+    frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
+    print 'Reading {:s}'.format(frg_fname)
+    dist_mq00 = np.zeros(n_bin, dtype=np.int64)
+    n_mq00 = 0
+    with gzip.open(frg_fname, 'r') as splt_fid:
         while True:
             frg_sid = splt_fid.readline()
             frg_seq = splt_fid.readline().rstrip('\n')
@@ -331,7 +317,7 @@ def plot_cirSizeDistribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/rep_' + configs['run_id'] + '_CirSizeDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_CirSizeDistribution.pdf'
     MAX_SIZE = 8
     edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
     n_edge = len(edge_lst)

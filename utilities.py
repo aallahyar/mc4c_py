@@ -44,8 +44,6 @@ def get_chr_info(genome_str, property='chr_name'):
 
 
 def get_re_info(re_name='DpnII', property='seq', genome_str=None):
-    from os.path import isfile
-
     re_details = dict({
         'DpnII': dict({'seq': 'GATC'}),
         'Csp6I': dict({'seq': 'GTAC'}),
@@ -54,11 +52,13 @@ def get_re_info(re_name='DpnII', property='seq', genome_str=None):
     })
 
     if property == 'pos':
-        assert genome_str is not None
         re_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, re_name)
-        if not isfile(re_fname):
-            extract_re_positions(genome_str, re_name.split('-'))
-        return np.load(re_fname)['arr_0'][0]
+        chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+
+        re_data = np.load(re_fname)['arr_0']
+        assert np.array_equal(re_data[1], chr_lst)
+        assert re_data[2] == genome_str
+        return re_data[0]
     else:
         return re_details[re_name][property]
 
@@ -90,7 +90,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
 
     # Loop over chromosomes
     re_pos_lst = [None] * len(chr_lst)
-    chr_name_lst = [None] * len(chr_lst)
+    chr_lst_loaded = [None] * len(chr_lst)
     with pysam.FastxFile(ref_fasta) as ref_fid:
         for chr_ind, chr in enumerate(ref_fid):
             if not chr.name in chr_lst:
@@ -102,12 +102,12 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
             for frg in re.finditer(re_regex, chr.sequence, re.IGNORECASE):
                 cut_sites.append(frg.start() + 1)
             re_pos_lst[chr_map[chr.name]] = np.array(cut_sites, dtype=np.uint32)
-            chr_name_lst[chr_map[chr.name]] = chr.name
-        if not np.array_equal(chr_lst, chr_name_lst):
+            chr_lst_loaded[chr_map[chr.name]] = chr.name
+        if not np.array_equal(chr_lst, chr_lst_loaded):
             raise Exception('[e] Inconsistent reference genome!')
 
     # Save the result
-    np.savez(output_fname, [re_pos_lst, chr_name_lst])
+    np.savez(output_fname, [re_pos_lst, chr_lst_loaded, genome_str])
 
 
 def getFastaSequence(genome, chromosome, pos_start, pos_end):

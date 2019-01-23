@@ -145,7 +145,7 @@ def mapFragments(args):
 
     cmd_str = \
         configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
-        configs['bwa_index_path'].replace('%REF%', configs['genome_build']) + ' ' + args.input_file + \
+        configs['bwa_index_path'] + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
 
@@ -524,7 +524,7 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
     parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['readSizeDist', 'cirSizeDist'],
+                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist'],
                                  type=str,
                                  help='Type of summary report that needs to be generated')
     parser_sumReport.add_argument('config_file', metavar='config-file',
