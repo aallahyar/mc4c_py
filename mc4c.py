@@ -8,72 +8,13 @@ import numpy as np
 import pandas as pd
 
 import mc4c_tools
-import loger
 
 flag_DEBUG = True
-np.set_printoptions(linewidth=180, threshold=5000) #, suppress=True, formatter={'float_kind':'{:0.5f}'.format}
+np.set_printoptions(linewidth=180, threshold=5000)  # , suppress=True, formatter={'float_kind':'{:0.5f}'.format}
 pd.set_option('display.width', 180)
 pd.set_option('display.max_rows', 200)
 pd.set_option('display.max_columns', 15)
 
-def makePrimerFasta(args):
-    """ Turn primer sequences into a fasta file.
-    """
-    configs = mc4c_tools.load_configs(args.cnfFile)
-    primerSeqs = mc4c_tools.getPrimerFragment(configs)
-    mc4c_tools.writePrimerFasta(primerSeqs, args.outfile)
-
-
-def cleaveReads(args):
-    """ Cleave the reads by primer sequences. Requires BowTie2 information. """
-    settings = mc4c_tools.load_configs(args.cnfFile)
-    primerLens = [len(x) for x in settings['prm_seq']]
-    primers = ['']
-    primers.extend(settings['prm_seq'])
-    #print primers
-    prmCuts = mc4c_tools.combinePrimers(args.bamfile, primerLens)
-    #print prmCuts[:10]
-    mc4c_tools.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
-
-
-# def splitReads(args):
-#     """ Split the reads by restriction site information based on the reference genome. """
-#     settings = mc4c_tools.load_config(args.cnfFile)
-#     restSeqs = settings['re_seq']
-#     # TODO: Substitute reference genome with reads (?)
-#     mc4c_tools.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
-
-
-def findRefRestSites(args):
-    """ Determine the location of restriction sites on the reference genome. Takes a fasta file
-        and stores results as a list per chromosome in a dictionary, which is saved as an npz.
-    """
-    from utilities import extract_re_positions
-
-    configs = mc4c_tools.load_configs(args.cnfFile)
-    extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'])
-
-def getRefResPositions(args):
-    """ Extract a subset of restriction site positions from the reference genome. """
-    settings = mc4c_tools.load_configs(args.cnfFile)
-    print [settings['vp_chr']],[settings['vp_start'], settings['vp_end']]
-    print 'Loading restrsites, this takes a while...'
-    restrefs=np.load(args.restfile)['restrsites'].item()
-    print 'Finished loading, moving on'
-    result = mc4c_tools.mapToRefSite(restrefs[settings['vp_chr'][0]],[settings['vp_start'][0], settings['vp_end'][0]])
-
-    refPosList = []
-
-    for i in range(result[0],result[1]+1):
-        #print i,restrefs[settings['vp_chr'][0]][i]
-        refPosList.append(restrefs[settings['vp_chr'][0]][i])
-
-    pdFrame = pd.DataFrame(refPosList, index=range(result[0],result[1]+1), columns=['start','stop'])
-
-    np.savez_compressed(args.outfile,
-                        pdframe=pdFrame,
-                        pdcolumns=pdFrame.columns,
-                        pdindex=pdFrame.index)
 
 def initialize_run(args):
     # try:
@@ -317,7 +258,7 @@ def processMappedFragments(args):
                     frg_set[fi, 7] = np.max(frg_set[fi:fi + 2, 7])
                     frg_set[fi, 10] = np.min(frg_set[fi:fi + 2, 10])
                     frg_set[fi, 11] = np.max(frg_set[fi:fi + 2, 11])
-                    frg_set = np.delete(frg_set, fi+1, axis=0)
+                    frg_set = np.delete(frg_set, fi + 1, axis=0)
                 else:
                     fi = fi + 1
 
@@ -464,10 +405,10 @@ def main():
 
     # Set read identifiers
     parser_readid = subparsers.add_parser('setReadIds',
-                                         description='Defining identifiers for sequenced reads')
+                                          description='Defining identifiers for sequenced reads')
     parser_readid.add_argument('cnfFile',
-                              type=str,
-                              help='Configuration file containing experiment specific details')
+                               type=str,
+                               help='Configuration file containing experiment specific details')
     parser_readid.add_argument('--input-file',
                                default=None,
                                type=str,
@@ -479,80 +420,80 @@ def main():
     parser_readid.set_defaults(func=setReadIds)
 
     # Split reads into fragments
-    parser_readid = subparsers.add_parser('splitReads',
-                                         description='Splitting reads into fragments using restriction enzyme recognition sequence')
-    parser_readid.add_argument('cnfFile',
-                              type=str,
-                              help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input-file',
-                               default=None,
-                               type=str,
-                               help='Input file (in FASTA format) containing reads with traceable IDs.')
-    parser_readid.add_argument('--output-file',
-                               default=None,
-                               type=str,
-                               help='Output file (in FASTA format) containing fragments with traceable IDs')
-    parser_readid.set_defaults(func=splitReads)
+    parser_readSplt = subparsers.add_parser('splitReads',
+                                            description='Splitting reads into fragments using restriction enzyme recognition sequence')
+    parser_readSplt.add_argument('cnfFile',
+                                 type=str,
+                                 help='Configuration file containing experiment specific details')
+    parser_readSplt.add_argument('--input-file',
+                                 default=None,
+                                 type=str,
+                                 help='Input file (in FASTA format) containing reads with traceable IDs.')
+    parser_readSplt.add_argument('--output-file',
+                                 default=None,
+                                 type=str,
+                                 help='Output file (in FASTA format) containing fragments with traceable IDs')
+    parser_readSplt.set_defaults(func=splitReads)
 
     # Mapping fragments to reference genome
-    parser_readid = subparsers.add_parser('mapFragments',
+    parser_mapFrg = subparsers.add_parser('mapFragments',
                                           description='Mapping fragments to reference genome')
-    parser_readid.add_argument('cnfFile',
+    parser_mapFrg.add_argument('cnfFile',
                                type=str,
                                help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input-file',
+    parser_mapFrg.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
-    parser_readid.add_argument('--output-file',
+    parser_mapFrg.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in BAM format) containing fragments with traceable IDs')
-    parser_readid.add_argument('--n_thread',
+    parser_mapFrg.add_argument('--n_thread',
                                default=6,
                                type=int,
                                help='Number of threads should be used by the aligner')
-    parser_readid.add_argument('--return_command',
+    parser_mapFrg.add_argument('--return_command',
                                action="store_true",
                                help='Return only mapping command instead of running it ' +
                                     '(useful for running the pipeline in a cluster)')
-    parser_readid.set_defaults(func=mapFragments)
+    parser_mapFrg.set_defaults(func=mapFragments)
 
     # Process mapped fragments
-    parser_readid = subparsers.add_parser('makeDataset',
-                                          description='Processed the mapped fragments and create a MC-4C dataset')
-    parser_readid.add_argument('cnfFile',
-                               type=str,
-                               help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input-file',
-                               default=None,
-                               type=str,
-                               help='Input file (in BAM format) containing fragments with traceable IDs')
-    parser_readid.add_argument('--output-file',
-                               default=None,
-                               type=str,
-                               help='Output file (in HDF5 format) containing processed fragments')
-    parser_readid.set_defaults(func=processMappedFragments)
+    parser_mkDataset = subparsers.add_parser('makeDataset',
+                                             description='Processed the mapped fragments and create a MC-4C dataset')
+    parser_mkDataset.add_argument('cnfFile',
+                                  type=str,
+                                  help='Configuration file containing experiment specific details')
+    parser_mkDataset.add_argument('--input-file',
+                                  default=None,
+                                  type=str,
+                                  help='Input file (in BAM format) containing fragments with traceable IDs')
+    parser_mkDataset.add_argument('--output-file',
+                                  default=None,
+                                  type=str,
+                                  help='Output file (in HDF5 format) containing processed fragments')
+    parser_mkDataset.set_defaults(func=processMappedFragments)
 
     # Remove PCR duplicated
-    parser_readid = subparsers.add_parser('removeDuplicates',
+    parser_remDup = subparsers.add_parser('removeDuplicates',
                                           description='Remove PCR duplicates from a given MC-4C dataset')
-    parser_readid.add_argument('cnfFile',
+    parser_remDup.add_argument('cnfFile',
                                type=str,
                                help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input-file',
+    parser_remDup.add_argument('--input-file',
                                default=None,
                                type=str,
                                help='Input file (in HDF5 format) containing MC4C data.')
-    parser_readid.add_argument('--output-file',
+    parser_remDup.add_argument('--output-file',
                                default=None,
                                type=str,
                                help='Output file (in HDF5 format) containing MC4C data.')
-    parser_readid.add_argument('--min-mq',
+    parser_remDup.add_argument('--min-mq',
                                default=20,
                                type=int,
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
-    parser_readid.set_defaults(func=removeDuplicates)
+    parser_remDup.set_defaults(func=removeDuplicates)
 
     # if flag_DEBUG:
     #     sys.argv = ['./mc4c.py', 'init', './cnf_files/cfg_LVR-BMaj.cnf']
@@ -562,7 +503,6 @@ def main():
     #     sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
     #     sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
     args = parser.parse_args(sys.argv[1:])
-    # loger.printArgs(args)
     args.func(args)
 
 
