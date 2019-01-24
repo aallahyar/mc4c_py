@@ -407,6 +407,8 @@ def getSumRep(args):
         mc4c_tools.plot_cirSizeDistribution(configs)
     elif args.report_type =='cvgDist':
         mc4c_tools.plot_cvgDistribution(configs)
+    elif args.report_type =='overallProfile':
+        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
         raise Exception()
 
@@ -524,7 +526,7 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
     parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist'],
+                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist', 'overallProfile'],
                                  type=str,
                                  help='Type of summary report that needs to be generated')
     parser_sumReport.add_argument('config_file', metavar='config-file',
@@ -547,7 +549,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 

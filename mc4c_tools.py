@@ -315,7 +315,7 @@ def plot_cirSizeDistribution(configs):
         matplotlib.use('Agg')
     from matplotlib import pyplot as plt, cm
 
-    from utilities import accum_array, hasOL
+    from utilities import accum_array
 
     # initialization
     if configs['output_file'] is None:
@@ -384,4 +384,66 @@ def plot_cirSizeDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
+def plot_overallProfile(configs, MIN_N_FRG=2):
+    import platform
+    if platform.system() == 'Linux':
+        import matplotlib
+        matplotlib.use('Agg')
+    from matplotlib import pyplot as plt, patches
+
+    from utilities import hasOL
+
+    # initialization
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_OverallProfile.pdf'
+    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=200, dtype=np.int64).reshape(-1, 1)
+    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:]])
+    n_bin = len(bin_bnd)
+    del edge_lst
+
+    # Load MC-HC data
+    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
+    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    del frg_dp
+
+    # select within roi fragments
+    is_roi = hasOL([configs['vp_cnum'], configs['roi_start'], configs['roi_end']], frg_np[:, 1:4])
+    frg_roi = frg_np[is_roi, :]
+    del frg_np
+
+    # filter small circles
+    cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
+    frg_roi = frg_roi[cir_size >= MIN_N_FRG, :]
+    n_read = np.unique(frg_roi[:, 0])
+
+    # looping over bins
+    bin_freq = np.zeros(n_bin, dtype=np.int64)
+    for bi in range(n_bin):
+        is_in = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
+        bin_freq[bi] = len(np.unique(frg_roi[is_in, 0]))  # each circle can contribute only once to a bin
+
+    # set vp bins to nan
+    is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
+    bin_freq[is_vp] = np.nan
+    vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
+
+    # plotting
+    plt.figure(figsize=(15, 5))
+    bin_cen = np.mean(bin_bnd, axis=1)
+    bin_nrm = bin_freq * 100.0 / np.sum(bin_freq)
+    plt.bar(bin_cen, bin_nrm, width=0.9, color='2ee600')
+
+    # add vp area
+    y_lim = [0, np.max(bin_nrm) * 1.1]
+    patches.Rectangle([0, vp_bnd[0]], vp_bnd[1] - vp_bnd[0], y_lim[1],
+                      linewidth=0, edgecolor='None', facecolor='orange')
+
+    plt.xlim([bin_bnd[0,0], bin_bnd[-1, 1]])
+    plt.xticks(bin_cen)
+    plt.ylabel('Frequency (%)')
+    plt.ylim(y_lim)
+    plt.title('Overall profile, ', configs['run_id'] + '\n' +
+              '#read (#frg>{:d}, ex. VP)={:,d}'.format(MIN_N_FRG - 1, n_read)
+              )
+    plt.savefig(configs['output_file'], bbox_inches='tight')
 
