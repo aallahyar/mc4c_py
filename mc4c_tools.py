@@ -396,12 +396,13 @@ def plot_overallProfile(configs, MIN_N_FRG=2):
     # initialization
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_OverallProfile.pdf'
-    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=200, dtype=np.int64).reshape(-1, 1)
+    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:]])
+    bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
     n_bin = len(bin_bnd)
     del edge_lst
 
-    # Load MC-HC data
+    # load MC-HC data
     frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
@@ -414,10 +415,10 @@ def plot_overallProfile(configs, MIN_N_FRG=2):
     # filter small circles
     cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
     frg_roi = frg_roi[cir_size >= MIN_N_FRG, :]
-    n_read = np.unique(frg_roi[:, 0])
+    n_read = len(np.unique(frg_roi[:, 0]))
 
     # looping over bins
-    bin_freq = np.zeros(n_bin, dtype=np.int64)
+    bin_freq = np.zeros(n_bin)
     for bi in range(n_bin):
         is_in = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
         bin_freq[bi] = len(np.unique(frg_roi[is_in, 0]))  # each circle can contribute only once to a bin
@@ -430,20 +431,22 @@ def plot_overallProfile(configs, MIN_N_FRG=2):
     # plotting
     plt.figure(figsize=(15, 5))
     bin_cen = np.mean(bin_bnd, axis=1)
-    bin_nrm = bin_freq * 100.0 / np.sum(bin_freq)
-    plt.bar(bin_cen, bin_nrm, width=0.9, color='2ee600')
+    bin_nrm = bin_freq * 100.0 / np.nansum(bin_freq)
+    plt.bar(bin_cen, bin_nrm, width=bin_width, color='#43ff14')
 
     # add vp area
-    y_lim = [0, np.max(bin_nrm) * 1.1]
-    patches.Rectangle([0, vp_bnd[0]], vp_bnd[1] - vp_bnd[0], y_lim[1],
-                      linewidth=0, edgecolor='None', facecolor='orange')
+    y_lim = [0, np.nanmax(bin_nrm) * 1.1]
+    plt.gca().add_patch(patches.Rectangle([vp_bnd[0], 0], vp_bnd[1] - vp_bnd[0], y_lim[1],
+                      linewidth=0, edgecolor='None', facecolor='orange'))
 
-    plt.xlim([bin_bnd[0,0], bin_bnd[-1, 1]])
-    plt.xticks(bin_cen)
+    plt.xlim([bin_bnd[0, 0], bin_bnd[-1, 1]])
+    x_ticks = np.linspace(bin_bnd[0, 0], bin_bnd[-1, 1], 20, dtype=np.int64)
+    x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
+    plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (%)')
     plt.ylim(y_lim)
-    plt.title('Overall profile, ', configs['run_id'] + '\n' +
-              '#read (#frg>{:d}, ex. VP)={:,d}'.format(MIN_N_FRG - 1, n_read)
+    plt.title('Overall profile, {:s}\n'.format(configs['run_id']) +
+              '#read (#roiFrg>{:d}, ex. VP)={:,d}'.format(MIN_N_FRG - 1, n_read)
               )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

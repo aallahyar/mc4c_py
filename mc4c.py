@@ -184,11 +184,12 @@ def processMappedFragments(args):
     chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
 
     # extend fragment coordinates to reference genome
-    re_pos_fname = './renz_files/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
-    re_pos, re_chr_lst = np.load(re_pos_fname)['arr_0']
+    re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
+    re_pos, re_chr_lst, re_genome_str = np.load(re_pos_fname)['arr_0']
     assert np.array_equal(re_chr_lst, chr_lst)
+    assert configs['genome_build'] == re_genome_str
 
-    # Read file line by line
+    # read file line by line
     ReadID_old = -1
     FrgID_old = -1
     n_processed = 0
@@ -231,7 +232,16 @@ def processMappedFragments(args):
                     nei_right = nei_right + 1
             ExtStart = re_pos[MapChrNid - 1][nei_left]
             ExtEnd = re_pos[MapChrNid - 1][nei_right]
-            # TODO: Needs to account for unmapped fragments
+            # TODO: Unmapped fragments are ignored here
+
+            # adjust fragmet seq according to skipped bases
+            cigar_tup = que_line.cigartuples
+            if MapStrand == -1:
+                cigar_tup.reverse()
+            if (cigar_tup[0][0] == 4) or (cigar_tup[0][0] == 5):
+                SeqStart = SeqStart + cigar_tup[0][1]
+            if (cigar_tup[-1][0] == 4) or (cigar_tup[-1][0] == 5):
+                SeqEnd = SeqEnd - cigar_tup[-1][1]
 
             # combine into an array
             frg_info = np.array([
@@ -547,12 +557,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'makeDataset', './cnf_files/cfg_LVR-BMaj.cnf']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
