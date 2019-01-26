@@ -333,17 +333,16 @@ def removeDuplicates(args):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # Filtering reads according to their MQ
-    print 'Ignoring fragments with MQ < {:d}:'.format(args.min_mq)
     frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
     frg_trs = frg_trs[frg_trs[:, 4] >= args.min_mq, :4]
-    print '{:d} reads are left after MQ filtering.'.format(len(np.unique(frg_trs[:, 0])))
+    print 'Filtered fragments with MQ < {:d}: {:d} reads are left.'.format(args.min_mq, len(np.unique(frg_trs[:, 0])))
 
     # select far-cis/trans fragments
     roi_size = configs['roi_end'] - configs['roi_start']
     local_area = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
     is_lcl = hasOL(local_area, frg_trs[:, 1:4])
     frg_trs = frg_trs[np.isin(frg_trs[:, 0], frg_trs[~is_lcl, 0]), :]
-    print 'Selecting for reads with #trans-fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
+    print 'Selected reads with #trans-fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
 
     # count #roi-frag per read
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
@@ -357,7 +356,7 @@ def removeDuplicates(args):
 
     # filter reads with #roi-frg > 1
     frg_trs = frg_trs[frg_trs[:, 4] > 1, :]
-    print 'Selecting for reads with #roi-fragment > 1: {:d} reads are left.'.format(len(np.unique(frg_trs[:, 0])))
+    print 'Selected reads with #roi-fragment > 1: {:d} reads are left.'.format(len(np.unique(frg_trs[:, 0])))
 
     # sort reads according to #trans
     trs_sid = np.lexsort([frg_trs[:, 0], frg_trs[:, -1]])[::-1]
