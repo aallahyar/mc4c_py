@@ -87,7 +87,7 @@ def splitReads(args):
     if args.input_file is None:
         args.input_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './frgments/frg_' + configs['run_id'] + '.fasta.gz'
+        args.output_file = './fragments/frg_' + configs['run_id'] + '.fasta.gz'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
@@ -116,7 +116,7 @@ def splitReads(args):
                 frg_en = res_enz.end()
                 if frg_en - frg_be > MAX_FRG_SIZE:
                     n_reduced += 1
-                    frg_en = MAX_FRG_SIZE
+                    frg_en = frg_be + MAX_FRG_SIZE
                 out_fid.write('{:s};Fr.Id:{:d};Fr.SBp:{:d};Fr.EBp:{:d}\n'.format(rd_sid, frg_ind, frg_be + 1, frg_en))
                 out_fid.write(rd_seq[frg_be:frg_en] + '\n')
                 frg_ind = frg_ind + 1
@@ -258,11 +258,13 @@ def processMappedFragments(args):
                 frg_set = np.vstack([frg_set, frg_info])
                 continue
 
+            # sort the read according to seqs
+            frg_set = frg_set[np.argsort(frg_set[:, 10]), :]
+
             # Save the read
             fi = 0
             while fi < frg_set.shape[0] - 1:
-                if hasOL(frg_set[fi, [1, 5, 6]], frg_set[fi + 1:fi + 2, [1, 5, 6]], offset=20)[0]:
-                    # this still occurs if A1- and A2+ are adjacent (ignoring strand)
+                if hasOL(frg_set[fi, [1, 5, 6, 8]], frg_set[fi + 1:fi + 2, [1, 5, 6, 8]], offset=20)[0]:
                     frg_set[fi, 2] = np.min(frg_set[fi:fi + 2, 2])
                     frg_set[fi, 3] = np.max(frg_set[fi:fi + 2, 3])
                     frg_set[fi, 5] = np.min(frg_set[fi:fi + 2, 5])
@@ -554,10 +556,10 @@ def main():
     if flag_DEBUG:
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'splitReads', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'mapFragments', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', './cnf_files/cfg_LVR-BMaj.cnf']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
