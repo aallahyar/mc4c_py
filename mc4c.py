@@ -335,59 +335,60 @@ def removeDuplicates(args):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # Filtering reads according to their MQ
-    frg_trs = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
-    frg_trs = frg_trs[frg_trs[:, 4] >= args.min_mq, :4]
-    print 'Filtered fragments with MQ < {:d}: {:d} reads are left.'.format(args.min_mq, len(np.unique(frg_trs[:, 0])))
+    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
+    read_all = read_all[read_all[:, 4] >= args.min_mq, :4]
+    print 'Ignoring fragments with MQ < {:d}: {:d} reads are left.'.format(args.min_mq, len(np.unique(read_all[:, 0])))
 
-    # select far-cis/trans fragments
-    roi_size = configs['roi_end'] - configs['roi_start']
-    local_area = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
-    is_lcl = hasOL(local_area, frg_trs[:, 1:4])
-    frg_trs = frg_trs[np.isin(frg_trs[:, 0], frg_trs[~is_lcl, 0]), :]
-    print 'Selected reads with #trans-fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
-
-    # count #roi-frag per read
+    # select informative reads (#frg > 1), ignoring VP fragments
+    vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
-    is_roi = hasOL(roi_crd, frg_trs[:, 1:4], offset=0)
-    frg_roi = frg_trs[is_roi, :]
-    roi_freq = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
+    is_vp = hasOL(vp_crd, read_all[:, 1:4], offset=0)
+    is_roi = hasOL(roi_crd, read_all[:, 1:4], offset=0)
+    frg_roi = read_all[~is_vp & is_roi, :]
+    read_n_roi = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
+    is_inf = np.isin(read_all[:, 0], frg_roi[read_n_roi[frg_roi[:, 0]] > 1, 0])
+    read_inf = np.hstack([read_all[is_inf, 0:4], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
 
-    # count #tras-frag per read
-    trs_freq = np.bincount(frg_trs[:, 0], minlength=MAX_ReadID + 1).reshape(-1, 1)
-    frg_trs = np.hstack([frg_trs, roi_freq[frg_trs[:, 0], :], trs_freq[frg_trs[:, 0], :]])
+    # select reads with #traceable fragment > 1
+    roi_size = configs['roi_end'] - configs['roi_start']
+    lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
+    is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
+    frg_trs = read_inf[~is_lcl, :]
+    print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
 
-    # filter reads with #roi-frg > 1
-    frg_trs = frg_trs[frg_trs[:, 4] > 1, :]
-    print 'Selected reads with #roi-fragment > 1: {:d} reads are left.'.format(len(np.unique(frg_trs[:, 0])))
+    # make duplicate list of fragments
+    frg_uid, frg_idx = np.unique(frg_trs[:, 1:4], axis=0, return_inverse=True)
+    frg_n_trs = np.bincount(frg_idx)
+    dup_info = np.hstack([frg_trs, frg_n_trs[frg_idx].reshape(-1, 1)])
 
-    # sort reads according to #trans
-    trs_sid = np.lexsort([frg_trs[:, 0], frg_trs[:, -1]])[::-1]
-    frg_trs = frg_trs[trs_sid, :]
+    # sort trans-fragments according to #duplicates
+    dup_sid = np.lexsort([dup_info[:, -2], dup_info[:, -1]])[::-1]
+    dup_info = dup_info[dup_sid, :]
 
     # loop over trans fragments
-    trs_idx = 0
+    dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
-    while trs_idx < frg_trs.shape[0]:
-        if trs_idx % 10000 == 0:
-            print '\tscanned {:,d} fragments for duplicates.'.format(trs_idx)
-        has_ol = hasOL(frg_trs[trs_idx, 1:4], frg_trs[:, 1:4], offset=-10)
+    while dup_idx < dup_info.shape[0]:
+        if dup_idx % 10000 == 0:
+            print '\tscanned {:,d} trans-fragments for duplicates.'.format(dup_idx)
+        has_ol = hasOL(dup_info[dup_idx, 1:4], read_inf[:, 1:4], offset=-10)
         if np.sum(has_ol) > 1:
             # select duplicates
-            frg_dup = frg_trs[np.isin(frg_trs[:, 0], frg_trs[has_ol, 0]), :]
+            dup_set = read_inf[np.isin(read_inf[:, 0], read_inf[has_ol, 0]), :]
 
-            # keep largest read
-            keep_rid = frg_dup[np.argmax(frg_dup[:, 4]), 0]
-            frg_dup = frg_dup[frg_dup[:, 0] != keep_rid, :]
+            # keep largest read according to #roi fragments
+            keep_rid = dup_set[np.argmax(dup_set[:, -2]), 0]
+            dup_set = dup_set[dup_set[:, 0] != keep_rid, :]
 
             # remove extra duplicates
-            frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], frg_dup[:, 0]), :]
-        trs_idx = trs_idx + 1
+            read_inf = read_inf[~ np.isin(read_inf[:, 0], dup_set[:, 0]), :]
+        dup_idx = dup_idx + 1
     print 'Result statistics:'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(frg_trs[:, 0])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], frg_trs.shape[0])
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(read_inf[:, 0])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], read_inf.shape[0])
 
     # select and save unique reads
-    is_uniq = np.isin(mc4c_pd['ReadID'], frg_trs[:, 0])
+    is_uniq = np.isin(mc4c_pd['ReadID'], read_inf[:, 0])
     uniq_pd = mc4c_pd.loc[is_uniq, :]
     print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')
@@ -558,8 +559,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
