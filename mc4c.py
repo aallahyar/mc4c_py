@@ -193,7 +193,7 @@ def processMappedFragments(args):
     ReadID_old = -1
     FrgID_old = -1
     n_processed = 0
-    header_lst = ['ReadID', 'Chr', 'MapStart', 'MapEnd', 'Strand', 'ExtStart', 'ExtEnd', 'MQ',
+    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
                   'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength']
     n_header = len(header_lst)
     tmp_fname = args.output_file + '.tmp'
@@ -210,28 +210,28 @@ def processMappedFragments(args):
                 continue
             FileID, ReadID, ReadLength, FrgID, SeqStart, SeqEnd = \
                 [int(x.split(':')[1]) for x in que_line.query_name.split(';')]
-            MapChrNid = chr_map[que_line.reference_name]
+            MapChrNum = chr_map[que_line.reference_name]
             MapStart = que_line.reference_start
             MapEnd = que_line.reference_end
             MapStrand = 1 - (que_line.is_reverse * 2)
 
             # extending coordinates to nearby restriction site
-            nei_left = np.searchsorted(re_pos[MapChrNid - 1], MapStart, side='left') - 1
-            if np.abs(re_pos[MapChrNid - 1][nei_left + 1] - MapStart) < 10:
+            nei_left = np.searchsorted(re_pos[MapChrNum - 1], MapStart, side='left') - 1
+            if np.abs(re_pos[MapChrNum - 1][nei_left + 1] - MapStart) < 10:
                 nei_left = nei_left + 1
-            nei_right = np.searchsorted(re_pos[MapChrNid - 1], MapEnd, side='left')
-            if np.abs(MapEnd - re_pos[MapChrNid - 1][nei_right - 1]) < 10:
+            nei_right = np.searchsorted(re_pos[MapChrNum - 1], MapEnd, side='left')
+            if np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right - 1]) < 10:
                 nei_right = nei_right - 1
 
             if nei_left == nei_right:
-                dist_left = np.abs(MapStart - re_pos[MapChrNid - 1][nei_left])
-                dist_right = np.abs(MapEnd - re_pos[MapChrNid - 1][nei_right])
+                dist_left = np.abs(MapStart - re_pos[MapChrNum - 1][nei_left])
+                dist_right = np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right])
                 if dist_right < dist_left:
                     nei_left = nei_left - 1
                 else:
                     nei_right = nei_right + 1
-            ExtStart = re_pos[MapChrNid - 1][nei_left]
-            ExtEnd = re_pos[MapChrNid - 1][nei_right]
+            ExtStart = re_pos[MapChrNum - 1][nei_left]
+            ExtEnd = re_pos[MapChrNum - 1][nei_right]
             # TODO: Unmapped fragments are ignored here
 
             # adjust fragmet seq according to skipped bases
@@ -245,7 +245,7 @@ def processMappedFragments(args):
 
             # combine into an array
             frg_info = np.array([
-                ReadID, MapChrNid, MapStart, MapEnd, MapStrand, ExtStart, ExtEnd, que_line.mapping_quality,
+                ReadID, MapChrNum, ExtStart, ExtEnd, MapStrand, MapStart, MapEnd, que_line.mapping_quality,
                 FileID, FrgID, SeqStart, SeqEnd, ReadLength]).reshape([1, -1])
 
             # Check order of fragments
@@ -264,12 +264,16 @@ def processMappedFragments(args):
             # Save the read
             fi = 0
             while fi < frg_set.shape[0] - 1:
-                if hasOL(frg_set[fi, [1, 5, 6, 8]], frg_set[fi + 1:fi + 2, [1, 5, 6, 8]], offset=20)[0]:
+                if hasOL(frg_set[fi, 1:5], frg_set[fi + 1:fi + 2, 1:5], offset=20)[0]:
                     frg_set[fi, 2] = np.min(frg_set[fi:fi + 2, 2])
                     frg_set[fi, 3] = np.max(frg_set[fi:fi + 2, 3])
+                    assert frg_set[fi, 4] == frg_set[fi+1, 4]
+
                     frg_set[fi, 5] = np.min(frg_set[fi:fi + 2, 5])
                     frg_set[fi, 6] = np.max(frg_set[fi:fi + 2, 6])
+
                     frg_set[fi, 7] = np.max(frg_set[fi:fi + 2, 7])
+
                     frg_set[fi, 10] = np.min(frg_set[fi:fi + 2, 10])
                     frg_set[fi, 11] = np.max(frg_set[fi:fi + 2, 11])
                     frg_set = np.delete(frg_set, fi + 1, axis=0)
@@ -347,7 +351,7 @@ def removeDuplicates(args):
     frg_roi = read_all[~is_vp & is_roi, :]
     read_n_roi = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
     is_inf = np.isin(read_all[:, 0], frg_roi[read_n_roi[frg_roi[:, 0]] > 1, 0])
-    read_inf = np.hstack([read_all[is_inf, 0:4], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
+    read_inf = np.hstack([read_all[is_inf, 0:5], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
 
     # select reads with #traceable fragment > 1
     roi_size = configs['roi_end'] - configs['roi_start']
@@ -358,11 +362,10 @@ def removeDuplicates(args):
 
     # make duplicate list of fragments
     frg_uid, frg_idx = np.unique(frg_trs[:, 1:4], axis=0, return_inverse=True)
-    frg_n_trs = np.bincount(frg_idx)
-    dup_info = np.hstack([frg_trs, frg_n_trs[frg_idx].reshape(-1, 1)])
+    dup_info = np.hstack([frg_uid, np.bincount(frg_idx).reshape(-1, 1)])
 
     # sort trans-fragments according to #duplicates
-    dup_sid = np.lexsort([-dup_info[:, 0], dup_info[:, -2], dup_info[:, -1]])[::-1]
+    dup_sid = np.lexsort([dup_info[:, -1]])[::-1]  # , dup_info[:, -2]
     dup_info = dup_info[dup_sid, :]
 
     # loop over trans fragments
@@ -371,24 +374,24 @@ def removeDuplicates(args):
     while dup_idx < dup_info.shape[0]:
         if dup_idx % 10000 == 0:
             print '\tscanned {:,d} trans-fragments for duplicates.'.format(dup_idx)
-        has_ol = hasOL(dup_info[dup_idx, 1:4], dup_info[:, 1:4], offset=-10)
+        has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
         if np.sum(has_ol) > 1:
             # select duplicates
-            dup_set = dup_info[has_ol, :]
+            dup_set = frg_trs[has_ol, :]
 
             # keep largest read according to #roi fragments
-            keep_rid = dup_set[np.argmax(dup_set[:, -2]), 0]
+            keep_rid = dup_set[np.argmax(dup_set[:, -1]), 0]
             dup_set = dup_set[dup_set[:, 0] != keep_rid, :]
 
             # remove extra duplicates
-            dup_info = dup_info[~ np.isin(dup_info[:, 0], dup_set[:, 0]), :]
+            frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], dup_set[:, 0]), :]
         dup_idx = dup_idx + 1
     print 'Result statistics (before --> after filtering):'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(dup_info[:, 0])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], dup_info.shape[0])
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(frg_trs[:, 0])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], frg_trs.shape[0])
 
     # select and save unique reads
-    is_uniq = np.isin(mc4c_pd['ReadID'], dup_info[:, 0])
+    is_uniq = np.isin(mc4c_pd['ReadID'], frg_trs[:, 0])
     uniq_pd = mc4c_pd.loc[is_uniq, :]
     print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')
