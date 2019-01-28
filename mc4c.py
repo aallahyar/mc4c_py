@@ -351,7 +351,8 @@ def removeDuplicates(args):
     frg_roi = read_all[~is_vp & is_roi, :]
     read_n_roi = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
     is_inf = np.isin(read_all[:, 0], frg_roi[read_n_roi[frg_roi[:, 0]] > 1, 0])
-    read_inf = np.hstack([read_all[is_inf, 0:5], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
+    read_inf = np.hstack([read_all[is_inf, :], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
+    print 'Selected reads #cis fragment > 1: {:d} reads are selected.'.format(len(np.unique(read_inf[:, 0])))
 
     # select reads with #traceable fragment > 1
     roi_size = configs['roi_end'] - configs['roi_start']
@@ -365,15 +366,15 @@ def removeDuplicates(args):
     dup_info = np.hstack([frg_uid, np.bincount(frg_idx).reshape(-1, 1)])
 
     # sort trans-fragments according to #duplicates
-    dup_sid = np.lexsort([dup_info[:, -1]])[::-1]  # , dup_info[:, -2]
-    dup_info = dup_info[dup_sid, :]
+    dup_info = dup_info[np.lexsort([dup_info[:, -1]])[::-1], :]
 
     # loop over trans fragments
     dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
     while dup_idx < dup_info.shape[0]:
-        if dup_idx % 10000 == 0:
-            print '\tscanned {:,d} trans-fragments for duplicates.'.format(dup_idx)
+        if dup_idx % 1000 == 0:
+            print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
+                  '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
         has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
         if np.sum(has_ol) > 1:
             # select duplicates
