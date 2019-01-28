@@ -362,17 +362,18 @@ def removeDuplicates(args):
     print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
 
     # make duplicate list of fragments
-    frg_uid, frg_idx = np.unique(frg_trs[:, 1:4], axis=0, return_inverse=True)
-    dup_info = np.hstack([frg_uid, np.bincount(frg_idx).reshape(-1, 1)])
+    frg_uid, frg_idx, frg_cnt = np.unique(frg_trs[:, 1:4], axis=0, return_index=True, return_counts=True)
+    frg_idx = np.argsort(frg_idx)
+    dup_info = np.hstack([frg_uid[frg_idx, :], frg_cnt[frg_idx].reshape(-1, 1)])
 
     # sort trans-fragments according to #duplicates
-    dup_info = dup_info[np.lexsort([dup_info[:, -1]])[::-1], :]
+    dup_info = dup_info[np.lexsort([-dup_info[:, -1]]), :]
 
     # loop over trans fragments
     dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
     while dup_idx < dup_info.shape[0]:
-        if dup_idx % 1000 == 0:
+        if dup_idx % 10000 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
         has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
