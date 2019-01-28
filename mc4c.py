@@ -362,7 +362,7 @@ def removeDuplicates(args):
     dup_info = np.hstack([frg_trs, frg_n_trs[frg_idx].reshape(-1, 1)])
 
     # sort trans-fragments according to #duplicates
-    dup_sid = np.lexsort([dup_info[:, -2], dup_info[:, -1]])[::-1]
+    dup_sid = np.lexsort([-dup_info[:, 0], dup_info[:, -2], dup_info[:, -1]])[::-1]
     dup_info = dup_info[dup_sid, :]
 
     # loop over trans fragments
@@ -371,24 +371,24 @@ def removeDuplicates(args):
     while dup_idx < dup_info.shape[0]:
         if dup_idx % 10000 == 0:
             print '\tscanned {:,d} trans-fragments for duplicates.'.format(dup_idx)
-        has_ol = hasOL(dup_info[dup_idx, 1:4], read_inf[:, 1:4], offset=-10)
+        has_ol = hasOL(dup_info[dup_idx, 1:4], dup_info[:, 1:4], offset=-10)
         if np.sum(has_ol) > 1:
             # select duplicates
-            dup_set = read_inf[np.isin(read_inf[:, 0], read_inf[has_ol, 0]), :]
+            dup_set = dup_info[has_ol, :]
 
             # keep largest read according to #roi fragments
             keep_rid = dup_set[np.argmax(dup_set[:, -2]), 0]
             dup_set = dup_set[dup_set[:, 0] != keep_rid, :]
 
             # remove extra duplicates
-            read_inf = read_inf[~ np.isin(read_inf[:, 0], dup_set[:, 0]), :]
+            dup_info = dup_info[~ np.isin(dup_info[:, 0], dup_set[:, 0]), :]
         dup_idx = dup_idx + 1
-    print 'Result statistics:'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(read_inf[:, 0])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], read_inf.shape[0])
+    print 'Result statistics (before --> after filtering):'
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(dup_info[:, 0])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], dup_info.shape[0])
 
     # select and save unique reads
-    is_uniq = np.isin(mc4c_pd['ReadID'], read_inf[:, 0])
+    is_uniq = np.isin(mc4c_pd['ReadID'], dup_info[:, 0])
     uniq_pd = mc4c_pd.loc[is_uniq, :]
     print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')
