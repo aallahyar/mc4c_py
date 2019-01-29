@@ -180,16 +180,20 @@ def processMappedFragments(args):
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
     print('Reading fragments from: {:s}'.format(args.input_file))
 
+    # get chromosome information
     chr_lst = get_chr_info(configs['genome_build'], 'chr_name')
+    chr_size = get_chr_info(configs['genome_build'], 'chr_size')
     chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
 
-    # extend fragment coordinates to reference genome
+    # loading corresponding restriction fragment positions
     re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
     re_pos, re_chr_lst, re_genome_str = np.load(re_pos_fname)['arr_0']
     assert np.array_equal(re_chr_lst, chr_lst)
     assert configs['genome_build'] == re_genome_str
+    for ri in range(len(re_pos)):  # extending positions to length of chromosomes
+        re_pos[ri] = np.hstack([0, re_pos[ri], chr_size[ri]])
 
-    # read file line by line
+    # extend fragment coordinates to reference genome
     ReadID_old = -1
     FrgID_old = -1
     n_processed = 0
@@ -216,11 +220,12 @@ def processMappedFragments(args):
             MapStrand = 1 - (que_line.is_reverse * 2)
 
             # extending coordinates to nearby restriction site
+            n_re = len(re_pos[MapChrNum - 1])
             nei_left = np.searchsorted(re_pos[MapChrNum - 1], MapStart, side='left') - 1
-            if np.abs(re_pos[MapChrNum - 1][nei_left + 1] - MapStart) < 10:
+            if (nei_left < n_re - 1) and (np.abs(re_pos[MapChrNum - 1][nei_left + 1] - MapStart) < 10):
                 nei_left = nei_left + 1
             nei_right = np.searchsorted(re_pos[MapChrNum - 1], MapEnd, side='left')
-            if np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right - 1]) < 10:
+            if (nei_right > 0) and (np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right - 1]) < 10):
                 nei_right = nei_right - 1
 
             if nei_left == nei_right:
@@ -230,6 +235,7 @@ def processMappedFragments(args):
                     nei_left = nei_left - 1
                 else:
                     nei_right = nei_right + 1
+
             ExtStart = re_pos[MapChrNum - 1][nei_left]
             ExtEnd = re_pos[MapChrNum - 1][nei_right]
             # TODO: Unmapped fragments are ignored here
@@ -560,19 +566,24 @@ def main():
     parser_sumReport.set_defaults(func=getSumRep)
 
     if flag_DEBUG:
+        # pass
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
 
 if __name__ == '__main__':
     main()
+
+# cluster run example:
+# qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"

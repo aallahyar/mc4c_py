@@ -46,6 +46,7 @@ def get_chr_info(genome_str, property='chr_name'):
 def get_re_info(re_name='DpnII', property='seq', genome_str=None):
     re_details = dict({
         'DpnII': dict({'seq': 'GATC'}),
+        'MboI': dict({'seq': 'GATC'}),
         'Csp6I': dict({'seq': 'GTAC'}),
         'NlaIII': dict({'seq': 'CATG'}),
         'HindIII': dict({'seq': 'AAGCTT'})
