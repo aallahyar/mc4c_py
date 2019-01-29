@@ -194,11 +194,9 @@ def processMappedFragments(args):
         re_pos[ri] = np.hstack([0, re_pos[ri], chr_size[ri]])
 
     # extend fragment coordinates to reference genome
-    ReadID_old = -1
-    FrgID_old = -1
     n_processed = 0
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
-                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength']
+                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsValid']
     n_header = len(header_lst)
     tmp_fname = args.output_file + '.tmp'
     print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
@@ -218,6 +216,9 @@ def processMappedFragments(args):
             MapStart = que_line.reference_start
             MapEnd = que_line.reference_end
             MapStrand = 1 - (que_line.is_reverse * 2)
+            if que_idx == 0:
+                FrgID_old = FrgID
+                ReadID_old = ReadID
 
             # extending coordinates to nearby restriction site
             n_re = len(re_pos[MapChrNum - 1])
@@ -252,7 +253,7 @@ def processMappedFragments(args):
             # combine into an array
             frg_info = np.array([
                 ReadID, MapChrNum, ExtStart, ExtEnd, MapStrand, MapStart, MapEnd, que_line.mapping_quality,
-                FileID, FrgID, SeqStart, SeqEnd, ReadLength]).reshape([1, -1])
+                FileID, FrgID, SeqStart, SeqEnd, ReadLength, 1]).reshape([1, -1])
 
             # Check order of fragments
             if FrgID < FrgID_old:
@@ -267,10 +268,10 @@ def processMappedFragments(args):
             # sort the read according to seqs
             frg_set = frg_set[np.argsort(frg_set[:, 10]), :]
 
-            # Save the read
+            # merge adjacent fragments
             fi = 0
             while fi < frg_set.shape[0] - 1:
-                if hasOL(frg_set[fi, 1:5], frg_set[fi + 1:fi + 2, 1:5], offset=20)[0]:
+                if hasOL(frg_set[fi, 1:5], frg_set[fi + 1:fi + 2, 1:5], offset=30)[0]:
                     frg_set[fi, 2] = np.min(frg_set[fi:fi + 2, 2])
                     frg_set[fi, 3] = np.max(frg_set[fi:fi + 2, 3])
                     assert frg_set[fi, 4] == frg_set[fi+1, 4]
@@ -286,6 +287,23 @@ def processMappedFragments(args):
                 else:
                     fi = fi + 1
 
+            # make sure fragments are not overlapping (ignoring the strand)
+            n_frg = frg_set.shape[0]
+            for fi in range(n_frg):
+                if frg_set[fi, 13] == 0:
+                    break
+                for fj in range(fi+1, n_frg):
+                    if frg_set[fj, 13] == 0:
+                        break
+
+                    if hasOL(frg_set[fi, 1:4], frg_set[fj:fj + 1, 1:4], offset=-30)[0]:
+                        if frg_set[fi, 7] >= frg_set[fj, 7]:
+                            frg_set[fj, 13] = 0
+                        else:
+                            frg_set[fi, 13] = 0
+                            break
+
+            # save the read
             for frg in frg_set:
                 gz_fid.write(frg_template.format(*frg))
             frg_set = frg_info.copy()
@@ -344,10 +362,14 @@ def removeDuplicates(args):
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
-    # Filtering reads according to their MQ
-    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
-    read_all = read_all[read_all[:, 4] >= args.min_mq, :4]
-    print 'Ignoring fragments with MQ < {:d}: {:d} reads are left.'.format(args.min_mq, len(np.unique(read_all[:, 0])))
+    # filtering reads according to their MQ
+    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'IsValid']].values
+    is_mapped = read_all[:, 4] >= args.min_mq
+    is_valid = read_all[:, 5] == 1
+    read_all = read_all[is_mapped & is_valid, :4]
+    print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
+        args.min_mq, len(np.unique(read_all[:, 0])))
+    del is_mapped, is_valid
 
     # select informative reads (#frg > 1), ignoring VP fragments
     vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
@@ -379,7 +401,7 @@ def removeDuplicates(args):
     dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
     while dup_idx < dup_info.shape[0]:
-        if dup_idx % 10000 == 0:
+        if dup_idx % 1000 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
         has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
@@ -577,7 +599,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
