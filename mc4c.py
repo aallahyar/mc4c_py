@@ -451,7 +451,9 @@ def getSumRep(args):
     elif args.report_type =='cvgDist':
         mc4c_tools.plot_cvgDistribution(configs)
     elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs)
+        mc4c_tools.plot_cirSizeDistribution(configs, only_cis=False)
+    elif args.report_type == 'cirSizeDist_cis':
+        mc4c_tools.plot_cirSizeDistribution(configs, only_cis=True)
     elif args.report_type =='overallProfile':
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
@@ -571,7 +573,8 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
     parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist', 'overallProfile'],
+                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist', 'cirSizeDist_cis',
+                                          'overallProfile'],
                                  type=str,
                                  help='Type of summary report that needs to be generated')
     parser_sumReport.add_argument('config_file', metavar='config-file',
@@ -597,7 +600,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist_cis', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']

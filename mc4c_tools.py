@@ -126,7 +126,7 @@ def plot_readSizeDistribution(configs):
     if configs['input_file'] is None:
         configs['input_file'] = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_ReadSizeDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8000
     edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1
@@ -191,7 +191,7 @@ def plot_cvgDistribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_CvgDistribution.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_CvgDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
@@ -311,7 +311,7 @@ def plot_cvgDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_cirSizeDistribution(configs):
+def plot_cirSizeDistribution(configs, only_cis=True):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -322,7 +322,10 @@ def plot_cirSizeDistribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_CirSizeDistribution.pdf'
+        if only_cis:
+            configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistributionCis_' + configs['run_id'] + '.pdf'
+        else:
+            configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8
     edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
     n_edge = len(edge_lst)
@@ -331,6 +334,15 @@ def plot_cirSizeDistribution(configs):
     frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ReadLength']].values
     del frg_dp
+
+    # select cis fragments
+    if only_cis:
+        from utilities import hasOL
+        vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
+        roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+        is_vp = hasOL(vp_crd, frg_np[:, 1:4], offset=0)
+        is_roi = hasOL(roi_crd, frg_np[:, 1:4], offset=0)
+        frg_np = frg_np[~is_vp & is_roi, :]
 
     # group circles
     read_grp = accum_array(frg_np[:, 0] - 1, frg_np)
@@ -350,15 +362,13 @@ def plot_cirSizeDistribution(configs):
             n_frg = MAX_SIZE
         bin_idx = np.digitize(n_frg, edge_lst) - 1
 
-        if frg_set[0, 5] < 3000:
-            read_cls = 0
-        elif frg_set[0, 5] < 7000:
-            read_cls = 1
-        else:
-            read_cls = 2
-
-        size_dist[read_cls, bin_idx] += 1
-    size_dist[3, :] = np.sum(size_dist, axis=0)
+        if frg_set[0, 5] < 1500:
+            size_dist[0, bin_idx] += 1
+        elif frg_set[0, 5] < 5000:
+            size_dist[1, bin_idx] += 1
+        elif frg_set[0, 5] > 5000:
+            size_dist[2, bin_idx] += 1
+        size_dist[3, bin_idx] += 1
 
     # Plotting
     clr_map = [cm.Blues(x) for x in np.linspace(0.3, 1.0, 3)] + [(1.0, 0.5, 0.25)]
@@ -379,9 +389,9 @@ def plot_cirSizeDistribution(configs):
               '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
               )
     plt.legend(plt_h, [
-        'read size <3kb (n={:,d})'.format(np.sum(size_dist[0, :])),
-        'read size <7kb (n={:,d})'.format(np.sum(size_dist[1, :])),
-        'read size >7kb (n={:,d})'.format(np.sum(size_dist[2, :])),
+        'read size <1.5kb (n={:,d})'.format(np.sum(size_dist[0, :])),
+        'read size <5kb (n={:,d})'.format(np.sum(size_dist[1, :])),
+        'read size >5kb (n={:,d})'.format(np.sum(size_dist[2, :])),
         'All (n={:,d})'.format(np.sum(size_dist[3, :]))
     ])
     plt.savefig(configs['output_file'], bbox_inches='tight')
