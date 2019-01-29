@@ -448,10 +448,10 @@ def getSumRep(args):
     # call the requested function
     if args.report_type == 'readSizeDist':
         mc4c_tools.plot_readSizeDistribution(configs)
-    elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs)
     elif args.report_type =='cvgDist':
         mc4c_tools.plot_cvgDistribution(configs)
+    elif args.report_type == 'cirSizeDist':
+        mc4c_tools.plot_cirSizeDistribution(configs)
     elif args.report_type =='overallProfile':
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
@@ -595,12 +595,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
-        sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
