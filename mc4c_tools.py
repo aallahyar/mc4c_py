@@ -91,7 +91,7 @@ def load_configs(cfg_fname):
                 else:
                     configs[columns[0]] = fld_lst
 
-    # Conversions
+    # conversions
     for cnf_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
         configs[cnf_name] = int(configs[cnf_name])
     for cnf_name in ['prm_start', 'prm_end']:
@@ -102,7 +102,7 @@ def load_configs(cfg_fname):
     chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
     configs['vp_cnum'] = chr_map[configs['vp_chr']]
 
-    # Check configs that should be of equal length
+    # check configs that should be of equal length
     linked_configs = [
         ['prm_seq','prm_start','prm_end'],
         ['re_name','re_seq'],
@@ -110,6 +110,15 @@ def load_configs(cfg_fname):
     for cnf_set in linked_configs:
         assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
             'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
+
+    # set default if needed
+    if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
+        configs['vp_start'] = np.min(configs['prm_start']) - 1500
+        configs['vp_end'] = np.max(configs['prm_end']) + 1500
+    if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
+        roi_cen = np.abs(configs['vp_end'] - configs['vp_start']) / 2
+        configs['roi_start'] = roi_cen - 1000000
+        configs['roi_end'] = roi_cen + 1000000
 
     return configs
 
