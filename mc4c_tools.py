@@ -92,12 +92,13 @@ def load_configs(cfg_fname):
                     configs[columns[0]] = fld_lst
 
     # conversions
-    for cnf_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
-        configs[cnf_name] = int(configs[cnf_name])
-    for cnf_name in ['prm_start', 'prm_end']:
-        configs[cnf_name] = [int(value) for value in configs[cnf_name]]
-    for cnf_name in ['bwa_index_path', 'ref_genome_file']:
-        configs[cnf_name] = configs[cnf_name].replace('%REF%', configs['genome_build'])
+    for cfg_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
+        if cfg_name in configs.keys():
+            configs[cfg_name] = int(configs[cfg_name])
+    for cfg_name in ['prm_start', 'prm_end']:
+        configs[cfg_name] = [int(value) for value in configs[cfg_name]]
+    for cfg_name in ['bwa_index_path', 'ref_genome_file']:
+        configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
     chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
     configs['vp_cnum'] = chr_map[configs['vp_chr']]

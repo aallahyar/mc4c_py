@@ -10,7 +10,7 @@ pd.set_option('display.max_columns', 25)
 
 # initialization
 src_fname = '../../64_Cleaning_Up/Dataset_info.tsv'
-run_lst = ['LVR-BMaj-96x', 'LVR-BMaj-NP']
+run_lst = ['LVR-BMaj-96x', 'LVR-BMaj-NP', 'BRN-BMaj-96x', 'BRN-BMaj-96x2']
 
 # load source file
 vpi_pd = pd.read_csv(src_fname, delimiter='\t')
