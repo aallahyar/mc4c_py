@@ -454,7 +454,7 @@ def getSumRep(args):
         mc4c_tools.plot_cirSizeDistribution(configs, only_cis=False)
     elif args.report_type == 'cirSizeDist_cis':
         mc4c_tools.plot_cirSizeDistribution(configs, only_cis=True)
-    elif args.report_type =='overallProfile':
+    elif args.report_type == 'overallProfile':
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
         raise Exception()
@@ -600,8 +600,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist_cis', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist_cis', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])

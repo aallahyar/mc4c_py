@@ -407,7 +407,7 @@ def plot_cirSizeDistribution(configs, only_cis=True):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_overallProfile(configs, MIN_N_FRG=2):
+def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -418,15 +418,15 @@ def plot_overallProfile(configs, MIN_N_FRG=2):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_' + configs['run_id'] + '_OverallProfile.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_OverallProfile_' + configs['run_id'] + '.pdf'
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
-    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:]])
+    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
     n_bin = len(bin_bnd)
     del edge_lst
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
+    frg_dp = load_mc4c(configs, only_unique=only_unique, only_valid=True, min_mq=20, reindex_reads=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -462,14 +462,14 @@ def plot_overallProfile(configs, MIN_N_FRG=2):
     plt.gca().add_patch(patches.Rectangle([vp_bnd[0], 0], vp_bnd[1] - vp_bnd[0], y_lim[1],
                       linewidth=0, edgecolor='None', facecolor='orange'))
 
-    plt.xlim([bin_bnd[0, 0], bin_bnd[-1, 1]])
-    x_ticks = np.linspace(bin_bnd[0, 0], bin_bnd[-1, 1], 20, dtype=np.int64)
+    plt.xlim([configs['roi_start'], configs['roi_end']])
+    x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 20, dtype=np.int64)
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
     plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (%)')
     plt.ylim(y_lim)
     plt.title('Overall profile, {:s}\n'.format(configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. VP)={:,d}'.format(MIN_N_FRG - 1, n_read)
+              '#read (#roiFrg>{:d}, ex. vp)={:,d}'.format(MIN_N_FRG - 1, n_read)
               )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
