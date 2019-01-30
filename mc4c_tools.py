@@ -124,6 +124,30 @@ def load_configs(cfg_fname):
     return configs
 
 
+def load_annotation(genome_str, roi_crd=None):
+    import pandas as pd
+    from utilities import get_chr_info
+
+    # load annotation
+    inp_fname = './annotations/ant_{:s}.tsv'.format(genome_str)
+    ant_pd = pd.read_csv(inp_fname, delimiter='\t', comment='#',
+                         header=None, names=['ant_name', 'ant_chr', 'ant_pos'])
+
+    # convert map to chr_nums
+    chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+    ant_pd['ant_cnum'] = ant_pd['ant_chr'].map(chr_map)
+
+    # filter annotations outside ROI
+    if roi_crd:
+        is_in = (ant_pd['ant_cnum'] == roi_crd[0]) & \
+                (ant_pd['ant_pos'] >= roi_crd[1]) & \
+                (ant_pd['ant_pos'] <= roi_crd[2])
+        ant_pd = ant_pd.loc[is_in]
+
+    return ant_pd
+
+
 def plot_readSizeDistribution(configs):
     import platform
     if platform.system() == 'Linux':
@@ -462,6 +486,16 @@ def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
     plt.gca().add_patch(patches.Rectangle([vp_bnd[0], 0], vp_bnd[1] - vp_bnd[0], y_lim[1],
                       linewidth=0, edgecolor='None', facecolor='orange'))
 
+    # add annotations
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    for ai in range(ant_pd.shape[0]):
+        ant_pos = ant_pd.loc[ai, 'ant_pos']
+        plt.text(ant_pos, y_lim[1] * 0.995, ant_pd.loc[ai, 'ant_name'],
+                 horizontalalignment='center', verticalalignment='top')
+        plt.plot([ant_pos, ant_pos], [y_lim[0], y_lim[1] * 0.97], '--', color='#bfbfbf', linewidth=1, alpha=0.5)
+
+
+    # final adjustments
     plt.xlim([configs['roi_start'], configs['roi_end']])
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 20, dtype=np.int64)
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
