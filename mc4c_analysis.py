@@ -39,12 +39,22 @@ def perform_mc_analysis(configs, min_n_frg=2):
     frg_roi = frg_roi[cir_size >= min_n_frg, :]
     n_read = len(np.unique(frg_roi[:, 0]))
 
+    # re-index circles
+    frg_roi[:, 0] = np.unique(frg_roi[:, 0], return_inverse=True)[1]
+
+    # convert reads to bin coverage
+    cvg_lst = [set() for i in range(n_read)]
+    for fi in range(frg_roi.shape[0]):
+        bin_idx = np.where(hasOL(frg_roi[fi, 2:4], bin_bnd))[0]
+        cvg_lst[frg_roi[fi, 0]].update(bin_idx)
+
     # looping over bins
     print 'Performing the MC analysis using {:d} reads ...'.format(n_read)
     mat_freq = np.full([n_bin, n_bin], fill_value=np.nan)
     mat_zscr = np.full([n_bin, n_bin], fill_value=np.nan)
-    vec_freq = np.zeros(n_bin)
     for bi in range(n_bin):
+        if bi % (n_bin / 10) == 0:
+            print '{:0.0f}%,'.format(bi * 100.0 / n_bin),
         is_pos = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
         frg_pos = frg_roi[np.isin(frg_roi[:, 0], frg_roi[is_pos, 0]), :]
         frg_neg = frg_roi[~np.isin(frg_roi[:, 0], frg_pos[:, 0]), :]
@@ -53,22 +63,28 @@ def perform_mc_analysis(configs, min_n_frg=2):
         n_pos = len(ids_pos)
         n_neg = len(ids_neg)
         assert n_pos <= n_neg
+        if n_pos < 100:
+            continue
 
+        # calculate the background
+        rnd_freq = np.zeros([n_epoch, n_bin])
+        for ei in np.arange(n_epoch):
+            rnd_lst = np.random.choice(ids_neg, n_pos, replace=False)
+            for rd_idx in rnd_lst:
+                for bin_idx in cvg_lst[rd_idx]:
+                    rnd_freq[ei, bin_idx] += 1
+
+        # calculate observed
         for bj in range(bi+1, n_bin):
             is_cov = hasOL(bin_bnd[bj, :], frg_pos[:, 2:4])
             mat_freq[bi, bj] = len(np.unique(frg_pos[is_cov, 0]))
-            if mat_freq[bi, bj] < 5:
+
+            zscr_avg = np.mean(rnd_freq[:, bj])
+            zscr_std = np.std(rnd_freq[:, bj])
+            if zscr_std == 0:
                 continue
-
-            for ei in range(n_epoch):
-                ids_rnd = np.random.choice(ids_neg, n_pos, replace=False)
-                frg_rnd = frg_neg[np.isin(frg_neg[:, 0], ids_rnd), :]
-                is_cov = hasOL(bin_bnd[bj, :], frg_rnd[:, 2:4])
-                vec_freq[bj] = len(np.unique(frg_rnd[is_cov, 0]))
-
-            zscr_avg = np.mean(vec_freq)
-            zscr_std = np.std(vec_freq)
             mat_zscr[bi, bj] = (mat_freq[bi, bj] - zscr_avg) / zscr_std
+            mat_zscr[bj, bi] = mat_zscr[bi, bj]
 
     # set vp bins to nan
     is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
@@ -77,10 +93,11 @@ def perform_mc_analysis(configs, min_n_frg=2):
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # plotting
-    plt.figure(figsize=(15, 5))
-    clr_lst = ['#3900f5', '#8ab5ff', '#ffffff', '#ffffff', '#ffffff', '#ff8a8a', '#ff1a1a']
+    plt.figure(figsize=(15, 7))
+    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
-    plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='upper', interpolation='nearest')
+    clr_map.set_bad('gray', 0.1)
+    plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
     plt.gca().add_patch(patches.Rectangle([vp_bnd[0], x_lim[0]], vp_bnd[1] - vp_bnd[0], x_lim[1] - x_lim[0],
                                           linewidth=0, edgecolor='None', facecolor='orange'))
     plt.gca().add_patch(patches.Rectangle([x_lim[0], vp_bnd[0]], x_lim[1] - x_lim[0], vp_bnd[1] - vp_bnd[0],
@@ -97,8 +114,8 @@ def perform_mc_analysis(configs, min_n_frg=2):
                  horizontalalignment='center', verticalalignment='bottom')
         plt.text(x_lim[1], ant_pos, ' ' + ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='left', verticalalignment='center')
-        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
-        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=0.5, alpha=0.4)
+        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=0.5, alpha=0.4)
 
     # final adjustments
     plt.xlim(x_lim)
