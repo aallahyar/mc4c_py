@@ -219,6 +219,7 @@ def processMappedFragments(args):
             if que_idx == 0:
                 FrgID_old = FrgID
                 ReadID_old = ReadID
+            # TODO: Unmapped fragments are ignored here
 
             # extending coordinates to nearby restriction site
             n_re = len(re_pos[MapChrNum - 1])
@@ -238,10 +239,19 @@ def processMappedFragments(args):
                     nei_right = nei_right + 1
 
             ExtStart = re_pos[MapChrNum - 1][nei_left]
-            ExtEnd = re_pos[MapChrNum - 1][nei_right]
-            # TODO: Unmapped fragments are ignored here
+            try:
+                ExtEnd = re_pos[MapChrNum - 1][nei_right]
+            except:
+                if nei_right == len(re_pos[MapChrNum - 1]):
+                    ExtEnd = re_pos[MapChrNum - 1][-1] + 100
+                else:
+                    raise Exception('Error in: {:s}'.format(que_line.query_name))
+            # TODO: Why the mapped coordinates are after end of chromosome
+            # happened in: frg_BRN-BMaj-96x.fasta.gz
+            # frg_id: Fl.Id:1;Rd.Id:1819914;Rd.Ln:2908;Fr.Id:12027752;Fr.SBp:1291;Fr.EBp:1700
+            # frg_seq: GATCATATGGGCAGAAACATCAACATAATATGATTAAAATCAATAAATCATAAATACTCCACAAGTAAAATTTTACTTGTAAAATATGATTAAAGCATGTCTACCAAAATAATCCATCTAATCTTGATACTATCTTACACTACTCTATCATAAGATTTATTGAATATGGCATTTCAGAAAACATCACTAGTGTTCTGTGCATATCAGAACGCCAGTTTACACATATATCAACTATGGAAACAAATCAAGGGATACCAGCATATGAATTGATGCATAAATTGCTACGCTTTAACGTTTCTAAGGTATCAGGTGCAAGACACTTGTGTTACTCATCTGAAGCACCACTTACAATGCAACAAATAATACATTGTAGCCTCCCTCAGCCTTGAAGCAAGTGGTATCTGATGATC
 
-            # adjust fragmet seq according to skipped bases
+            # adjust fragment seq according to skipped bases
             cigar_tup = que_line.cigartuples
             if MapStrand == -1:
                 cigar_tup.reverse()
@@ -451,9 +461,7 @@ def getSumRep(args):
     elif args.report_type =='cvgDist':
         mc4c_tools.plot_cvgDistribution(configs)
     elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs, only_cis=False)
-    elif args.report_type == 'cirSizeDist_cis':
-        mc4c_tools.plot_cirSizeDistribution(configs, only_cis=True)
+        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only)
     elif args.report_type == 'overallProfile':
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
@@ -573,7 +581,7 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
     parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist', 'cirSizeDist_cis',
+                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist',
                                           'overallProfile'],
                                  type=str,
                                  help='Type of summary report that needs to be generated')
@@ -588,6 +596,9 @@ def main():
                                  default=None,
                                  type=str,
                                  help='Output file (in PDF format) containing the requested summary report.')
+    parser_sumReport.add_argument('--roi-only',
+                                  action="store_true",
+                                  help='Limits the requested summary report to be generated from roi-fragments only.')
     parser_sumReport.set_defaults(func=getSumRep)
 
     if flag_DEBUG:
@@ -596,12 +607,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'BRN-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist_cis', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])

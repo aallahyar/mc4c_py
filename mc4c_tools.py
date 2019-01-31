@@ -345,7 +345,7 @@ def plot_cvgDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_cirSizeDistribution(configs, only_cis=True):
+def plot_cirSizeDistribution(configs, roi_only=True):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -356,10 +356,7 @@ def plot_cirSizeDistribution(configs, only_cis=True):
 
     # initialization
     if configs['output_file'] is None:
-        if only_cis:
-            configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistributionCis_' + configs['run_id'] + '.pdf'
-        else:
-            configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8
     edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
     n_edge = len(edge_lst)
@@ -370,7 +367,7 @@ def plot_cirSizeDistribution(configs, only_cis=True):
     del frg_dp
 
     # select cis fragments
-    if only_cis:
+    if roi_only:
         from utilities import hasOL
         vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
         roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
@@ -493,7 +490,6 @@ def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
         plt.text(ant_pos, y_lim[1] * 0.995, ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='center', verticalalignment='top')
         plt.plot([ant_pos, ant_pos], [y_lim[0], y_lim[1] * 0.97], '--', color='#bfbfbf', linewidth=1, alpha=0.5)
-
 
     # final adjustments
     plt.xlim([configs['roi_start'], configs['roi_end']])
