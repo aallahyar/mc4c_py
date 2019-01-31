@@ -468,7 +468,7 @@ def getSumRep(args):
         raise Exception()
 
 
-def performAnalysis(args):
+def perform_analysis(args):
     import mc4c_analysis
 
     configs = mc4c_tools.load_configs(args.config_file)
@@ -482,16 +482,8 @@ def performAnalysis(args):
     configs['output_file'] = args.output_file
 
     # call the requested function
-    if args.report_type == 'readSizeDist':
-        mc4c_tools.plot_readSizeDistribution(configs)
-    elif args.report_type =='cvgDist':
-        mc4c_tools.plot_cvgDistribution(configs)
-    elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only)
-    elif args.report_type == 'overallProfile':
-        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
-    elif args.report_type == 'overallProfile':
-        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
+    if args.analysis_type == 'mcTest':
+        mc4c_analysis.perform_mc_analysis(configs)
     else:
         raise Exception()
 
@@ -629,6 +621,30 @@ def main():
                                   help='Limits the requested summary report to be generated from roi-fragments only.')
     parser_sumReport.set_defaults(func=getSumRep)
 
+    # perform basic analysis
+    parser_analysis = subparsers.add_parser('analysis',
+                                             description='Perform analysis on a MC-4C dataset.')
+    parser_analysis.add_argument('analysis_type', metavar='analysis-type',
+                                  choices=['mcTest'],
+                                  type=str,
+                                  help='Type of analysis that needs to be performed')
+    parser_analysis.add_argument('config_file', metavar='config-file',
+                                  type=str,
+                                  help='Configuration file containing experiment specific details')
+    parser_analysis.add_argument('--input-file',
+                                  default=None,
+                                  type=str,
+                                  help='Input file (in HDF5 format) containing MC4C data.')
+    parser_analysis.add_argument('--output-file',
+                                  default=None,
+                                  type=str,
+                                  help='Output file (in PDF format) containing the result of the requested analysis.')
+    parser_analysis.add_argument('--roi-only',
+                                  action="store_true",
+                                  help='Limits the requested analysis to be generated from roi-fragments only. ' +
+                                       'By default this flag is set to TRUE.')
+    parser_analysis.set_defaults(func=perform_analysis)
+
     if flag_DEBUG:
         # pass
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
@@ -640,7 +656,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])
