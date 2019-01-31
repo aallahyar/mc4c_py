@@ -487,9 +487,9 @@ def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
     ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
-        plt.text(ant_pos, y_lim[1] * 0.995, ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='center', verticalalignment='top')
-        plt.plot([ant_pos, ant_pos], [y_lim[0], y_lim[1] * 0.97], '--', color='#bfbfbf', linewidth=1, alpha=0.5)
+        plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
+                 horizontalalignment='center', verticalalignment='bottom')
+        plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.5)
 
     # final adjustments
     plt.xlim([configs['roi_start'], configs['roi_end']])
@@ -499,7 +499,7 @@ def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
     plt.ylabel('Frequency (%)')
     plt.ylim(y_lim)
     plt.title('Overall profile, {:s}\n'.format(configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}'.format(MIN_N_FRG - 1, n_read)
+              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n'.format(MIN_N_FRG - 1, n_read)
               )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

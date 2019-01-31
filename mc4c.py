@@ -467,6 +467,34 @@ def getSumRep(args):
     else:
         raise Exception()
 
+
+def performAnalysis(args):
+    import mc4c_analysis
+
+    configs = mc4c_tools.load_configs(args.config_file)
+    if args.output_file is None:
+        configs['output_dir'] = './plots/'
+    else:
+        configs['output_dir'] = path.dirname(args.output_file)
+    if not path.isdir(configs['output_dir']):
+        makedirs(configs['output_dir'])
+    configs['input_file'] = args.input_file
+    configs['output_file'] = args.output_file
+
+    # call the requested function
+    if args.report_type == 'readSizeDist':
+        mc4c_tools.plot_readSizeDistribution(configs)
+    elif args.report_type =='cvgDist':
+        mc4c_tools.plot_cvgDistribution(configs)
+    elif args.report_type == 'cirSizeDist':
+        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only)
+    elif args.report_type == 'overallProfile':
+        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
+    elif args.report_type == 'overallProfile':
+        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
+    else:
+        raise Exception()
+
 # Huge wall of argparse text starts here
 def main():
     """ Everything in here is to interpret calls from a command line.
@@ -581,7 +609,7 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
     parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['readSizeDist', 'cvgDist', 'cirSizeDist',
+                                 choices=['cvgDist', 'readSizeDist', 'cirSizeDist',
                                           'overallProfile'],
                                  type=str,
                                  help='Type of summary report that needs to be generated')
@@ -607,12 +635,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'BRN-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'BRN-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
     args = parser.parse_args(sys.argv[1:])
