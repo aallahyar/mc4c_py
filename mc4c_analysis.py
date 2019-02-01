@@ -93,10 +93,10 @@ def perform_mc_analysis(configs, min_n_frg=2):
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # plotting
-    plt.figure(figsize=(15, 7))
+    plt.figure(figsize=(17, 9))
     clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
-    clr_map.set_bad('gray', 0.1)
+    clr_map.set_bad('gray', 0.05)
     plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
     plt.gca().add_patch(patches.Rectangle([vp_bnd[0], x_lim[0]], vp_bnd[1] - vp_bnd[0], x_lim[1] - x_lim[0],
                                           linewidth=0, edgecolor='None', facecolor='orange'))
@@ -111,21 +111,21 @@ def perform_mc_analysis(configs, min_n_frg=2):
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
         plt.text(ant_pos, x_lim[1], ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='center', verticalalignment='bottom')
+                 horizontalalignment='left', verticalalignment='bottom', rotation=60)
         plt.text(x_lim[1], ant_pos, ' ' + ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='left', verticalalignment='center')
-        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=0.5, alpha=0.4)
-        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=0.5, alpha=0.4)
+        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
     # final adjustments
     plt.xlim(x_lim)
     plt.ylim(x_lim)
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 7, dtype=np.int64)
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
-    plt.xticks(x_ticks, x_tick_label, rotation=20)
+    plt.xticks(x_ticks, x_tick_label, rotation=0, horizontalalignment='center')
     plt.yticks(x_ticks, x_tick_label, rotation=0)
     plt.title('Multicontact matrix, {:s}\n'.format(configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n'.format(min_n_frg - 1, n_read)
+              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n\n\n'.format(min_n_frg - 1, n_read)
               )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
