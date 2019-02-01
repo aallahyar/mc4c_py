@@ -54,74 +54,84 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
     return out_pd[header_lst]
 
 
-def load_configs(cfg_fname):
+def load_configs(input_fname, max_n_configs=None):
     """ Read configurations from given file, put it into a dict
 
-    :param cfg_fname: takes a path to a tab-separated file with one variable name and value per line, multiple values
-    are seprated by ";").
+    :param input_fname: takes a path to a tab-separated file (or a "config_id") with one variable name and value
+    per line, multiple values are seprated by ";").
 
     :returns: Dictionary where keys are based on the first column with values in a list.
     """
     from os import path
     from utilities import get_chr_info
 
-    # check if config_file is a file
-    if cfg_fname[-4:] != '.cfg':
-        # print 'Configuration file does not end with ".cfg". Assuming the given name as a run ID.'
-        cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
+    # check number of given configs
+    cfg_file_list = input_fname.split(';')
+    if max_n_configs:
+        assert len(cfg_file_list) <= max_n_configs, \
+            'Maximum of {:d} configs are allowed to be loaded.'.format(max_n_configs)
 
-    # add global config file to list
-    if path.isfile('./mc4c.cfg'):
-        cfg_flist = ['./mc4c.cfg', cfg_fname]
-    else:
-        cfg_flist = [cfg_fname]
+    # loop over configs
+    config_lst = []
+    for cfg_fname in cfg_file_list:
 
-    # Load global and then given configs
-    configs = dict()
-    for fname in cfg_flist:
-        with open(fname, 'r') as cfg_fid:
-            for line in cfg_fid:
-                if (line[0] == '#') or (len(line) == 1):
-                    continue
-                columns = line.rstrip('\n').split('\t')
-                assert len(columns) == 2
-                fld_lst = columns[1].split(';')
-                if len(fld_lst) == 1:
-                    configs[columns[0]] = fld_lst[0]
-                else:
-                    configs[columns[0]] = fld_lst
+        # check if config_file is a file
+        if cfg_fname[-4:] != '.cfg':
+            cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
+        assert path.isfile(cfg_fname), 'Configuration file could not be found: '.format(cfg_fname)
 
-    # conversions
-    for cfg_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
-        if cfg_name in configs.keys():
-            configs[cfg_name] = int(configs[cfg_name])
-    for cfg_name in ['prm_start', 'prm_end']:
-        configs[cfg_name] = [int(value) for value in configs[cfg_name]]
-    for cfg_name in ['bwa_index_path', 'ref_genome_file']:
-        configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
-    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
-    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
-    configs['vp_cnum'] = chr_map[configs['vp_chr']]
+        # Load global and then given configs
+        configs = dict()
+        for fname in ['./mc4c.cfg', cfg_fname]:
+            if not path.isfile(fname):
+                continue
+            with open(fname, 'r') as cfg_fid:
+                for line in cfg_fid:
+                    if (line[0] == '#') or (len(line) == 1):
+                        continue
+                    columns = line.rstrip('\n').split('\t')
+                    assert len(columns) == 2
+                    fld_lst = columns[1].split(';')
+                    if len(fld_lst) == 1:
+                        configs[columns[0]] = fld_lst[0]
+                    else:
+                        configs[columns[0]] = fld_lst
 
-    # check configs that should be of equal length
-    linked_configs = [
-        ['prm_seq','prm_start','prm_end'],
-        ['re_name','re_seq'],
-    ]
-    for cnf_set in linked_configs:
-        assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
-            'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
+        # conversions
+        for cfg_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
+            if cfg_name in configs.keys():
+                configs[cfg_name] = int(configs[cfg_name])
+        for cfg_name in ['prm_start', 'prm_end']:
+            configs[cfg_name] = [int(value) for value in configs[cfg_name]]
+        for cfg_name in ['bwa_index_path', 'ref_genome_file']:
+            configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
 
-    # set default if needed
-    if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
-        configs['vp_start'] = np.min(configs['prm_start']) - 1500
-        configs['vp_end'] = np.max(configs['prm_end']) + 1500
-    if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
-        roi_cen = np.abs(configs['vp_end'] - configs['vp_start']) / 2
-        configs['roi_start'] = roi_cen - 1000000
-        configs['roi_end'] = roi_cen + 1000000
+        # get chromosome info
+        chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
+        chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+        configs['vp_cnum'] = chr_map[configs['vp_chr']]
 
-    return configs
+        # check configs that should be of equal length
+        linked_configs = [
+            ['prm_seq','prm_start','prm_end'],
+            ['re_name','re_seq'],
+        ]
+        for cnf_set in linked_configs:
+            assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
+                'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
+
+        # set default if needed
+        if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
+            configs['vp_start'] = np.min(configs['prm_start']) - 1500
+            configs['vp_end'] = np.max(configs['prm_end']) + 1500
+        if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
+            roi_cen = np.abs(configs['vp_end'] - configs['vp_start']) / 2
+            configs['roi_start'] = roi_cen - 1000000
+            configs['roi_end'] = roi_cen + 1000000
+
+        # add to list of configs
+        config_lst.append(configs.copy())
+    return config_lst
 
 
 def load_annotation(genome_str, roi_crd=None):
