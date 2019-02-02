@@ -103,7 +103,7 @@ def load_configs(input_fname, max_n_configs=None):
                 configs[cfg_name] = int(configs[cfg_name])
         for cfg_name in ['prm_start', 'prm_end']:
             configs[cfg_name] = [int(value) for value in configs[cfg_name]]
-        for cfg_name in ['bwa_index_path', 'ref_genome_file']:
+        for cfg_name in ['bwa_index', 'reference_fasta']:
             configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
 
         # get chromosome info
@@ -250,7 +250,7 @@ def plot_cvgDistribution(configs):
     if not path.isfile(re_fname):
         from utilities import extract_re_positions
         extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
-                             output_fname=re_fname, ref_fasta=configs['ref_genome_file'])
+                             output_fname=re_fname, ref_fasta=configs['reference_fasta'])
     re_pos_lst = get_re_info(re_name='-'.join(configs['re_name']), property='pos', genome_str=configs['genome_build'])
 
     # compute ref fragment size

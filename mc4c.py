@@ -144,8 +144,8 @@ def mapFragments(args):
     print('Writing mapped fragments to: {:s}'.format(args.output_file))
 
     cmd_str = \
-        configs['bwa_path'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
-        configs['bwa_index_path'] + ' ' + args.input_file + \
+        configs['bwa'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
+        configs['bwa_index'] + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
 
