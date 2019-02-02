@@ -650,7 +650,7 @@ def main():
                                        'By default this flag is set to TRUE.')
     parser_analysis.set_defaults(func=perform_analysis)
 
-    if flag_DEBUG:
+    # if flag_DEBUG:
         # pass
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
@@ -670,7 +670,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'splitReads', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
