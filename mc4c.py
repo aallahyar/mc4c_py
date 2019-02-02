@@ -36,7 +36,7 @@ def initialize_run(args):
 def setReadIds(args):
     print '%% Assigning traceable identifiers to reads ...'
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
     # initialize
     if args.input_file is None:
@@ -68,7 +68,7 @@ def setReadIds(args):
                         raise Exception('[e] the input file is corrupted.\n' +
                                         'Read #{:d}:\n'.format(rd_idx) +
                                         '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
-                    if rd_idx % 10000 == 0:
+                    if rd_idx % 5000 == 0:
                         print('\t\tprocessed {:,d} reads.'.format(rd_idx))
 
                     rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
@@ -82,7 +82,7 @@ def splitReads(args):
     import re
 
     print '%% Splitting reads into fragments ...'
-    configs = mc4c_tools.load_configs(args.config_file)
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
@@ -108,7 +108,7 @@ def splitReads(args):
             rd_seq = inp_fid.readline().rstrip('\n')
             if rd_sid == '':
                 break
-            if rd_ind % 10000 == 0:
+            if rd_ind % 5000 == 0:
                 print('\tprocessed {:,d} reads and produced {:,d} fragments.'.format(rd_ind, frg_ind))
 
             frg_be = 0
@@ -124,13 +124,13 @@ def splitReads(args):
             rd_ind = rd_ind + 1
     if n_reduced != 0:
         print '[i] [{:,d}] fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
-    print '[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind, frg_ind)
+    print '[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind - 1, frg_ind - 1)
 
 
 def mapFragments(args):
     print '%% Mapping fragments to genome ...'
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
     # Map split fragments to genome
     if args.input_file is None:
@@ -152,12 +152,13 @@ def mapFragments(args):
     if args.return_command:
         print '{:s}'.format(cmd_str)
     else:
-        print 'Running BWA by: {:s}'.format(cmd_str)
+        print 'Running bwa using: {:s}'.format(cmd_str)
         import subprocess
-        map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE)
+        map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
-        if std_err is not None:
-            raise Exception('[e] Error: BWA failed to run properly.')
+        # TODO: A better error handling here would be nice
+        assert std_err.split('\n')[-2][:18] == '[main] Real time: ', \
+            'bwa failed to run properly, see below:\n{:s}'.format(std_err)
         print '[i] Fragments are mapped to genome successfully.'
 
 
@@ -169,7 +170,8 @@ def processMappedFragments(args):
 
     from utilities import get_chr_info, hasOL
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    print '%% Creating a MC-4C dataset from mapped fragments ...'
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
@@ -206,7 +208,7 @@ def processMappedFragments(args):
 
         frg_set = np.empty([0, n_header], dtype=np.int64)
         for que_idx, que_line in enumerate(bam_fid):
-            if que_idx % 50000 == 0:
+            if que_idx % 10000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
@@ -350,7 +352,8 @@ def removeDuplicates(args):
     import h5py
     from utilities import hasOL
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    print '%% Removing pcr duplicates from a MC-4C dataset ...'
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
@@ -411,7 +414,7 @@ def removeDuplicates(args):
     dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
     while dup_idx < dup_info.shape[0]:
-        if dup_idx % 1000 == 0:
+        if dup_idx % 500 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
         has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
@@ -445,7 +448,9 @@ def removeDuplicates(args):
 def getSumRep(args):
     import mc4c_tools
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    # load config files
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+
     if args.output_file is None:
         configs['output_dir'] = './plots/'
     else:
@@ -471,7 +476,7 @@ def getSumRep(args):
 def perform_analysis(args):
     import mc4c_analysis
 
-    configs = mc4c_tools.load_configs(args.config_file)
+    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
     if args.output_file is None:
         configs['output_dir'] = './plots/'
     else:
@@ -657,9 +662,16 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'setReadIds', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'splitReads', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
+
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
 
