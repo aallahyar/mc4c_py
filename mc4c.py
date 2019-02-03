@@ -289,7 +289,7 @@ def processMappedFragments(args):
             # merge adjacent fragments
             fi = 0
             while fi < frg_set.shape[0] - 1:
-                if hasOL(frg_set[fi, 1:5], frg_set[fi + 1:fi + 2, 1:5], offset=30)[0]:
+                if hasOL(frg_set[fi, 1:5], frg_set[fi + 1:fi + 2, 1:5], offset=20)[0]:
                     frg_set[fi, 2] = np.min(frg_set[fi:fi + 2, 2])
                     frg_set[fi, 3] = np.max(frg_set[fi:fi + 2, 3])
                     assert frg_set[fi, 4] == frg_set[fi+1, 4]
@@ -309,17 +309,17 @@ def processMappedFragments(args):
             n_frg = frg_set.shape[0]
             for fi in range(n_frg):
                 if frg_set[fi, 13] == 0:
-                    break
+                    continue
                 for fj in range(fi+1, n_frg):
                     if frg_set[fj, 13] == 0:
-                        break
+                        continue
 
-                    if hasOL(frg_set[fi, 1:4], frg_set[fj:fj + 1, 1:4], offset=-30)[0]:
+                    # TODO: This should also check to see if primers are found in the middle of reads (read-fusion)
+                    if hasOL(frg_set[fi, 1:4], frg_set[fj:fj + 1, 1:4], offset=-20)[0]:
                         if frg_set[fi, 7] >= frg_set[fj, 7]:
                             frg_set[fj, 13] = 0
                         else:
                             frg_set[fi, 13] = 0
-                            break
 
             # save the read
             for frg in frg_set:
@@ -423,7 +423,7 @@ def removeDuplicates(args):
         if dup_idx % 500 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
-        has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=-10)
+        has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=0)
         if np.sum(has_ol) > 1:
             # select duplicates
             dup_set = frg_trs[has_ol, :]
@@ -656,22 +656,23 @@ def main():
                                        'By default this flag is set to TRUE.')
     parser_analysis.set_defaults(func=perform_analysis)
 
-    # if flag_DEBUG:
+    if flag_DEBUG:
         # pass
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'BRN-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-96x']
+        sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'setReadIds', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'splitReads', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']

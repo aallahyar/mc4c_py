@@ -43,10 +43,11 @@ def perform_mc_analysis(configs, min_n_frg=2):
     frg_roi[:, 0] = np.unique(frg_roi[:, 0], return_inverse=True)[1]
 
     # convert reads to bin coverage
-    cvg_lst = [set() for i in range(n_read)]
+    cvg_lst = [list() for i in range(n_read)]
     for fi in range(frg_roi.shape[0]):
         bin_idx = np.where(hasOL(frg_roi[fi, 2:4], bin_bnd))[0]
-        cvg_lst[frg_roi[fi, 0]].update(bin_idx)
+        cvg_lst[frg_roi[fi, 0]].extend(bin_idx)
+    cvg_lst = [np.unique(cvg_lst[i]) for i in range(n_read)]
 
     # looping over bins
     print 'Performing the MC analysis using {:d} reads ...'.format(n_read)
@@ -71,8 +72,11 @@ def perform_mc_analysis(configs, min_n_frg=2):
         for ei in np.arange(n_epoch):
             rnd_lst = np.random.choice(ids_neg, n_pos, replace=False)
             for rd_idx in rnd_lst:
-                for bin_idx in cvg_lst[rd_idx]:
-                    rnd_freq[ei, bin_idx] += 1
+                bin_cvg = cvg_lst[rd_idx]
+                n_cvg = len(bin_cvg)
+                if n_cvg > 1:
+                    for i in np.random.permutation(n_cvg)[1:]:
+                        rnd_freq[ei, bin_cvg[i]] += 1
 
         # calculate observed
         for bj in range(bi+1, n_bin):
