@@ -65,8 +65,7 @@ def get_re_info(re_name='DpnII', property='seq', genome_str=None):
 
 
 def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=None):
-    import numpy as np
-    from os.path import isfile
+    from os import path, makedirs
     import pysam
     import re
 
@@ -76,9 +75,11 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
 
     if output_fname is None:
         output_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, '-'.join(re_name_lst))
-    if isfile(output_fname):
+    if path.isfile(output_fname):
         print '[w] Restriction enzyme file exists: ' + output_fname
         return
+    if not path.isdir(path.dirname(output_fname)):
+        makedirs(path.dirname(output_fname))
     if ref_fasta is None:
         ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa'
     print 'Searching in reference: ' + ref_fasta
@@ -93,11 +94,12 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     re_pos_lst = [None] * len(chr_lst)
     chr_lst_loaded = [None] * len(chr_lst)
     with pysam.FastxFile(ref_fasta) as ref_fid:
+        print 'Scanning:',
         for chr_ind, chr in enumerate(ref_fid):
             if not chr.name in chr_lst:
-                print '\t[{:s}] is ignored.'.format(chr.name)
+                print '{:s} is ignored,'.format(chr.name),
                 continue
-            print '\tScanning [{:s}]'.format(chr.name)
+            print '{:s},'.format(chr.name),
 
             cut_sites = []
             for frg in re.finditer(re_regex, chr.sequence, re.IGNORECASE):
@@ -106,6 +108,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
             chr_lst_loaded[chr_map[chr.name]] = chr.name
         if not np.array_equal(chr_lst, chr_lst_loaded):
             raise Exception('[e] Inconsistent reference genome!')
+        print ''
 
     # Save the result
     np.savez(output_fname, [re_pos_lst, chr_lst_loaded, genome_str])

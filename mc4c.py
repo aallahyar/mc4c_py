@@ -152,7 +152,7 @@ def mapFragments(args):
     if args.return_command:
         print '{:s}'.format(cmd_str)
     else:
-        print 'Running bwa using: {:s}'.format(cmd_str)
+        print 'Running: {:s}'.format(cmd_str)
         import subprocess
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
@@ -164,7 +164,7 @@ def mapFragments(args):
 
 def processMappedFragments(args):
     import h5py
-    from os import remove
+    from os import remove, path
     from pandas import read_csv
     import pysam
 
@@ -189,6 +189,12 @@ def processMappedFragments(args):
 
     # loading corresponding restriction fragment positions
     re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
+    if not path.isfile(re_pos_fname):
+        from utilities import extract_re_positions
+        print 'Database of restriction enzyme cut sites is not found. ' + \
+              'Scanning the reference genome to create this database ...'
+        extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
+                             ref_fasta=configs['reference_fasta'])
     re_pos, re_chr_lst, re_genome_str = np.load(re_pos_fname)['arr_0']
     assert np.array_equal(re_chr_lst, chr_lst)
     assert configs['genome_build'] == re_genome_str
@@ -201,7 +207,7 @@ def processMappedFragments(args):
                   'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsValid']
     n_header = len(header_lst)
     tmp_fname = args.output_file + '.tmp'
-    print('Writing processed fragments to a temprary file first: {:s}'.format(tmp_fname))
+    print('Writing processed fragments to a temporary file first: {:s}'.format(tmp_fname))
     with pysam.AlignmentFile(args.input_file, 'rb') as bam_fid, gzip.open(tmp_fname, 'wb') as gz_fid:
         gz_fid.write('\t'.join(header_lst) + '\n')
         frg_template = '\t'.join(['{:d}'] * n_header) + '\n'
@@ -328,7 +334,7 @@ def processMappedFragments(args):
                 gz_fid.write(frg_template.format(*frg))
 
     # Load fragments in pandas format and sort fragments within a read according to their relative positions
-    print('Loading temporary file: {:s}'.format(tmp_fname))
+    print('Loading the temporary file: {:s}'.format(tmp_fname))
     frg_pd = read_csv(tmp_fname, delimiter='\t', compression='gzip')
     frg_pd = frg_pd.iloc[np.lexsort([frg_pd['SeqStart'], frg_pd['ReadID']])]
 
