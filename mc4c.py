@@ -33,6 +33,20 @@ def initialize_run(args):
     print '[TO DO] Checking the pipeline for related files for given experiment'
 
 
+def processMC4C(args):
+    from copy import deepcopy
+    print '%% Processing MC-4C library ...'
+    setattr(args, 'input_file', None)
+    setattr(args, 'output_file', None)
+    setattr(args, 'return_command', False)
+
+    setReadIds(deepcopy(args))
+    splitReads(deepcopy(args))
+    mapFragments(deepcopy(args))
+    processMappedFragments(deepcopy(args))
+    removeDuplicates(deepcopy(args))
+    print '[i] Processing MC-4C experiment is completed successfully.'
+
 def setReadIds(args):
     print '%% Assigning traceable identifiers to reads ...'
 
@@ -516,6 +530,23 @@ def main():
     #                            help='Configuration file containing experiment specific details')
     # parser_init.set_defaults(func=initialize_run)
 
+    # Runs all pre-processing steps
+    parser_process = subparsers.add_parser('process',
+                                           description='Performs the entire pre-processing steps required for a ' +
+                                                       'MC-4C experiment.')
+    parser_process.add_argument('config_file', metavar='config-file',
+                               type=str,
+                               help='Configuration file containing experiment specific details')
+    parser_process.add_argument('--n_thread',
+                               default=6,
+                               type=int,
+                               help='Number of threads should be used by the aligner')
+    parser_process.add_argument('--min-mq',
+                               default=20,
+                               type=int,
+                               help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
+    parser_process.set_defaults(func=processMC4C)
+
     # Set read identifiers
     parser_readid = subparsers.add_parser('setReadIds',
                                           description='Defining identifiers for sequenced reads')
@@ -658,19 +689,20 @@ def main():
 
     if flag_DEBUG:
         # pass
+        # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-WplD-96x']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'NPC-BMaj-PB']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'NPC-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-96x']
-        sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'setReadIds', 'BMaj-test']

@@ -300,7 +300,7 @@ def plot_cvgDistribution(configs):
             if frg_sid == '':
                 break
             if n_frg_mq00 % 100000 == 0:
-                print('{:,d} fragments are read.'.format(n_frg_mq00))
+                print('{:,d} fragments are processed.'.format(n_frg_mq00))
 
             seq_size = len(frg_seq)
             if seq_size >= MAX_SIZE:
