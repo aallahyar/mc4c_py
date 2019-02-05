@@ -11,13 +11,11 @@ pd.set_option('display.max_columns', 25)
 
 # initialization
 src_fname = '../../64_Cleaning_Up/Dataset_info.tsv'
+vpi_pd = pd.read_csv(src_fname, delimiter='\t', comment='#')
 if len(argv) > 1:
     run_lst = [argv[1]]
 else:
-    run_lst = ['K562-GATA1']
-
-# load source file
-vpi_pd = pd.read_csv(src_fname, delimiter='\t')
+    run_lst = list(vpi_pd['id'])
 
 # loop over rows
 for run_id in run_lst:

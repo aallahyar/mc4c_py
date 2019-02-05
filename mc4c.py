@@ -122,7 +122,7 @@ def splitReads(args):
             rd_seq = inp_fid.readline().rstrip('\n')
             if rd_sid == '':
                 break
-            if rd_ind % 5000 == 0:
+            if rd_ind % 50000 == 0:
                 print('\tprocessed {:,d} reads and produced {:,d} fragments.'.format(rd_ind, frg_ind))
 
             frg_be = 0
@@ -230,7 +230,7 @@ def processMappedFragments(args):
 
         frg_set = np.empty([0, n_header], dtype=np.int64)
         for que_idx, que_line in enumerate(bam_fid):
-            if que_idx % 10000 == 0:
+            if que_idx % 50000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
@@ -436,7 +436,7 @@ def removeDuplicates(args):
     dup_idx = 0
     print 'Scanning for duplicated trans-fragments:'
     while dup_idx < dup_info.shape[0]:
-        if dup_idx % 500 == 0:
+        if dup_idx % 1000 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
         has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=0)
@@ -698,8 +698,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'NPC-BMaj-PB']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'NPC-BMaj-PB']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'NPC-PCDHaHS7-96x']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'NPC-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']

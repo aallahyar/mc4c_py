@@ -393,7 +393,7 @@ def plot_cirSizeDistribution(configs, roi_only=True):
     size_dist = np.zeros([4, n_edge], dtype=np.int64)
     print 'Computing circle size from {:d} reads:'.format(n_grp)
     for read_idx, frg_set in enumerate(read_grp):
-        if read_idx % 10000 == 0:
+        if read_idx % 50000 == 0:
             print('\t{:,d}/{:,d} Reads are processed.'.format(read_idx, n_grp))
         n_frg = frg_set.shape[0]
         if n_frg == 0:
