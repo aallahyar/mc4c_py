@@ -1,5 +1,5 @@
 #!/bin/bash
-# run: ./00_process_run_in_hpc.sh $cfg_name $n_thread
+# run: ./mc4c_cluster.sh $cfg_name $n_thread
 
 #set -x
 pid=$$
@@ -7,7 +7,7 @@ cfg_name=$1
 if [[ $# -gt 1 ]]; then
 	n_thread=$2
 else
-	n_thread=6;
+	n_thread=24;
 fi
 echo "Running MC-4C (python) pipeline for run [$cfg_name] using [$n_thread] threads for mapping."
 

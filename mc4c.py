@@ -142,7 +142,8 @@ def splitReads(args):
 
 
 def mapFragments(args):
-    print '%% Mapping fragments to genome ...'
+    if not args.return_command:
+        print '%% Mapping fragments to genome ...'
 
     configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
 
@@ -154,8 +155,9 @@ def mapFragments(args):
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file)
-    print('Reading fragments from: {:s}'.format(args.input_file))
-    print('Writing mapped fragments to: {:s}'.format(args.output_file))
+    if not args.return_command:
+        print('Reading fragments from: {:s}'.format(args.input_file))
+        print('Writing mapped fragments to: {:s}'.format(args.output_file))
 
     cmd_str = \
         configs['bwa'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \

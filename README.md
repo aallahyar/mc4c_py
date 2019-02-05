@@ -1,5 +1,155 @@
-# mc4c_python
-A python based approach to processing MC4C data
+# MC-4C processing pipeline
+A python based approach to process MC4C data
+
+# Requirements:
+This pipeline requires the following tools:
+- A Unix like shell (e.g. Bash v3.2+)
+- Samtools v1.9+
+- Bwa v0.7.17+
+- Python v2.7+ and the following Python packages:
+    - h5py v2.7.1+
+    - numpy v1.13.3+
+    - pandas v0.23.4+
+    - pysam v0.15.1+
+    - matplotlib v2.1.2+ (only for producing summary statistics)
+
+Conventions:
+In the following text, we will be using the following conventions. Files and folders are _italicized_ and place holders 
+(i.e. variables, arguments) are enclosed by angle brackets (i.e. <config_file> represents a place holder named 
+“config_file” that needs to be replaced by appropriate input from user). Unix shell commands (such as bash, zsh or sh) 
+are indicated  with “$” sign and script names (and their command line arguments) are printed in Courier New font 
+(e.g. mc4c.py). Taken together, the following command:
+
+```
+$ mc4c.py
+```
+
+Runs MC-4C pipeline in a shell.
+
+
+# Configuration files:
+Several parameters need to be defined for each MC-4C data analysis in a “configuration” file. Each configuration file 
+is simply a tab-delimited text file with two columns, as follows:
+
+```
+param_name1 <tab> param_value1
+param_name2 <tab> param_value2
+...
+```
+
+For example, content of a configuration file can be:
+
+```
+vp_chr <tab> chr7
+genome_build <tab> mm9
+...
+```
+that defines the viewpoint chromosome to be on “chr7” on the “mm9” build of the mouse reference genome. Table.1 
+represent list of parameters that can be defined for each experiment. 
+
+Table.1. Description of parameters that can be defined in configuration file of an MC-4C experiment. Required parameters are denoted by (*).
+
+| Name | Value example | Description
+| :--- | :--- | :--- |
+| genome_build* | hg19 | Reference genome of interest |
+| vp_chr* | chr7 | View point chromosome; the chromosome for which primers are designed | 
+| prm_start* | 110977147;110977593 | Start coordinate of primers used. Coordinates are separated by “;”. |
+| prm_end* | 110977171;110977623 | End coordinate of primers used. Coordinates are separated by “;”.
+| prm_seq* | CCAGATTTGTGAGCTCAGGGTTTAC;GCAGTAGTGATTCTATTCAATTTTTGGGATC | Sequence of primers used. Separated by “;”.
+| re_seq* | GATC;AAGCTT | Restriction enzyme used to prepare MC-4C library
+| bwa_path* | ~/bin/bwa-0.7.17/bwa | Path to BWA aligner.
+| bwa_index_path* | ~/bwa_indices/mm9/chrAll | Path to corresponding bwa index of reference genome.
+| ref_genome_file* | ~/genome/mm9/chrAll.fa | Path to the corresponding reference genome (in fasta format).
+| roi_start | 110933500 | Start position of Region Of Interest (ROI) that will be used to define far-cis fragments in PCR duplicate filter. This parameter will be set to 1Mb before the smallest primer coordinate if not given.
+| roi_end | 111066500 | End position of Region Of Interest (ROI) that will be used to define far-cis fragments in PCR duplicate filter. This parameter will be set to 1Mb after the largest primer coordinate if not given.
+
+Extras:
+If a line in the configuration file starts by “#”, that line will be considered as comments and ignored.
+
+# Global configuration file:
+Parameters that are often constant across experiments (e.g. “bwa_path”)can be defined in a “global” configuration file under the name of ‘./mc4c.cfg’. Once a module is called, the MC-4C pipeline initially loads every parameters defined in this global configuration file, and then proceeds to load parameters in the given (experiment specific, local) configuration file. If needed, the global parameters can still be overwritten by redefining the parameters of interest in the given “local” configuration file.
+Extras:
+- If MC-4C pipeline is used across multiple reference genomes (e.g. mm10 and hg19), the “bwa_index_path” and “ref_genome_file” parameters may include a “%REF%” placeholder, which will be replaced by the appropriate  genome (i.e. genome_build) in the (global or local) configuration file. For example, the following row in the configuration file:
+    ```
+    ref_genome_file <tab> ~/genome/%REF%/chrAll.fa
+    ```
+
+    will be translated to:
+    ```
+    ref_genome_file <tab> ~/genome/mm9/chrAll.fa
+    ```
+if the “genome_build” parameter is set to “mm9”. The user can utilize this functionality to define global configuration paths for running many different MC-4C experiments. An example setting of these global configurations can be found in the ‘./mc4c.cfg’ file.
+
+# Modules:
+The entire process of MC-4C pipeline is partitioned into modules. Each module is responsible to perform a specific task such as mapping reads to reference genome. 
+Generally, each module in MC-4C receives one or more inputs (e.g. a configuration file and a FASTQ file as input), then performs the corresponding operation (e.g. mapping to reference genome) and finally produces an output file (e.g. a BAM file containing mapped fragments). These modules can be called by their name in MC-4C pipeline. For example:
+
+```
+$ mc4c.py mapFragments
+```
+Calls a module named “mapFragments” in the MC-4C pipeline. In this protocol, we denote the modules in boldface letters. The implemented modules in MC-4C are mentioned in Table.2.
+
+Table.2. Modules defined in MC-4C.
+
+| Module name | Function
+| --- | ---
+| setReadIds | Defines a new identifier for each sequenced reads.
+| splitReads | Splits each read into fragments according to restriction enzyme recognition sequence.
+| mapFragments | Maps the fragments to reference genome.
+| makeDataset | Creates a dataset (in HDF5 format) containing mapped fragments.
+| removeDuplicates | Removes duplicate reads from a MC-4C dataset.
+| getSumRep | Generate various summary report plots for a MC-4C dataset.
+
+The corresponding configuration file for an experiment can be provided as follows:
+
+```
+$ mc4c.py mapFragments <config_file>
+```
+ The <config_file> is simply a path to configuration file. For example:
+```
+$ mc4c.py mapFragments ./expr1.cfg
+```
+As mentioned before, each module also receives input and output file names. They can be defined as follows:
+```
+$ mc4c.py mapFragments <config_file> --input_file <input file> --output_file <output file>
+```
+
+For example:
+```
+$ mc4c.py mapFragments ./expr1.cfg --input_file ./inp.fastq.gz --output_file ./out.bam
+```
+
+maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, and then saves the results in “./out.bam” file.
+Extras:
+- Module “setReadIds” supports multiple input files. This is useful if a single library is sequenced multiple times. To this end, separate file names by “;”. E.g. ./inp1.fastq.gz;./inp2.fastq.gz.
+- Module “splitReads” supports regular expressions for restriction enzyme recognition sequence (i.e. re_seq parameter in config file). This feature is useful if particular restriction enzymes are used to prepare a MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
+
+# Default directory and files:
+To further reduce verbosity, MC-4C pipeline supports default paths and file names. These default paths and file names will be used if the corresponding argument is not (fully) given at the time of running a particular module. For example, in the previous example, the user can choose to provide name of the experiment instead of the full path to its configuration file when calling “mapFragments” module. This can be done as follows:
+```
+$ mc4c.py mapFragments <name>
+```
+In this case, MC-4C pipeline will look for a configuration file named “cfg_<name>.cfg” in “./configs/” folder. The input file is set by default to “./fragments/frg_<name>.fasta.gz” and the output file is set by default to “./bams/bam_<name>.bam”. List of default paths and files for each module is denoted in Table.3. Accordingly, calling MC-4C pipeline by:
+```
+$ mc4c.py mapFragments BMaj
+```
+is equivalent to:
+```
+$ mc4c.py mapFragments ./configs/cfg_BMaj.cfg --input_file ./fragments/frg_BMaj.fasta.gz --output_file ./bams/bam_BMaj.bam
+```
+Note: If the given config file name ends with “.cfg”, MC-4C pipeline assumes that the user is referring to a configuration file, not a run name.
+
+
+Table.3. Default folder and file names for each module.
+
+| Module name | Input folder and file | Output folder and file
+| --- | --- | ---
+| setReadIds | ./fastqs/raw_<name>.fastq.gz | ./read_files/rd_<name>.fasta.gz
+| splitReads | ./reads/rd_<name>.fasta.gz | ./fragments/frg_<name>.fasta.gz
+| mapFragments | ./fragments/frg_<name>.fasta.gz | ./bams/bam_<name>.bam
+| makeDataset | ./bams/bam_<name>.bam | ./datasets/mc4c_<name>_all.hdf5
+| removeDuplicates | ./datasets/mc4c_<name>_all.hdf5 | ./datasets/mc4c_<name>_uniq.hdf5
+
 
 
 ## Requirements
