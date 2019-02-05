@@ -55,7 +55,7 @@ Table.1. Description of parameters that can be defined in configuration file of 
 | vp_chr* | chr7 | View point chromosome; the chromosome for which primers are designed | 
 | prm_start* | 110977147;110977593 | Start coordinate of primers used. Coordinates are separated by “;”. |
 | prm_end* | 110977171;110977623 | End coordinate of primers used. Coordinates are separated by “;”.
-| prm_seq* | CCAGATTTGTGAGCTCAGGGTTTAC;GCAGTAGTGATTCTATTCAATTTTTGGGATC | Sequence of primers used. Separated by “;”.
+| prm_seq* | CCAGATTTGCAGGTAC; GCAGTAGTCTGGGATC | Sequence of primers used. Separated by “;”.
 | re_seq* | GATC;AAGCTT | Restriction enzyme used to prepare MC-4C library
 | bwa_path* | ~/bin/bwa-0.7.17/bwa | Path to BWA aligner.
 | bwa_index_path* | ~/bwa_indices/mm9/chrAll | Path to corresponding bwa index of reference genome.
