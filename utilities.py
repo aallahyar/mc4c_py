@@ -212,5 +212,11 @@ def accum_array(group_idx, arr, func=None, default_value=None, min_n_group=None,
 
 
 def flatten(long_lst):
-    return [item for sub_list in long_lst for item in sub_list]
+    out_lst = []
+    for item in long_lst:
+        if isinstance(item, list):
+            out_lst.extend(flatten(item))
+        else:
+            out_lst.append(item)
+    return out_lst
 

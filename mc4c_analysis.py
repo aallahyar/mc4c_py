@@ -133,7 +133,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2):
+def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -146,13 +146,11 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_vpsoiTest_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_vpsoi_' + configs['run_id'] + '.pdf'
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-    bin_cen = np.mean(bin_bnd, axis=1)
+    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
     n_bin = bin_bnd.shape[0]
-    n_epoch = 1000
-    x_lim = [configs['roi_start'], configs['roi_end']]
 
     # load MC-HC data
     frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=False)
@@ -173,33 +171,34 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2):
     n_read = len(np.unique(frg_inf[:, 0]))
 
     # get soi info
-    ant_pd = load_annotation(configs['genome_build'],
-                             roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
     is_in = np.where(np.isin(ant_pd['ant_name'], soi_name))[0]
-    assert np.sum(is_in) == 1
-    soi_pd = ant_pd.loc[is_in, :]
+    assert len(is_in) == 1
+    soi_pd = ant_pd.loc[is_in[0], :]
     pos_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
 
     # compute positive profile and backgrounds
-    prf_pos, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000)
+    prf_pos, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=n_perm)
     n_pos = len(np.unique(frg_pos[:, 0]))
+    nrm_pos = prf_pos * 100.0 / n_pos
 
     # compute scores
-    prf_exp = np.mean(prf_rnd, 0)
-    prf_std = np.std(prf_rnd, axis=0, ddof=0)
-    prf_scr = np.divide(prf_pos - prf_exp, prf_std)
+    nrm_rnd = prf_rnd * 100.0 / n_pos
+    nrm_exp = np.mean(nrm_rnd, axis=0)
+    nrm_std = np.std(nrm_rnd, axis=0, ddof=0)
+    bin_scr = np.divide(nrm_pos - nrm_exp, nrm_std)
 
     # set vp bins to nan
     is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
-    prf_scr[is_vp] = np.nan
+    bin_scr[is_vp] = np.nan
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # plotting
     plt.figure(figsize=(17, 5))
 
-    plt.plot(bin_cen, prf_pos, color='#5757ff')
-    plt.plot(bin_cen, prf_exp, color='#ababab')
-    plt.fill_between(bin_cen, prf_exp - prf_std, prf_exp - prf_std, color='#dbdbdb')
+    plt.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
+    plt.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
+    plt.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
 
 
     # plt.subplot(1, 2, vi + 1)
@@ -216,21 +215,25 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2):
     # plt.clim(-6, 6)
 
     # add annotations
+    x_lim = [configs['roi_start'], configs['roi_end']]
+    y_lim = [0, 10]
+    # y_lim = plt.ylim()
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
-        plt.text(ant_pos, x_lim[1], ant_pd.loc[ai, 'ant_name'],
+        plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='left', verticalalignment='bottom', rotation=60)
-        plt.text(x_lim[1], ant_pos, ' ' + ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='left', verticalalignment='center')
-        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
-        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+        plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
     # final adjustments
     plt.xlim(x_lim)
-    plt.ylim([configs['roi_start'], configs['roi_end']])
+    plt.ylim(y_lim)
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 7, dtype=np.int64)
+    y_ticks = plt.yticks()[0]
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
+    y_tick_label = ['{:0.0f}%'.format(y) for y in y_ticks]
     plt.xticks(x_ticks, x_tick_label, rotation=0, horizontalalignment='center')
+    plt.yticks(y_ticks, y_tick_label, rotation=0, horizontalalignment='right')
+    plt.ylabel('Percentage of reads')
     plt.title('VP-SOI for {:s}, in {:s}\n'.format(soi_name, configs['run_id']) +
               '#read (#roiFrg>{:d}, ex. vp)={:,d}\n'.format(min_n_frg - 1, n_read) +
               '#pos = {:d}\n\n\n'.format(n_pos)
@@ -246,34 +249,28 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000):
     n_bin = bin_bnd.shape[0]
 
     # re-index circles
-    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1]
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(frg_inf[:, 0])
 
     # convert fragments to bin-coverage
-    cfb_lst = [list() for i in range(n_read)]
+    cfb_lst = [list() for i in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        cfb_lst[frg_inf[fi, 0]].append(bin_idx)
+        cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
 
     # filter circles for (>1 bin cvg)
     valid_lst = []
-    for ci in range(n_read):
-        fb_lst = cfb_lst[ci]
+    for rd_nid in range(1, n_read):
+        fb_lst = cfb_lst[rd_nid]
         bin_lst = np.unique(flatten(fb_lst))
         if len(bin_lst) > 1:
-            valid_lst.append(ci)
-    cfb_lst = [cfb_lst[i] for i in valid_lst]
+            valid_lst.append(rd_nid)
     frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
 
-    # re-index circles
-    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1]
-    n_read = np.max(frg_inf[:, 0])
-    assert n_read == len(cfb_lst)
-
     # select positive/negative circles
-    is_pos = np.where(hasOL(frg_inf[:, 1:4], pos_crd))[0]
-    frg_pos = frg_inf[np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
+    frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
     cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
@@ -290,17 +287,18 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000):
             prf_pos[bi] += 1
 
     # make background profile from negative set
-    ids_neg = np.unique(frg_neg[:, 0])
     prf_rnd = np.zeros([n_perm, n_bin])
+    print 'Computing expected profile:'
     for ei in np.arange(n_perm):
-        rnd_lst = np.random.choice(ids_neg, n_pos, replace=False)
+        if ((ei + 1) % 200) == 0:
+            print '\t{:d} randomized profiles are computed.'.format(ei + 1)
+        rnd_lst = np.random.permutation(n_neg)[:n_pos]
         for rd_idx in rnd_lst:
-            cvg_rnd = cfb_neg[rd_idx]
-            n_cvg = len(cvg_rnd)
-            if n_cvg > 1:
-                bin_rnd = np.random.permutation(n_cvg)[1:]
-                bin_rnd = np.unique(flatten(bin_rnd))
-                for i in bin_rnd:
+            f2b_rnd = cfb_neg[rd_idx]
+            n_frg = len(f2b_rnd)
+            if n_frg > 1:
+                frg_red = [f2b_rnd[i] for i in np.random.permutation(n_frg)[1:]]
+                for i in np.unique(flatten(frg_red)):
                     prf_rnd[ei, i] += 1
 
     return prf_pos, prf_rnd, frg_pos, frg_neg

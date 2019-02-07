@@ -511,6 +511,8 @@ def perform_analysis(args):
     # call the requested function
     if args.analysis_type == 'mcTest':
         mc4c_analysis.perform_mc_analysis(configs)
+    if args.analysis_type == 'vpSoi':
+        mc4c_analysis.perform_vpsoi_analysis(configs, args.ant_name)
     else:
         raise Exception()
 
@@ -669,7 +671,7 @@ def main():
     parser_analysis = subparsers.add_parser('analysis',
                                              description='Perform analysis on a MC-4C dataset.')
     parser_analysis.add_argument('analysis_type', metavar='analysis-type',
-                                  choices=['mcTest'],
+                                  choices=['mcTest', 'vpSoi'],
                                   type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file',
@@ -683,6 +685,10 @@ def main():
                                   default=None,
                                   type=str,
                                   help='Output file (in PDF format) containing the result of the requested analysis.')
+    parser_analysis.add_argument('ant_name', metavar='ant-name',
+                                 type=str,
+                                 help='Name of annotation for which VP-SOI plot needs to be computed.' +
+                                      'Only used for VP-SOI (i.e. "vpSoi") analysis')
     parser_analysis.add_argument('--roi-only',
                                   action="store_true",
                                   help='Limits the requested analysis to be generated from roi-fragments only. ' +
@@ -699,10 +705,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', 'LVR-BMaj-96x', 'HS2']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
