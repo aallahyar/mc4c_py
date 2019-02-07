@@ -299,7 +299,7 @@ def plot_cvgDistribution(configs):
             frg_seq = splt_fid.readline().rstrip('\n')
             if frg_sid == '':
                 break
-            if n_frg_mq00 % 100000 == 0:
+            if n_frg_mq00 % 250000 == 0:
                 print('{:,d} fragments are processed.'.format(n_frg_mq00))
 
             seq_size = len(frg_seq)

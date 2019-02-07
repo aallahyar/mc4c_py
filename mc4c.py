@@ -230,7 +230,7 @@ def processMappedFragments(args):
 
         frg_set = np.empty([0, n_header], dtype=np.int64)
         for que_idx, que_line in enumerate(bam_fid):
-            if que_idx % 50000 == 0:
+            if que_idx % 100000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
@@ -698,20 +698,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'NPC-PCDHaHS7-96x']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'NPC-BMaj-PB']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-96x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-WplD-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'K562-WplD-96x']
-        # sys.argv = ['./mc4c.py', 'setReadIds', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'splitReads', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
