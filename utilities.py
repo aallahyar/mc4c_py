@@ -210,3 +210,7 @@ def accum_array(group_idx, arr, func=None, default_value=None, min_n_group=None,
     else:
         return groups
 
+
+def flatten(long_lst):
+    return [item for sub_list in long_lst for item in sub_list]
+

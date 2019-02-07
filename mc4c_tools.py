@@ -140,8 +140,7 @@ def load_annotation(genome_str, roi_crd=None):
 
     # load annotation
     inp_fname = './annotations/ant_{:s}.tsv'.format(genome_str)
-    ant_pd = pd.read_csv(inp_fname, delimiter='\t', comment='#',
-                         header=None, names=['ant_name', 'ant_chr', 'ant_pos'])
+    ant_pd = pd.read_csv(inp_fname, delimiter='\t', comment='#')
 
     # convert map to chr_nums
     chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
