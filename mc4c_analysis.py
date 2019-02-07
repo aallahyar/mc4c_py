@@ -133,7 +133,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
+def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=10):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -150,7 +150,9 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
-    n_bin = bin_bnd.shape[0]
+    x_lim = [configs['roi_start'], configs['roi_end']]
+    y_lim = [0, 10]
+    # y_lim = plt.ylim()
 
     # load MC-HC data
     frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=False)
@@ -194,8 +196,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # plotting
-    plt.figure(figsize=(17, 5))
-
+    plt.figure(figsize=(15, 4))
     plt.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
     plt.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
     plt.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
@@ -206,22 +207,19 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     # clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
     # clr_map.set_bad('gray', 0.05)
     # plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
-    # plt.gca().add_patch(patches.Rectangle([vp_bnd[0], x_lim[0]], vp_bnd[1] - vp_bnd[0], x_lim[1] - x_lim[0],
-    #                                       linewidth=0, edgecolor='None', facecolor='orange'))
-    # plt.gca().add_patch(patches.Rectangle([x_lim[0], vp_bnd[0]], x_lim[1] - x_lim[0], vp_bnd[1] - vp_bnd[0],
-    #                                       linewidth=0, edgecolor='None', facecolor='orange'))
+    plt.gca().add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
+                                          linewidth=0, edgecolor='None', facecolor='orange', zorder=10))
+    plt.gca().add_patch(patches.Rectangle([pos_crd[1], y_lim[0]], pos_crd[2] - pos_crd[1], y_lim[1] - y_lim[0],
+                                          linewidth=0, edgecolor='None', facecolor='green', zorder=10))
     # cbar_h = plt.colorbar()
     # cbar_h.ax.tick_params(labelsize=14)
     # plt.clim(-6, 6)
 
     # add annotations
-    x_lim = [configs['roi_start'], configs['roi_end']]
-    y_lim = [0, 10]
-    # y_lim = plt.ylim()
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
         plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='left', verticalalignment='bottom', rotation=60)
+                 horizontalalignment='center', verticalalignment='bottom', rotation=60)
         plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
     # final adjustments
