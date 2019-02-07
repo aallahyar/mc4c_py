@@ -133,7 +133,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=10):
+def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -174,6 +174,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=10):
 
     # get soi info
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    n_ant = ant_pd.shape[0]
     is_in = np.where(np.isin(ant_pd['ant_name'], soi_name))[0]
     assert len(is_in) == 1
     soi_pd = ant_pd.loc[is_in[0], :]
@@ -195,17 +196,24 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=10):
     bin_scr[is_vp] = np.nan
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
+    # compute score for annotations
+    ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
+    ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
+    ant_obs, soi_rnd = compute_mc_associations(frg_inf, pos_crd, ant_bnd, n_perm=n_perm)[:2]
+    ant_exp = np.mean(soi_rnd, axis=0)
+    ant_std = np.std(soi_rnd, axis=0, ddof=0)
+    ant_scr = np.divide(ant_obs - ant_exp, ant_std)
+
     # plotting
     plt.figure(figsize=(15, 4))
     plt.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
     plt.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
     plt.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
 
-
     # plt.subplot(1, 2, vi + 1)
-    # clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
-    # clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
-    # clr_map.set_bad('gray', 0.05)
+    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
+    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
+    clr_map.set_bad('gray', 0.05)
     # plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
     plt.gca().add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
                                           linewidth=0, edgecolor='None', facecolor='orange', zorder=10))
@@ -221,6 +229,11 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=10):
         plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='center', verticalalignment='bottom', rotation=60)
         plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+
+        plt.gca().add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.1], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.1,
+                                              linewidth=0, edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
+        plt.text(np.mean(ant_pos), y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
+                 horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=8)
 
     # final adjustments
     plt.xlim(x_lim)
