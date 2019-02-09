@@ -202,6 +202,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     pos_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
 
     # compute positive profile and backgrounds
+    print 'Computing expected profile for bins:'
     prf_pos, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=n_perm)
     n_pos = len(np.unique(frg_pos[:, 0]))
     nrm_pos = prf_pos * 100.0 / n_pos
@@ -220,6 +221,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # compute score for annotations
+    print 'Computing expected profile for annotations:'
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
     ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
     ant_obs, soi_rnd = compute_mc_associations(frg_inf, pos_crd, ant_bnd, n_perm=n_perm)[:2]
@@ -297,7 +299,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000):
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, show_progress=True):
     from utilities import hasOL, flatten
 
     # initialization
@@ -334,9 +336,8 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000):
 
     # make background profile from negative set
     prf_rnd = np.zeros([n_perm, n_bin])
-    print 'Computing expected profile:'
     for ei in np.arange(n_perm):
-        if ((ei + 1) % 200) == 0:
+        if show_progress and (((ei + 1) % 200) == 0):
             print '\t{:d} randomized profiles are computed.'.format(ei + 1)
         rnd_lst = np.random.permutation(n_neg)[:n_pos]
         for rd_idx in rnd_lst:
