@@ -3,14 +3,14 @@
 import argparse
 import sys
 import gzip
-from os import path, makedirs
+from os import path, makedirs, environ
 import numpy as np
 import pandas as pd
 
 import mc4c_tools
 
 import platform  # ###
-flag_DEBUG = platform.system() != 'Linux'
+# flag_DEBUG = platform.system() != 'Linux'
 
 np.set_printoptions(linewidth=180, threshold=5000)  # , suppress=True, formatter={'float_kind':'{:0.5f}'.format}
 pd.set_option('display.width', 180)
@@ -512,7 +512,7 @@ def perform_analysis(args):
     if args.analysis_type == 'mcTest':
         mc4c_analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
-        mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=1000)
+        mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
 
@@ -535,74 +535,48 @@ def main():
     # parser_init.set_defaults(func=initialize_run)
 
     # Runs all pre-processing steps
-    parser_process = subparsers.add_parser('process',
-                                           description='Performs the entire pre-processing steps required for a ' +
-                                                       'MC-4C experiment.')
-    parser_process.add_argument('config_file', metavar='config-file',
-                               type=str,
+    parser_process = subparsers.add_parser('process', description='Performs the entire pre-processing ' +
+                                                                  'steps required for a MC-4C experiment.')
+    parser_process.add_argument('config_file', metavar='config-file', type=str,
                                help='Configuration file containing experiment specific details')
-    parser_process.add_argument('--n_thread',
-                               default=6,
-                               type=int,
+    parser_process.add_argument('--n_thread', default=6,type=int,
                                help='Number of threads should be used by the aligner')
-    parser_process.add_argument('--min-mq',
-                               default=20,
-                               type=int,
+    parser_process.add_argument('--min-mq', default=20, type=int,
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_process.set_defaults(func=processMC4C)
 
     # Set read identifiers
-    parser_readid = subparsers.add_parser('setReadIds',
-                                          description='Defining identifiers for sequenced reads')
-    parser_readid.add_argument('config_file', metavar='config-file',
-                               type=str,
+    parser_readid = subparsers.add_parser('setReadIds', description='Defining identifiers for sequenced reads')
+    parser_readid.add_argument('config_file', metavar='config-file', type=str,
                                help='Configuration file containing experiment specific details')
-    parser_readid.add_argument('--input-file',
-                               default=None,
-                               type=str,
+    parser_readid.add_argument('--input-file', default=None, type=str,
                                help='Input file (in FASTQ format) containing raw sequenced reads')
-    parser_readid.add_argument('--output-file',
-                               default=None,
-                               type=str,
+    parser_readid.add_argument('--output-file', default=None, type=str,
                                help='Output file (in FASTA format) containing sequenced reads with traceable IDs')
     parser_readid.set_defaults(func=setReadIds)
 
     # Split reads into fragments
-    parser_readSplt = subparsers.add_parser('splitReads',
-                                            description='Splitting reads into fragments using restriction enzyme recognition sequence')
-    parser_readSplt.add_argument('config_file', metavar='config-file',
-                                 type=str,
+    parser_readSplt = subparsers.add_parser('splitReads', description='Splitting reads into fragments using ' +
+                                                                      'restriction enzyme recognition sequence')
+    parser_readSplt.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
-    parser_readSplt.add_argument('--input-file',
-                                 default=None,
-                                 type=str,
+    parser_readSplt.add_argument('--input-file', default=None, type=str,
                                  help='Input file (in FASTA format) containing reads with traceable IDs.')
-    parser_readSplt.add_argument('--output-file',
-                                 default=None,
-                                 type=str,
+    parser_readSplt.add_argument('--output-file', default=None, type=str,
                                  help='Output file (in FASTA format) containing fragments with traceable IDs')
     parser_readSplt.set_defaults(func=splitReads)
 
     # Mapping fragments to reference genome
-    parser_mapFrg = subparsers.add_parser('mapFragments',
-                                          description='Mapping fragments to reference genome')
-    parser_mapFrg.add_argument('config_file', metavar='config-file',
-                               type=str,
+    parser_mapFrg = subparsers.add_parser('mapFragments', description='Mapping fragments to reference genome')
+    parser_mapFrg.add_argument('config_file', metavar='config-file', type=str,
                                help='Configuration file containing experiment specific details')
-    parser_mapFrg.add_argument('--input-file',
-                               default=None,
-                               type=str,
+    parser_mapFrg.add_argument('--input-file', default=None, type=str,
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
-    parser_mapFrg.add_argument('--output-file',
-                               default=None,
-                               type=str,
+    parser_mapFrg.add_argument('--output-file', default=None, type=str,
                                help='Output file (in BAM format) containing fragments with traceable IDs')
-    parser_mapFrg.add_argument('--n_thread',
-                               default=6,
-                               type=int,
+    parser_mapFrg.add_argument('--n_thread', default=6, type=int,
                                help='Number of threads should be used by the aligner')
-    parser_mapFrg.add_argument('--return_command',
-                               action="store_true",
+    parser_mapFrg.add_argument('--return_command', action="store_true",
                                help='Return only mapping command instead of running it ' +
                                     '(useful for running the pipeline in a cluster)')
     parser_mapFrg.set_defaults(func=mapFragments)
@@ -610,93 +584,67 @@ def main():
     # Process mapped fragments
     parser_mkDataset = subparsers.add_parser('makeDataset',
                                              description='Processed the mapped fragments and create a MC-4C dataset')
-    parser_mkDataset.add_argument('config_file', metavar='config-file',
-                                  type=str,
+    parser_mkDataset.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
-    parser_mkDataset.add_argument('--input-file',
-                                  default=None,
-                                  type=str,
+    parser_mkDataset.add_argument('--input-file', default=None, type=str,
                                   help='Input file (in BAM format) containing fragments with traceable IDs')
-    parser_mkDataset.add_argument('--output-file',
-                                  default=None,
-                                  type=str,
+    parser_mkDataset.add_argument('--output-file', default=None, type=str,
                                   help='Output file (in HDF5 format) containing processed fragments')
     parser_mkDataset.set_defaults(func=processMappedFragments)
 
     # Remove PCR duplicated
     parser_remDup = subparsers.add_parser('removeDuplicates',
                                           description='Remove PCR duplicates from a given MC-4C dataset')
-    parser_remDup.add_argument('config_file', metavar='config-file',
-                               type=str,
+    parser_remDup.add_argument('config_file', metavar='config-file', type=str,
                                help='Configuration file containing experiment specific details')
-    parser_remDup.add_argument('--input-file',
-                               default=None,
-                               type=str,
+    parser_remDup.add_argument('--input-file', default=None, type=str,
                                help='Input file (in HDF5 format) containing MC4C data.')
-    parser_remDup.add_argument('--output-file',
-                               default=None,
-                               type=str,
+    parser_remDup.add_argument('--output-file', default=None, type=str,
                                help='Output file (in HDF5 format) containing MC4C data.')
-    parser_remDup.add_argument('--min-mq',
-                               default=20,
-                               type=int,
+    parser_remDup.add_argument('--min-mq', default=20, type=int,
                                help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
     parser_remDup.set_defaults(func=removeDuplicates)
 
     # produce statistics plots
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about a MC-4C dataset.')
-    parser_sumReport.add_argument('report_type', metavar='report-type',
-                                 choices=['cvgDist', 'readSizeDist', 'cirSizeDist',
-                                          'overallProfile'],
-                                 type=str,
+    parser_sumReport.add_argument('report_type', type=str,
+                                 choices=['cvgDist', 'readSizeDist', 'cirSizeDist', 'overallProfile'],
                                  help='Type of summary report that needs to be generated')
-    parser_sumReport.add_argument('config_file', metavar='config-file',
-                                 type=str,
+    parser_sumReport.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
-    parser_sumReport.add_argument('--input-file',
-                                 default=None,
-                                 type=str,
+    parser_sumReport.add_argument('--input-file', default=None, type=str,
                                  help='Input file (in HDF5 format) containing MC4C data.')
-    parser_sumReport.add_argument('--output-file',
-                                 default=None,
-                                 type=str,
+    parser_sumReport.add_argument('--output-file', default=None, type=str,
                                  help='Output file (in PDF format) containing the requested summary report.')
-    parser_sumReport.add_argument('--roi-only',
-                                  action="store_true",
+    parser_sumReport.add_argument('--roi-only', action="store_true",
                                   help='Limits the requested summary report to be generated from roi-fragments only.')
     parser_sumReport.set_defaults(func=getSumRep)
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis',
                                              description='Perform analysis on a MC-4C dataset.')
-    parser_analysis.add_argument('analysis_type', metavar='analysis-type',
-                                  choices=['mcTest', 'vpSoi'],
-                                  type=str,
+    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi'], type=str,
                                   help='Type of analysis that needs to be performed')
-    parser_analysis.add_argument('config_file', metavar='config-file',
-                                  type=str,
+    parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
-    parser_analysis.add_argument('--input-file',
-                                  default=None,
-                                  type=str,
-                                  help='Input file (in HDF5 format) containing MC4C data.')
-    parser_analysis.add_argument('--output-file',
-                                  default=None,
-                                  type=str,
-                                  help='Output file (in PDF format) containing the result of the requested analysis.')
-    parser_analysis.add_argument('ant_name', metavar='ant-name',
-                                 type=str,
-                                 help='Name of annotation for which VP-SOI plot needs to be computed.' +
+    parser_analysis.add_argument('ant_name', metavar='ant-name', type=str,
+                                 help='Name of annotation for which VP-SOI plot needs to be computed. ' +
                                       'Only used for VP-SOI (i.e. "vpSoi") analysis')
-    parser_analysis.add_argument('--roi-only',
-                                  action="store_true",
+    parser_analysis.add_argument('--input-file', default=None, type=str,
+                                  help='Input file (in HDF5 format) containing MC4C data.')
+    parser_analysis.add_argument('--output-file', default=None, type=str,
+                                  help='Output file (in PDF format) containing the result of the requested analysis.')
+    parser_analysis.add_argument('--roi-only', action="store_true",
                                   help='Limits the requested analysis to be generated from roi-fragments only. ' +
                                        'By default this flag is set to TRUE.')
+    parser_analysis.add_argument('--n-perm', default=1000, type=int,
+                                 help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
+                                      'that contain no fragment from site of interest) to produce the expected profile.')
     parser_analysis.set_defaults(func=perform_analysis)
 
-    if flag_DEBUG:
-        # pass
+    if 'FROM_PYCHARM' in environ:
+        Warning('We are in the PyCharm!')
         # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
@@ -709,7 +657,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', 'LVR-BMaj-96x', 'HS2']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=10', 'LVR-BMaj-96x', 'HS2']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

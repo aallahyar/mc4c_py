@@ -210,7 +210,9 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     nrm_rnd = prf_rnd * 100.0 / n_pos
     nrm_exp = np.mean(nrm_rnd, axis=0)
     nrm_std = np.std(nrm_rnd, axis=0, ddof=0)
+    np.seterr(all='ignore')
     bin_scr = np.divide(nrm_pos - nrm_exp, nrm_std)
+    np.seterr(all=None)
 
     # set vp bins to nan
     is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
@@ -223,7 +225,9 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ant_obs, soi_rnd = compute_mc_associations(frg_inf, pos_crd, ant_bnd, n_perm=n_perm)[:2]
     ant_exp = np.mean(soi_rnd, axis=0)
     ant_std = np.std(soi_rnd, axis=0, ddof=0)
+    np.seterr(all='ignore')
     ant_scr = np.divide(ant_obs - ant_exp, ant_std)
+    np.seterr(all=None)
 
     # set vp score to nan
     is_vp = hasOL(vp_bnd, ant_bnd)
@@ -231,7 +235,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ant_scr[is_vp | is_soi] = np.nan
 
     # plotting
-    fig = plt.figure(figsize=(15, 4))
+    fig = plt.figure(figsize=(15, 3))
     ax_prf = plt.subplot2grid((20, 40), (0, 0), rowspan=19, colspan=39)
     ax_cmp = plt.subplot2grid((20, 40), (0, 39), rowspan=10, colspan=1)
     ax_scr = plt.subplot2grid((20, 40), (19, 0), rowspan=1, colspan=39)
@@ -259,8 +263,8 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ax_prf.set_ylim(y_lim)
     ax_prf.set_xticks([])
 
-    img_h = ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-700, 700],
-                          vmin=c_lim[0], vmax=c_lim[1], cmap=clr_map, interpolation='nearest')
+    img_h = ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-500, 500], cmap=clr_map,
+                          vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_yticks([])
 
@@ -287,9 +291,9 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ax_prf.set_yticklabels(y_tick_label)
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI for {:s}, in {:s}\n'.format(soi_name, configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-              '#pos = {:d}\n#perm={:d}\n\n'.format(n_pos, n_perm)
-              )
+                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
+                     '#pos = {:d}\n#perm={:d}\n\n\n'.format(n_pos, n_perm)
+                     )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
