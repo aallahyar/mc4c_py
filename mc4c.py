@@ -512,7 +512,7 @@ def perform_analysis(args):
     if args.analysis_type == 'mcTest':
         mc4c_analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
-        mc4c_analysis.perform_vpsoi_analysis(configs, args.ant_name)
+        mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=1000)
     else:
         raise Exception()
 

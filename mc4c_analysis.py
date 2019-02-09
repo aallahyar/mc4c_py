@@ -135,13 +135,13 @@ def perform_mc_analysis(configs, min_n_frg=2):
 
 def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     import platform
+    import matplotlib
     if platform.system() == 'Linux':
-        import matplotlib
         matplotlib.use('Agg')
     from matplotlib import pyplot as plt, patches
     from matplotlib.colors import LinearSegmentedColormap
 
-    from utilities import hasOL
+    from utilities import hasOL, flatten
     from mc4c_tools import load_mc4c, load_annotation
 
     # initialization
@@ -170,7 +170,28 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     # filter small circles (>1 roi-frg, ex.)
     cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
     frg_inf = frg_roi[cir_size >= min_n_frg, :]
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = len(np.unique(frg_inf[:, 0]))
+
+    # convert fragments to bin-coverage
+    cfb_lst = [list() for i in range(n_read + 1)]
+    n_frg = frg_inf.shape[0]
+    for fi in range(n_frg):
+        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
+
+    # filter circles for (>1 bin cvg)
+    valid_lst = []
+    for rd_nid in range(1, n_read):
+        fb_lst = cfb_lst[rd_nid]
+        bin_cvg = np.unique(flatten(fb_lst))
+        if len(bin_cvg) > 1:
+            valid_lst.append(rd_nid)
+    frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
+
+    # re-index circles
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(frg_inf[:, 0])
 
     # get soi info
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
@@ -204,52 +225,71 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ant_std = np.std(soi_rnd, axis=0, ddof=0)
     ant_scr = np.divide(ant_obs - ant_exp, ant_std)
 
-    # plotting
-    plt.figure(figsize=(15, 4))
-    plt.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
-    plt.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
-    plt.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
+    # set vp score to nan
+    is_vp = hasOL(vp_bnd, ant_bnd)
+    is_soi = hasOL(pos_crd[1:3], ant_bnd)
+    ant_scr[is_vp | is_soi] = np.nan
 
-    # plt.subplot(1, 2, vi + 1)
+    # plotting
+    fig = plt.figure(figsize=(15, 4))
+    ax_prf = plt.subplot2grid((20, 40), (0, 0), rowspan=19, colspan=39)
+    ax_cmp = plt.subplot2grid((20, 40), (0, 39), rowspan=10, colspan=1)
+    ax_scr = plt.subplot2grid((20, 40), (19, 0), rowspan=1, colspan=39)
+
+    # set up colorbar
+    c_lim = [-6, 6]
     clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
     clr_map.set_bad('gray', 0.05)
-    # plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
-    plt.gca().add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
-                                          linewidth=0, edgecolor='None', facecolor='orange', zorder=10))
-    plt.gca().add_patch(patches.Rectangle([pos_crd[1], y_lim[0]], pos_crd[2] - pos_crd[1], y_lim[1] - y_lim[0],
-                                          linewidth=0, edgecolor='None', facecolor='green', zorder=10))
-    # cbar_h = plt.colorbar()
-    # cbar_h.ax.tick_params(labelsize=14)
-    # plt.clim(-6, 6)
+    norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
+    cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
+    # cbar_h.ax.tick_params(labelsize=12)
+    cbar_h.ax.set_ylabel('z-score', rotation=90)
+
+    # profile plot
+    ax_prf.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
+    ax_prf.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
+    ax_prf.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
+
+    ax_prf.add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
+                                          linewidth=0, edgecolor='None', facecolor='orange', zorder=100))
+    ax_prf.add_patch(patches.Rectangle([pos_crd[1], y_lim[0]], pos_crd[2] - pos_crd[1], y_lim[1] - y_lim[0],
+                                          linewidth=0, edgecolor='None', facecolor='green', zorder=100))
+    ax_prf.set_xlim(x_lim)
+    ax_prf.set_ylim(y_lim)
+    ax_prf.set_xticks([])
+
+    img_h = ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-700, 700],
+                          vmin=c_lim[0], vmax=c_lim[1], cmap=clr_map, interpolation='nearest')
+    ax_scr.set_xlim(x_lim)
+    ax_scr.set_yticks([])
 
     # add annotations
-    for ai in range(ant_pd.shape[0]):
+    for ai in range(n_ant):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
-        plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
+        ax_prf.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
                  horizontalalignment='center', verticalalignment='bottom', rotation=60)
-        plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+        ax_prf.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
-        plt.gca().add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.1], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.1,
-                                              linewidth=0, edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
-        plt.text(np.mean(ant_pos), y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
-                 horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=8)
+        if not np.isnan(ant_scr[ai]):
+            ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
+                                               linewidth=0, edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
+            ax_prf.text(np.mean(ant_pos), y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
+                        horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=8)
 
     # final adjustments
-    plt.xlim(x_lim)
-    plt.ylim(y_lim)
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 7, dtype=np.int64)
-    y_ticks = plt.yticks()[0]
+    y_ticks = ax_prf.get_yticks()
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
     y_tick_label = ['{:0.0f}%'.format(y) for y in y_ticks]
-    plt.xticks(x_ticks, x_tick_label, rotation=0, horizontalalignment='center')
-    plt.yticks(y_ticks, y_tick_label, rotation=0, horizontalalignment='right')
-    plt.ylabel('Percentage of reads')
-    plt.title('VP-SOI for {:s}, in {:s}\n'.format(soi_name, configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n'.format(min_n_frg - 1, n_read) +
-              '#pos = {:d}\n\n\n'.format(n_pos)
+    ax_scr.set_xticks(x_ticks)
+    ax_scr.set_xticklabels(x_tick_label)
+    ax_prf.set_yticklabels(y_tick_label)
+    ax_prf.set_ylabel('Percentage of reads')
+    ax_prf.set_title('VP-SOI for {:s}, in {:s}\n'.format(soi_name, configs['run_id']) +
+              '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
+              '#pos = {:d}\n#perm={:d}\n\n'.format(n_pos, n_perm)
               )
-    # plt.subplots_adjust(top=1.4, wspace=0.5)
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
@@ -269,15 +309,6 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000):
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
         cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
-
-    # filter circles for (>1 bin cvg)
-    valid_lst = []
-    for rd_nid in range(1, n_read):
-        fb_lst = cfb_lst[rd_nid]
-        bin_lst = np.unique(flatten(fb_lst))
-        if len(bin_lst) > 1:
-            valid_lst.append(rd_nid)
-    frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
 
     # select positive/negative circles
     is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
