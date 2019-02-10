@@ -517,7 +517,7 @@ def getSumRep(args):
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
         raise Exception()
-
+    print '[i] {:s} plot is produced successfully.'.format(args.report_type)
 
 def perform_analysis(args):
     import mc4c_analysis
@@ -549,6 +549,7 @@ def perform_analysis(args):
             mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
+    print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
 
 # Huge wall of argparse text starts here
 def main():
@@ -693,7 +694,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name=HS2']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test', '--ant-name=HS2']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

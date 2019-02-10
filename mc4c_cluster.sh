@@ -36,6 +36,7 @@ echo "submitting jobs for plotting statistics"
     jid_stat02=$(qsub -hold_jid $jid_dup -terse -P compgen -N mc4cPy_${cfg_name}_06-02CvgDist -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cvgDist ${cfg_name}")
     jid_stat03=$(qsub -hold_jid $jid_dup -terse -P compgen -N mc4cPy_${cfg_name}_06-03CrSDist -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cirSizeDist ${cfg_name}")
     jid_stat04=$(qsub -hold_jid $jid_dup -terse -P compgen -N mc4cPy_${cfg_name}_06-04OvAProf -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep overallProfile ${cfg_name}")
+    jid_stat05=$(qsub -hold_jid $jid_dup -terse -P compgen -N mc4cPy_${cfg_name}_06-05VpSoiPr -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis vpSoi ${cfg_name}")
 fi
 
 #set +x

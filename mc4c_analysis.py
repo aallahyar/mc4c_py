@@ -154,7 +154,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     y_lim = [0, 10]
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=True)
+    frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -203,6 +203,8 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
+    print '{:,d} reads are found to cover '.format(n_pos) + \
+          '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2])
 
     # compute scores
     nrm_rnd = prf_rnd * 100.0 / n_pos
@@ -296,7 +298,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, show_progress=True):
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True):
     from utilities import hasOL, flatten
 
     # initialization
@@ -332,7 +334,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, show_progres
     prf_rnd = np.zeros([n_perm, n_bin])
     neg_lst = range(n_neg)
     for ei in np.arange(n_perm):
-        if show_progress and (((ei + 1) % 200) == 0):
+        if verbose and (((ei + 1) % 200) == 0):
             print '\t{:d} randomized profiles are computed.'.format(ei + 1)
         np.random.shuffle(neg_lst)
         for rd_idx in neg_lst[:n_pos]:

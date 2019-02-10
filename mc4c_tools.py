@@ -3,7 +3,7 @@ import pandas as pd
 import h5py
 
 
-def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
+def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbose=True,
               min_mq=20, only_valid=True, only_unique=True, reindex_reads=True, max_rows=np.inf):
     MAX_N_CIR = 1000000000000
     out_pd = pd.DataFrame()
@@ -17,7 +17,8 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
                 configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
             else:
                 configs['input_file'] = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
-        print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
+        if verbose:
+            print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
 
         h5_fid = h5py.File(configs['input_file'], 'r')
         if np.isinf(max_rows):
@@ -48,8 +49,9 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
         header_lst.append('ReadID_original')
         out_pd[header_lst[-1]] = out_pd['ReadID'].copy()
         out_pd['ReadID'] = np.unique(out_pd['ReadID'], return_inverse=True)[1] + 1
-        print 'Got [{:,d}] reads and [{:,d}] fragments after re-indexing.'.format(
-            np.max(out_pd['ReadID']), out_pd.shape[0])
+        if verbose:
+            print 'Got [{:,d}] reads and [{:,d}] fragments after re-indexing.'.format(
+                np.max(out_pd['ReadID']), out_pd.shape[0])
 
     return out_pd[header_lst]
 
