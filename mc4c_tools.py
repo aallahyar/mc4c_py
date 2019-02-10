@@ -34,7 +34,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/',
         if min_mq > 0:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
         if only_valid:
-            part_pd = part_pd.loc[part_pd['IsValid'] == 1]
+            part_pd = part_pd.loc[part_pd['ErrFlag'] == 0]
 
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR

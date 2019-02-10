@@ -217,13 +217,26 @@ def processMappedFragments(args):
     for ri in range(len(re_pos)):  # extending positions to length of chromosomes
         re_pos[ri] = np.hstack([0, re_pos[ri], chr_size[ri]])
 
-    # extend fragment coordinates to reference genome
-    n_processed = 0
+    # identify vp_fragment coordinates
+    re_idx = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
+    vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][re_idx], re_pos[configs['vp_cnum'] - 1][re_idx + 1]]
+    assert np.abs(vp_frg[2] - np.max(configs['prm_end'])) <= np.min([len(x) for x in configs['re_seq']]), \
+        'Can not map primer positions on a single fragment.'
+
+    # define fragment headers
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
-                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'IsValid']
+                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'ErrFlag']
     n_header = len(header_lst)
+    # desc: Fragment flags -> 1:overlapping frags, 2: fused-reads
+
+    # Processing fragments:
+    # 1. extending fragment coordinates to nearest restriction site in the reference genome
+    # 2. checking overlap within reads
+    # 3. checking for read-fusion events
     tmp_fname = args.output_file + '.tmp'
     print('Writing processed fragments to a temporary file first: {:s}'.format(tmp_fname))
+    n_fusion = 0
+    n_processed = 0
     with pysam.AlignmentFile(args.input_file, 'rb') as bam_fid, gzip.open(tmp_fname, 'wb') as gz_fid:
         gz_fid.write('\t'.join(header_lst) + '\n')
         frg_template = '\t'.join(['{:d}'] * n_header) + '\n'
@@ -243,7 +256,7 @@ def processMappedFragments(args):
             if que_idx == 0:
                 FrgID_old = FrgID
                 ReadID_old = ReadID
-            # TODO: Unmapped fragments are ignored here
+            # TODO: Note that unmapped fragments are ignored here
 
             # extending coordinates to nearby restriction site
             n_re = len(re_pos[MapChrNum - 1])
@@ -287,7 +300,7 @@ def processMappedFragments(args):
             # combine into an array
             frg_info = np.array([
                 ReadID, MapChrNum, ExtStart, ExtEnd, MapStrand, MapStart, MapEnd, que_line.mapping_quality,
-                FileID, FrgID, SeqStart, SeqEnd, ReadLength, 1]).reshape([1, -1])
+                FileID, FrgID, SeqStart, SeqEnd, ReadLength, 0]).reshape([1, -1])
 
             # Check order of fragments
             if FrgID < FrgID_old:
@@ -324,18 +337,27 @@ def processMappedFragments(args):
             # make sure fragments are not overlapping (ignoring the strand)
             n_frg = frg_set.shape[0]
             for fi in range(n_frg):
-                if frg_set[fi, 13] == 0:
+                if np.bitwise_and(frg_set[fi, 13], 1) == 1:
                     continue
                 for fj in range(fi+1, n_frg):
-                    if frg_set[fj, 13] == 0:
+                    if np.bitwise_and(frg_set[fj, 13], 1) == 1:
                         continue
 
-                    # TODO: This should also check to see if primers are found in the middle of reads (read-fusion)
                     if hasOL(frg_set[fi, 1:4], frg_set[fj:fj + 1, 1:4], offset=-20)[0]:
                         if frg_set[fi, 7] >= frg_set[fj, 7]:
-                            frg_set[fj, 13] = 0
+                            frg_set[fj, 13] = np.bitwise_or(frg_set[fj, 13], 1)
                         else:
-                            frg_set[fi, 13] = 0
+                            frg_set[fi, 13] = np.bitwise_or(frg_set[fi, 13], 1)
+
+            # check for read-fusion events
+            for fi in range(1, frg_set.shape[0] - 1):
+                is_prv_vp = hasOL(vp_frg, frg_set[fi - 1, [1, 5, 6]], offset=-10)[0]
+                is_cur_vp = hasOL(vp_frg, frg_set[fi    , [1, 5, 6]], offset=-10)[0]
+                is_nxt_vp = hasOL(vp_frg, frg_set[fi + 1, [1, 5, 6]], offset=-10)[0]
+                if ~is_prv_vp & is_cur_vp & ~is_nxt_vp:
+                    frg_set[:, 13] = np.bitwise_or(frg_set[:, 13], 2)
+                    n_fusion += 1
+                    break
 
             # save the read
             for frg in frg_set:
@@ -348,6 +370,8 @@ def processMappedFragments(args):
         if frg_set.shape[0] != 0:  # Saving the last read after file has finished
             for frg in frg_set:
                 gz_fid.write(frg_template.format(*frg))
+    if n_fusion != 0:
+        print '[w] {:,d} fused reads are identified and flagged.'.format(n_fusion)
 
     # Load fragments in pandas format and sort fragments within a read according to their relative positions
     print('Loading the temporary file: {:s}'.format(tmp_fname))
@@ -398,9 +422,9 @@ def removeDuplicates(args):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # filtering reads according to their MQ
-    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'IsValid']].values
+    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ErrFlag']].values
     is_mapped = read_all[:, 4] >= args.min_mq
-    is_valid = read_all[:, 5] == 1
+    is_valid = read_all[:, 5] == 0
     read_all = read_all[is_mapped & is_valid, :4]
     print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
         args.min_mq, len(np.unique(read_all[:, 0])))
@@ -512,7 +536,15 @@ def perform_analysis(args):
     if args.analysis_type == 'mcTest':
         mc4c_analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
-        mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=args.n_perm)
+        if args.ant_name is not None:
+            mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=args.n_perm)
+        else:
+            from mc4c_tools import load_annotation
+            roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
+            ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+            for ant_name in ant_pd['ant_name']:
+                print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
+                mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
 
@@ -628,9 +660,10 @@ def main():
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
-    parser_analysis.add_argument('ant_name', metavar='ant-name', type=str,
+    parser_analysis.add_argument('--ant-name', default=None, type=str,
                                  help='Name of annotation for which VP-SOI plot needs to be computed. ' +
-                                      'Only used for VP-SOI (i.e. "vpSoi") analysis')
+                                      'Only used for VP-SOI (i.e. "vpSoi") analysis. Every annotation within the '
+                                      'Region Of Interest (ROI) will be used if this argument is not provided.')
     parser_analysis.add_argument('--input-file', default=None, type=str,
                                   help='Input file (in HDF5 format) containing MC4C data.')
     parser_analysis.add_argument('--output-file', default=None, type=str,
@@ -643,6 +676,7 @@ def main():
                                       'that contain no fragment from site of interest) to produce the expected profile.')
     parser_analysis.set_defaults(func=perform_analysis)
 
+    #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
     if 'FROM_PYCHARM' in environ:
         Warning('We are in the PyCharm!')
         # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
@@ -650,14 +684,14 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=10', 'LVR-BMaj-96x', 'HS2']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=10', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

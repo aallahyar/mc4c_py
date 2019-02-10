@@ -140,16 +140,20 @@ def seq_rev_comp(seq):
 def hasOL(que_item, ref_lst, include_ref_left=False, include_ref_right=False, offset=0):
     if isinstance(que_item, list):
         que_item = np.array(que_item)
-    que_dim = que_item.shape[0]
-    [n_ref, ref_dim] = np.shape(ref_lst)
-    result = np.ones(n_ref, dtype=bool)
-    if que_dim<>ref_dim or que_item.ndim<>1:
-        raise ValueError('Query or reference are inconsistent')
-    crd_ind = 0
+    if isinstance(ref_lst, list):
+        ref_lst = np.array(ref_lst)
+    if ref_lst.ndim == 1:
+        ref_lst = ref_lst.reshape(1, -1)
+    que_ncol = que_item.shape[0]
+    ref_nrow = ref_lst.shape[0]
+    assert que_item.ndim == 1, 'Query must be only one element'
+    assert que_ncol == ref_lst.shape[1], 'Inconsistency between query and reference #columns'
 
-    if que_dim == 4:  # Orientation
+    result = np.ones(ref_nrow, dtype=bool)
+    crd_ind = 0
+    if que_ncol == 4:  # Orientation
         result = que_item[3] == ref_lst[:, 3]
-    if que_dim >= 3:  # Chromosome
+    if que_ncol >= 3:  # Chromosome
         result = np.logical_and(result, que_item[0] == ref_lst[:, 0])
         crd_ind = 1
     if include_ref_left:
