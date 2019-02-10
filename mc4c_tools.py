@@ -377,9 +377,9 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
 
     # select requested fragments
     if uniq_only:
-        title_msg = ['uniq']
+        filter_lst = ['uniq']
     else:
-        title_msg = []
+        filter_lst = []
     if roi_only:
         from utilities import hasOL
         vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
@@ -387,7 +387,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
         is_vp = hasOL(vp_crd, frg_np[:, 1:4], offset=0)
         is_roi = hasOL(roi_crd, frg_np[:, 1:4], offset=0)
         frg_np = frg_np[~is_vp & is_roi, :]
-        title_msg += ['roi', 'ex.vp']
+        filter_lst += ['roi', 'ex.vp']
 
     # group circles
     read_grp = accum_array(frg_np[:, 0] - 1, frg_np)
@@ -429,11 +429,13 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     plt.xlabel('Read size (#fragment)')
     plt.ylabel('Frequency (%)')
     # plt.ylim([0, 70])
-    plt.title('{:s} ({:s})\n'.format(configs['run_id'], ', '.join(title_msg)) +
-              '#mapped={:,d}; '.format(np.sum(size_dist[3, :])) +
-              '#map>1={:,d}; '.format(np.sum(size_dist[3, 1:])) +
-              '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
-              )
+    title_msg = configs['run_id']
+    if len(filter_lst) != 0:
+        title_msg += ' ({:s})'.format(', '.join(filter_lst))
+    title_msg += '\n#mapped={:,d}; '.format(np.sum(size_dist[3, :])) + \
+                 '#map>1={:,d}; '.format(np.sum(size_dist[3, 1:])) + \
+                 '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
+    plt.title(title_msg)
     plt.legend(plt_h, [
         'read size <1.5kb (n={:,d})'.format(np.sum(size_dist[0, :])),
         'read size <8kb (n={:,d})'.format(np.sum(size_dist[1, :])),
@@ -444,7 +446,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id']
         if roi_only or uniq_only:
-             configs['output_file'] += '_{:s}.pdf'.format(','.join(title_msg))
+             configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
         else:
             configs['output_file'] += '.pdf'
     plt.savefig(configs['output_file'], bbox_inches='tight')

@@ -691,7 +691,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test'] # , '--uniq-only' , '--roi-only'
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
