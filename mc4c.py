@@ -519,6 +519,7 @@ def getSumRep(args):
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
 
+
 def perform_analysis(args):
     import mc4c_analysis
 
@@ -546,7 +547,7 @@ def perform_analysis(args):
 
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
-            mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=ant_name, n_perm=args.n_perm)
+            mc4c_analysis.perform_vpsoi_analysis(configs.copy(), soi_name=ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -694,7 +695,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test', '--ant-name=HS2']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
