@@ -4,7 +4,7 @@ import h5py
 
 
 def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbose=True,
-              min_mq=20, only_valid=True, only_unique=True, reindex_reads=True, max_rows=np.inf):
+              min_mq=20, valid_only=True, uniq_only=True, reindex_reads=True, max_rows=np.inf):
     MAX_N_CIR = 1000000000000
     out_pd = pd.DataFrame()
     if not isinstance(config_lst, list):
@@ -13,7 +13,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
     header_lst = []
     for cfg_idx, configs in enumerate(config_lst):
         if configs['input_file'] is None:
-            if only_unique:
+            if uniq_only:
                 configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
             else:
                 configs['input_file'] = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
@@ -34,7 +34,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         # Filtering fragments
         if min_mq > 0:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
-        if only_valid:
+        if valid_only:
             part_pd = part_pd.loc[part_pd['ErrFlag'] == 0]
 
         # Adjust Read IDs
@@ -264,7 +264,7 @@ def plot_cvgDistribution(configs):
         dist_ref += np.bincount(bin_idx, minlength=n_bin)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, only_unique=False, only_valid=True)
+    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
     del frg_dp
     print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
@@ -356,7 +356,7 @@ def plot_cvgDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_cirSizeDistribution(configs, roi_only=True):
+def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -366,18 +366,20 @@ def plot_cirSizeDistribution(configs, roi_only=True):
     from utilities import accum_array
 
     # initialization
-    if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8
     edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
     n_edge = len(edge_lst)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True)
+    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True, uniq_only=uniq_only)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ReadLength']].values
     del frg_dp
 
-    # select cis fragments
+    # select requested fragments
+    if uniq_only:
+        title_msg = ['uniq']
+    else:
+        title_msg = []
     if roi_only:
         from utilities import hasOL
         vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
@@ -385,6 +387,7 @@ def plot_cirSizeDistribution(configs, roi_only=True):
         is_vp = hasOL(vp_crd, frg_np[:, 1:4], offset=0)
         is_roi = hasOL(roi_crd, frg_np[:, 1:4], offset=0)
         frg_np = frg_np[~is_vp & is_roi, :]
+        title_msg += ['roi', 'ex.vp']
 
     # group circles
     read_grp = accum_array(frg_np[:, 0] - 1, frg_np)
@@ -399,16 +402,17 @@ def plot_cirSizeDistribution(configs, roi_only=True):
         n_frg = frg_set.shape[0]
         if n_frg == 0:
             continue
+        n_bp = frg_set[0, 5]
 
         if n_frg > MAX_SIZE:
             n_frg = MAX_SIZE
         bin_idx = np.digitize(n_frg, edge_lst) - 1
 
-        if frg_set[0, 5] < 1500:
+        if n_bp < 1500:
             size_dist[0, bin_idx] += 1
-        elif frg_set[0, 5] < 5000:
+        elif n_bp < 8000:
             size_dist[1, bin_idx] += 1
-        elif frg_set[0, 5] > 5000:
+        else:
             size_dist[2, bin_idx] += 1
         size_dist[3, bin_idx] += 1
 
@@ -424,22 +428,29 @@ def plot_cirSizeDistribution(configs, roi_only=True):
     plt.xticks(edge_lst)
     plt.xlabel('Read size (#fragment)')
     plt.ylabel('Frequency (%)')
-    plt.ylim([0, 70])
-    plt.title(configs['run_id'] + '\n' +
+    # plt.ylim([0, 70])
+    plt.title('{:s} ({:s})\n'.format(configs['run_id'], ', '.join(title_msg)) +
               '#mapped={:,d}; '.format(np.sum(size_dist[3, :])) +
               '#map>1={:,d}; '.format(np.sum(size_dist[3, 1:])) +
               '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
               )
     plt.legend(plt_h, [
         'read size <1.5kb (n={:,d})'.format(np.sum(size_dist[0, :])),
-        'read size <5kb (n={:,d})'.format(np.sum(size_dist[1, :])),
-        'read size >5kb (n={:,d})'.format(np.sum(size_dist[2, :])),
+        'read size <8kb (n={:,d})'.format(np.sum(size_dist[1, :])),
+        'read size >8kb (n={:,d})'.format(np.sum(size_dist[2, :])),
         'All (n={:,d})'.format(np.sum(size_dist[3, :]))
     ])
+
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id']
+        if roi_only or uniq_only:
+             configs['output_file'] += '_{:s}.pdf'.format(','.join(title_msg))
+        else:
+            configs['output_file'] += '.pdf'
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
+def plot_overallProfile(configs, uniq_only=True, MIN_N_FRG=2):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -458,7 +469,7 @@ def plot_overallProfile(configs, only_unique=True, MIN_N_FRG=2):
     del edge_lst
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, only_unique=only_unique, only_valid=True, min_mq=20, reindex_reads=True)
+    frg_dp = load_mc4c(configs, uniq_only=uniq_only, valid_only=True, min_mq=20, reindex_reads=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 

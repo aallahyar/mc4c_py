@@ -154,20 +154,20 @@ def mapFragments(args):
         args.output_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
-    # assert not path.isfile(args.output_file)
     if not args.return_command:
         print('Reading fragments from: {:s}'.format(args.input_file))
         print('Writing mapped fragments to: {:s}'.format(args.output_file))
 
+    # prepare the command
     cmd_str = \
         configs['bwa'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
         configs['bwa_index'] + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
-
     if args.return_command:
         print '{:s}'.format(cmd_str)
     else:
+        assert path.isfile(args.input_file), '[e] Input file could not be found: {:s}'.format(args.input_file)
         print 'Running: {:s}'.format(cmd_str)
         import subprocess
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -512,7 +512,7 @@ def getSumRep(args):
     elif args.report_type =='cvgDist':
         mc4c_tools.plot_cvgDistribution(configs)
     elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only)
+        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
         mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
@@ -653,8 +653,10 @@ def main():
                                  help='Input file (in HDF5 format) containing MC4C data.')
     parser_sumReport.add_argument('--output-file', default=None, type=str,
                                  help='Output file (in PDF format) containing the requested summary report.')
-    parser_sumReport.add_argument('--roi-only', action="store_true",
+    parser_sumReport.add_argument('--roi-only', action="store_true", default=False,
                                   help='Limits the requested summary report to be generated from roi-fragments only.')
+    parser_sumReport.add_argument('--uniq-only', action="store_true", default=False,
+                                  help='Limits the requested summary report to unique (duplicate removed) reads.')
     parser_sumReport.set_defaults(func=getSumRep)
 
     # perform basic analysis
@@ -672,9 +674,6 @@ def main():
                                   help='Input file (in HDF5 format) containing MC4C data.')
     parser_analysis.add_argument('--output-file', default=None, type=str,
                                   help='Output file (in PDF format) containing the result of the requested analysis.')
-    parser_analysis.add_argument('--roi-only', action="store_true",
-                                  help='Limits the requested analysis to be generated from roi-fragments only. ' +
-                                       'By default this flag is set to TRUE.')
     parser_analysis.add_argument('--n-perm', default=1000, type=int,
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
@@ -692,10 +691,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test'] # , '--uniq-only' , '--roi-only'
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
