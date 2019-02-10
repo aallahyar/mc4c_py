@@ -146,16 +146,15 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_vpsoi_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/plt_vpsoi_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
     x_lim = [configs['roi_start'], configs['roi_end']]
     y_lim = [0, 10]
-    # y_lim = plt.ylim()
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=False)
+    frg_dp = load_mc4c(configs, only_unique=True, only_valid=True, min_mq=20, reindex_reads=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -178,18 +177,16 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     n_frg = frg_inf.shape[0]
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
+        cfb_lst[frg_inf[fi, 0]].append(bin_idx.tolist())
 
     # filter circles for (>1 bin cvg)
     valid_lst = []
-    for rd_nid in range(1, n_read):
+    for rd_nid in range(1, n_read + 1):
         fb_lst = cfb_lst[rd_nid]
         bin_cvg = np.unique(flatten(fb_lst))
         if len(bin_cvg) > 1:
             valid_lst.append(rd_nid)
     frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
-
-    # re-index circles
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(frg_inf[:, 0])
 
@@ -199,32 +196,32 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     is_in = np.where(np.isin(ant_pd['ant_name'], soi_name))[0]
     assert len(is_in) == 1
     soi_pd = ant_pd.loc[is_in[0], :]
-    pos_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
+    soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
 
     # compute positive profile and backgrounds
     print 'Computing expected profile for bins:'
-    prf_pos, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=n_perm)
+    prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm)
     n_pos = len(np.unique(frg_pos[:, 0]))
-    nrm_pos = prf_pos * 100.0 / n_pos
+    prf_obs = prf_frq * 100.0 / n_pos
 
     # compute scores
     nrm_rnd = prf_rnd * 100.0 / n_pos
-    nrm_exp = np.mean(nrm_rnd, axis=0)
-    nrm_std = np.std(nrm_rnd, axis=0, ddof=0)
+    prf_exp = np.mean(nrm_rnd, axis=0)
+    prf_std = np.std(nrm_rnd, axis=0, ddof=0)
     np.seterr(all='ignore')
-    bin_scr = np.divide(nrm_pos - nrm_exp, nrm_std)
+    bin_scr = np.divide(prf_obs - prf_exp, prf_std)
     np.seterr(all=None)
 
     # set vp bins to nan
-    is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
+    vp_bnd = [configs['vp_start'], configs['vp_end']]
+    is_vp = hasOL(vp_bnd, bin_bnd)
     bin_scr[is_vp] = np.nan
-    vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
 
     # compute score for annotations
     print 'Computing expected profile for annotations:'
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
     ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
-    ant_obs, soi_rnd = compute_mc_associations(frg_inf, pos_crd, ant_bnd, n_perm=n_perm)[:2]
+    ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
     ant_exp = np.mean(soi_rnd, axis=0)
     ant_std = np.std(soi_rnd, axis=0, ddof=0)
     np.seterr(all='ignore')
@@ -233,7 +230,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
 
     # set vp score to nan
     is_vp = hasOL(vp_bnd, ant_bnd)
-    is_soi = hasOL(pos_crd[1:3], ant_bnd)
+    is_soi = hasOL(soi_crd[1:3], ant_bnd)
     ant_scr[is_vp | is_soi] = np.nan
 
     # plotting
@@ -253,34 +250,34 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     cbar_h.ax.set_ylabel('z-score', rotation=90)
 
     # profile plot
-    ax_prf.plot(bin_cen, nrm_pos, color='#5757ff', linewidth=1)
-    ax_prf.plot(bin_cen, nrm_exp, color='#cccccc', linewidth=1)
-    ax_prf.fill_between(bin_cen, nrm_exp - nrm_std, nrm_exp + nrm_std, color='#ebebeb', linewidth=0.2)
+    ax_prf.plot(bin_cen, prf_obs, color='#5757ff', linewidth=1)
+    ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1)
+    ax_prf.fill_between(bin_cen, prf_exp - prf_std, prf_exp + prf_std, color='#ebebeb', linewidth=0.2)
 
     ax_prf.add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
-                                          linewidth=0, edgecolor='None', facecolor='orange', zorder=100))
-    ax_prf.add_patch(patches.Rectangle([pos_crd[1], y_lim[0]], pos_crd[2] - pos_crd[1], y_lim[1] - y_lim[0],
-                                          linewidth=0, edgecolor='None', facecolor='green', zorder=100))
+                                       edgecolor='None', facecolor='orange', zorder=100))
+    ax_prf.add_patch(patches.Rectangle([soi_crd[1], y_lim[0]], soi_crd[2] - soi_crd[1], y_lim[1] - y_lim[0],
+                                       edgecolor='None', facecolor='green', zorder=100))
     ax_prf.set_xlim(x_lim)
     ax_prf.set_ylim(y_lim)
     ax_prf.set_xticks([])
 
-    img_h = ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-500, 500], cmap=clr_map,
-                          vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
+    # add score plot
+    ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-500, 500], cmap=clr_map,
+                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_yticks([])
 
     # add annotations
     for ai in range(n_ant):
-        ant_pos = ant_pd.loc[ai, 'ant_pos']
-        ax_prf.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='center', verticalalignment='bottom', rotation=60)
-        ax_prf.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
+        ax_prf.text(ant_pos[ai], y_lim[1], ant_pd.loc[ai, 'ant_name'],
+                    horizontalalignment='center', verticalalignment='bottom', rotation=60)
+        ax_prf.plot(ant_pos[[ai, ai]], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
         if not np.isnan(ant_scr[ai]):
             ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
-                                               linewidth=0, edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
-            ax_prf.text(np.mean(ant_pos), y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
+                                               edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
+            ax_prf.text(ant_pos[ai], y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
                         horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=8)
 
     # final adjustments
@@ -292,7 +289,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ax_scr.set_xticklabels(x_tick_label)
     ax_prf.set_yticklabels(y_tick_label)
     ax_prf.set_ylabel('Percentage of reads')
-    ax_prf.set_title('VP-SOI for {:s}, in {:s}\n'.format(soi_name, configs['run_id']) +
+    ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(configs['run_id'], soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      '#pos = {:d}\n#perm={:d}\n\n\n'.format(n_pos, n_perm)
                      )
@@ -322,31 +319,26 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, show_progres
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
     cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
-    n_pos = len(np.unique(frg_pos[:, 0]))
-    n_neg = len(np.unique(frg_neg[:, 0]))
-    assert n_pos == len(cfb_pos)
-    assert n_neg == len(cfb_neg)
+    n_pos = len(cfb_pos)
+    n_neg = len(cfb_neg)
 
     # make positive profile
     prf_pos = np.zeros(n_bin)
     for pi in range(n_pos):
-        bin_lst = np.unique(flatten(cfb_pos[pi]))
-        for bi in bin_lst:
-            prf_pos[bi] += 1
+        bin_lst = flatten(cfb_pos[pi])
+        prf_pos[bin_lst] += 1
 
     # make background profile from negative set
     prf_rnd = np.zeros([n_perm, n_bin])
+    neg_lst = range(n_neg)
     for ei in np.arange(n_perm):
         if show_progress and (((ei + 1) % 200) == 0):
             print '\t{:d} randomized profiles are computed.'.format(ei + 1)
-        rnd_lst = np.random.permutation(n_neg)[:n_pos]
-        for rd_idx in rnd_lst:
+        np.random.shuffle(neg_lst)
+        for rd_idx in neg_lst[:n_pos]:
             f2b_rnd = cfb_neg[rd_idx]
-            n_frg = len(f2b_rnd)
-            if n_frg > 1:
-                frg_red = [f2b_rnd[i] for i in np.random.permutation(n_frg)[1:]]
-                for i in np.unique(flatten(frg_red)):
-                    prf_rnd[ei, i] += 1
+            np.random.shuffle(f2b_rnd)
+            prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly removed everytime
 
     return prf_pos, prf_rnd, frg_pos, frg_neg
 

@@ -147,7 +147,7 @@ def hasOL(que_item, ref_lst, include_ref_left=False, include_ref_right=False, of
     que_ncol = que_item.shape[0]
     ref_nrow = ref_lst.shape[0]
     assert que_item.ndim == 1, 'Query must be only one element'
-    assert que_ncol == ref_lst.shape[1], 'Inconsistency between query and reference #columns'
+    assert que_ncol == ref_lst.shape[1], 'Inconsistency between number of columns in query and reference.'
 
     result = np.ones(ref_nrow, dtype=bool)
     crd_ind = 0
@@ -215,9 +215,9 @@ def accum_array(group_idx, arr, func=None, default_value=None, min_n_group=None,
         return groups
 
 
-def flatten(long_lst):
+def flatten(nested_lst):
     out_lst = []
-    for item in long_lst:
+    for item in nested_lst:
         if isinstance(item, list):
             out_lst.extend(flatten(item))
         else:

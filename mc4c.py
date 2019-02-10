@@ -64,7 +64,7 @@ def setReadIds(args):
 
     # loop over reads
     with gzip.open(args.output_file, 'w') as out_fid:
-        inp_flst = args.input_file.split(';')
+        inp_flst = args.input_file.split(',')
         print 'Total of [{:d}] files are given as input.'.format(len(inp_flst))
         for inp_fidx, inp_fname in enumerate(inp_flst):
             print('\t{:d}. Reading from: {:s}'.format(inp_fidx + 1, inp_fname))
@@ -536,15 +536,17 @@ def perform_analysis(args):
     if args.analysis_type == 'mcTest':
         mc4c_analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
-        if args.ant_name is not None:
-            mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=args.ant_name, n_perm=args.n_perm)
-        else:
+        if args.ant_name is None:
             from mc4c_tools import load_annotation
             roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
             ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
-            for ant_name in ant_pd['ant_name']:
-                print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
-                mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=ant_name, n_perm=args.n_perm)
+            ant_name_lst = ant_pd['ant_name'].values
+        else:
+            ant_name_lst = args.ant_name.split(',')
+
+        for ant_name in ant_name_lst:
+            print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
+            mc4c_analysis.perform_vpsoi_analysis(configs, soi_name=ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
 
@@ -691,7 +693,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'K562-WplD-10x', '--roi-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=10', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name=HS2']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
