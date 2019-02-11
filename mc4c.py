@@ -218,10 +218,10 @@ def processMappedFragments(args):
         re_pos[ri] = np.hstack([0, re_pos[ri], chr_size[ri]])
 
     # identify vp_fragment coordinates
-    re_idx = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
-    vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][re_idx], re_pos[configs['vp_cnum'] - 1][re_idx + 1]]
-    assert np.abs(vp_frg[2] - np.max(configs['prm_end'])) <= np.min([len(x) for x in configs['re_seq']]), \
-        'Can not map primer positions on a single fragment.'
+    idx_lft = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
+    idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']), side='left')
+    vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
+    assert idx_lft + 1 == idx_rgt, 'Can not map primer positions on a single fragment.'
 
     # define fragment headers
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
@@ -687,11 +687,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
