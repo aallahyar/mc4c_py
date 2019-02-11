@@ -135,6 +135,7 @@ def plot_cvgDistribution(configs):
     frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
     print 'Scanning raw fragments in {:s}'.format(frg_fname)
     dist_mq00 = np.zeros(n_bin, dtype=np.int64)
+    n_bp_mq00 = 0
     n_frg_mq00 = 0
     with gzip.open(frg_fname, 'r') as splt_fid:
         while True:
@@ -146,6 +147,7 @@ def plot_cvgDistribution(configs):
                 print('{:,d} fragments are processed.'.format(n_frg_mq00))
 
             seq_size = len(frg_seq)
+            n_bp_mq00 += seq_size
             if seq_size >= MAX_SIZE:
                 seq_size = MAX_SIZE - 1
 
@@ -219,19 +221,20 @@ def plot_chrCvg(configs):
 
     # Load MC-HC data
     frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
-    frg_np = frg_dp[['Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
+    frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
     print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
 
     # calculate chromosome coverage
+    is_mq01 = frg_np[:, 3] >= 1
     is_mq20 = frg_np[:, 3] >= 20
-    ccvg_mq01 = np.bincount(frg_np[:, 0] - 1, minlength=n_chr)
+    ccvg_mq01 = np.bincount(frg_np[is_mq01, 0] - 1, minlength=n_chr)
     ccvg_mq20 = np.bincount(frg_np[is_mq20, 0] - 1, minlength=n_chr)
 
     frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
-    n_bp_mq01 = np.sum(frg_size)
+    n_bp_mq01 = np.sum(frg_size[is_mq01])
     n_bp_mq20 = np.sum(frg_size[is_mq20])
-    n_frg_mq01 = len(frg_size)
+    n_frg_mq01 = np.sum(is_mq01)
     n_frg_mq20 = np.sum(is_mq20)
     del frg_np
 
@@ -264,12 +267,12 @@ def plot_chrCvg(configs):
     plt.yticks(y_ticks, y_tick_lbl)
     plt.ylabel('#Fragments')
     plt.title('Chromosome coverage, {:s}\n'.format(configs['run_id']) +
-              '#frg mapped ' +
-              'MQ1={:0,.1f}k ({:0.1f}%); '.format(n_frg_mq01 / 1e3, n_frg_mq01 * 100.0 / n_frg_mq00) +
-              'MQ20={:0,.1f}k ({:0.1f}%)\n'.format(n_frg_mq20 / 1e3, n_frg_mq20 * 100.0 / n_frg_mq00) +
               '#bp mapped ' +
-              'MQ1={:0,.1f}m ({:0.1f}%); '.format(n_bp_mq01 / 1e6, n_bp_mq01 * 100.0 / n_bp_mq00) +
-              'MQ20={:0,.1f}m ({:0.1f}%)'.format(n_bp_mq20 / 1e6, n_bp_mq20 * 100.0 / n_bp_mq00))
+              'MQ1={:0,.1f}m ({:0.1f}%); '.format(n_bp_mq01 / 1e6, n_bp_mq01 * 1e2 / n_bp_mq00) +
+              'MQ20={:0,.1f}m ({:0.1f}%)\n'.format(n_bp_mq20 / 1e6, n_bp_mq20 * 1e2 / n_bp_mq00) +
+              '#frg mapped ' +
+              'MQ1={:0,.1f}k ({:0.1f}%); '.format(n_frg_mq01 / 1e3, n_frg_mq01 * 1e2 / n_frg_mq00) +
+              'MQ20={:0,.1f}k ({:0.1f}%)'.format(n_frg_mq20 / 1e3, n_frg_mq20 * 1e2 / n_frg_mq00))
 
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
