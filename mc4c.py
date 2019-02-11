@@ -7,9 +7,9 @@ from os import path, makedirs, environ
 import numpy as np
 import pandas as pd
 
-import mc4c_tools
+import reports
 
-import platform  # ###
+# import platform  # ###
 # flag_DEBUG = platform.system() != 'Linux'
 
 np.set_printoptions(linewidth=180, threshold=5000)  # , suppress=True, formatter={'float_kind':'{:0.5f}'.format}
@@ -48,9 +48,10 @@ def processMC4C(args):
     print '[i] Processing MC-4C experiment is completed successfully.'
 
 def setReadIds(args):
+    from utilities import load_configs
     print '%% Assigning traceable identifiers to reads ...'
 
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     # initialize
     if args.input_file is None:
@@ -92,11 +93,11 @@ def setReadIds(args):
 
 
 def splitReads(args):
-    from utilities import get_re_info
+    from utilities import load_configs, get_re_info
     import re
 
     print '%% Splitting reads into fragments ...'
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
@@ -142,10 +143,11 @@ def splitReads(args):
 
 
 def mapFragments(args):
+    from utilities import load_configs
     if not args.return_command:
         print '%% Mapping fragments to genome ...'
 
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     # Map split fragments to genome
     if args.input_file is None:
@@ -184,10 +186,10 @@ def processMappedFragments(args):
     from pandas import read_csv
     import pysam
 
-    from utilities import get_chr_info, hasOL
+    from utilities import load_configs, get_chr_info, hasOL
 
-    print '%% Creating a MC-4C dataset from mapped fragments ...'
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    print '%% Creating an MC-4C dataset from mapped fragments ...'
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
@@ -370,8 +372,11 @@ def processMappedFragments(args):
         if frg_set.shape[0] != 0:  # Saving the last read after file has finished
             for frg in frg_set:
                 gz_fid.write(frg_template.format(*frg))
+            n_processed += 1
+
     if n_fusion != 0:
-        print '[w] {:,d} fused reads are identified and flagged.'.format(n_fusion)
+        print '[w] {:,d} fused reads ({:0.1f}% of total) are identified and flagged.'.format(
+            n_fusion, n_fusion * 100.0 / n_processed)
 
     # Load fragments in pandas format and sort fragments within a read according to their relative positions
     print('Loading the temporary file: {:s}'.format(tmp_fname))
@@ -396,10 +401,10 @@ def processMappedFragments(args):
 
 def removeDuplicates(args):
     import h5py
-    from utilities import hasOL
+    from utilities import load_configs, hasOL
 
-    print '%% Removing pcr duplicates from a MC-4C dataset ...'
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    print '%% Removing pcr duplicates from an MC-4C dataset ...'
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
         args.input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
@@ -492,10 +497,11 @@ def removeDuplicates(args):
 
 
 def getSumRep(args):
-    import mc4c_tools
+    import reports
+    from utilities import load_configs
 
     # load config files
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.output_file is None:
         configs['output_dir'] = './plots/'
@@ -508,22 +514,25 @@ def getSumRep(args):
 
     # call the requested function
     if args.report_type == 'readSizeDist':
-        mc4c_tools.plot_readSizeDistribution(configs)
-    elif args.report_type =='cvgDist':
-        mc4c_tools.plot_cvgDistribution(configs)
+        reports.plot_readSizeDistribution(configs)
+    elif args.report_type == 'chrCvg':
+        reports.plot_chrCvg(configs)
+    elif args.report_type == 'cvgDist':
+        reports.plot_cvgDistribution(configs)
     elif args.report_type == 'cirSizeDist':
-        mc4c_tools.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
+        reports.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        mc4c_tools.plot_overallProfile(configs, MIN_N_FRG=2)
+        reports.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
 
 
 def perform_analysis(args):
-    import mc4c_analysis
+    import analysis
+    from utilities import load_configs
 
-    configs = mc4c_tools.load_configs(args.config_file, max_n_configs=1)[0]
+    configs = load_configs(args.config_file, max_n_configs=1)[0]
     if args.output_file is None:
         configs['output_dir'] = './plots/'
     else:
@@ -535,10 +544,10 @@ def perform_analysis(args):
 
     # call the requested function
     if args.analysis_type == 'mcTest':
-        mc4c_analysis.perform_mc_analysis(configs)
+        analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
         if args.ant_name is None:
-            from mc4c_tools import load_annotation
+            from reports import load_annotation
             roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
             ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
             ant_name_lst = ant_pd['ant_name'].values
@@ -547,7 +556,7 @@ def perform_analysis(args):
 
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
-            mc4c_analysis.perform_vpsoi_analysis(configs.copy(), soi_name=ant_name, n_perm=args.n_perm)
+            analysis.perform_vpsoi_analysis(configs.copy(), soi_name=ant_name, n_perm=args.n_perm)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -572,7 +581,7 @@ def main():
 
     # Runs all pre-processing steps
     parser_process = subparsers.add_parser('process', description='Performs the entire pre-processing ' +
-                                                                  'steps required for a MC-4C experiment.')
+                                                                  'steps required for an MC-4C experiment.')
     parser_process.add_argument('config_file', metavar='config-file', type=str,
                                help='Configuration file containing experiment specific details')
     parser_process.add_argument('--n_thread', default=6,type=int,
@@ -619,7 +628,7 @@ def main():
 
     # Process mapped fragments
     parser_mkDataset = subparsers.add_parser('makeDataset',
-                                             description='Processed the mapped fragments and create a MC-4C dataset')
+                                             description='Processed the mapped fragments and create an MC-4C dataset')
     parser_mkDataset.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
     parser_mkDataset.add_argument('--input-file', default=None, type=str,
@@ -643,9 +652,9 @@ def main():
 
     # produce statistics plots
     parser_sumReport = subparsers.add_parser('getSumRep',
-                                            description='Generate various summary reports about a MC-4C dataset.')
+                                            description='Generate various summary reports about an MC-4C dataset.')
     parser_sumReport.add_argument('report_type', type=str,
-                                 choices=['cvgDist', 'readSizeDist', 'cirSizeDist', 'overallProfile'],
+                                 choices=['readSizeDist', 'chrCvg', 'cvgDist', 'cirSizeDist', 'overallProfile'],
                                  help='Type of summary report that needs to be generated')
     parser_sumReport.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
@@ -660,8 +669,7 @@ def main():
     parser_sumReport.set_defaults(func=getSumRep)
 
     # perform basic analysis
-    parser_analysis = subparsers.add_parser('analysis',
-                                             description='Perform analysis on a MC-4C dataset.')
+    parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
     parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi'], type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
@@ -687,10 +695,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'K562-GATA1']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'K562-GATA1']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'K562-GATA1']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'chrCvg', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']

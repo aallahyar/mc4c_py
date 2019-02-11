@@ -186,6 +186,7 @@ def which(program):
 
     return None
 
+
 def accum_array(group_idx, arr, func=None, default_value=None, min_n_group=None, rebuild_index=False):
     """groups a by indices, and then applies func to each group in turn.
     e.g. func example: [func=lambda g: g] or [func=np.sum] or None for speed
@@ -224,3 +225,161 @@ def flatten(nested_lst):
             out_lst.append(item)
     return out_lst
 
+
+################### MC-4C related functions #########################
+
+def load_annotation(genome_str, roi_crd=None):
+    import pandas as pd
+
+    # load annotation
+    inp_fname = './annotations/ant_{:s}.tsv'.format(genome_str)
+    ant_pd = pd.read_csv(inp_fname, delimiter='\t', comment='#')
+
+    # convert map to chr_nums
+    chr_lst = get_chr_info(genome_str=genome_str, property='chr_name')
+    chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+    ant_pd['ant_cnum'] = ant_pd['ant_chr'].map(chr_map)
+
+    # filter annotations outside ROI
+    if roi_crd:
+        is_in = (ant_pd['ant_cnum'] == roi_crd[0]) & \
+                (ant_pd['ant_pos'] >= roi_crd[1]) & \
+                (ant_pd['ant_pos'] <= roi_crd[2])
+        ant_pd = ant_pd.loc[is_in]
+
+    return ant_pd
+
+
+def load_configs(input_fname, max_n_configs=None):
+    """ Read configurations from given file, put it into a dict
+
+    :param input_fname: takes a path to a tab-separated file (or a "config_id") with one variable name and value
+    per line, multiple values are seprated by ";").
+
+    :returns: Dictionary where keys are based on the first column with values in a list.
+    """
+    from os import path
+
+    # check number of given configs
+    cfg_file_list = input_fname.split(';')
+    if max_n_configs:
+        assert len(cfg_file_list) <= max_n_configs, \
+            'Maximum of {:d} configs are allowed to be loaded.'.format(max_n_configs)
+
+    # loop over configs
+    config_lst = []
+    for cfg_fname in cfg_file_list:
+
+        # check if config_file is a file
+        if cfg_fname[-4:] != '.cfg':
+            cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
+        assert path.isfile(cfg_fname), 'Configuration file could not be found: '.format(cfg_fname)
+
+        # Load global and then given configs
+        configs = dict()
+        for fname in ['./mc4c.cfg', cfg_fname]:
+            if not path.isfile(fname):
+                continue
+            with open(fname, 'r') as cfg_fid:
+                for line in cfg_fid:
+                    if (line[0] == '#') or (len(line) == 1):
+                        continue
+                    columns = line.rstrip('\n').split('\t')
+                    assert len(columns) == 2
+                    fld_lst = columns[1].split(';')
+                    if len(fld_lst) == 1:
+                        configs[columns[0]] = fld_lst[0]
+                    else:
+                        configs[columns[0]] = fld_lst
+
+        # conversions
+        for cfg_name in ['vp_start', 'vp_end', 'roi_start', 'roi_end']:
+            if cfg_name in configs.keys():
+                configs[cfg_name] = int(configs[cfg_name])
+        for cfg_name in ['prm_start', 'prm_end']:
+            configs[cfg_name] = [int(value) for value in configs[cfg_name]]
+        for cfg_name in ['bwa_index', 'reference_fasta']:
+            configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
+
+        # get chromosome info
+        chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
+        chr_map = dict(zip(chr_lst, range(1, len(chr_lst) + 1)))
+        configs['vp_cnum'] = chr_map[configs['vp_chr']]
+
+        # check configs that should be of equal length
+        linked_configs = [
+            ['prm_seq','prm_start','prm_end'],
+            ['re_name','re_seq'],
+        ]
+        for cnf_set in linked_configs:
+            assert len(set([len(configs[x]) for x in cnf_set])) == 1, \
+                'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
+
+        # set default if needed
+        if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
+            configs['vp_start'] = np.min(configs['prm_start']) - 1500
+            configs['vp_end'] = np.max(configs['prm_end']) + 1500
+        if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
+            roi_cen = np.abs(configs['vp_end'] - configs['vp_start']) / 2
+            configs['roi_start'] = roi_cen - 1000000
+            configs['roi_end'] = roi_cen + 1000000
+
+        # add to list of configs
+        config_lst.append(configs.copy())
+    return config_lst
+
+
+def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbose=True,
+              min_mq=20, valid_only=True, uniq_only=True, reindex_reads=True, max_rows=np.inf):
+    import pandas as pd
+    import h5py
+
+    MAX_N_CIR = 1000000000000
+    out_pd = pd.DataFrame()
+    if not isinstance(config_lst, list):
+        config_lst = [config_lst]
+
+    header_lst = []
+    for cfg_idx, configs in enumerate(config_lst):
+        if configs['input_file'] is None:
+            if uniq_only:
+                configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+            else:
+                configs['input_file'] = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
+        if verbose:
+            print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
+
+        h5_fid = h5py.File(configs['input_file'], 'r')
+        if np.isinf(max_rows):
+            data_np = h5_fid[target_field].value
+        else:
+            print 'Selecting only top [{:d}] rows in the dataset'.format(max_rows)
+            data_np = h5_fid[target_field][:max_rows]
+
+        header_lst = list(h5_fid[target_field + '_header_lst'].value)
+        h5_fid.close()
+        part_pd = pd.DataFrame(data_np, columns=header_lst)
+
+        # Filtering fragments
+        if min_mq > 0:
+            part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
+        if valid_only:
+            part_pd = part_pd.loc[part_pd['ErrFlag'] == 0]
+
+        # Adjust Read IDs
+        assert np.max(part_pd['ReadID']) < MAX_N_CIR
+        part_pd['ReadID'] = part_pd['ReadID'] + (cfg_idx + 1) * MAX_N_CIR
+
+        # Append the part
+        out_pd = out_pd.append(part_pd, ignore_index=True)
+    out_pd = out_pd[header_lst]
+
+    if reindex_reads:
+        header_lst.append('ReadID_original')
+        out_pd[header_lst[-1]] = out_pd['ReadID'].copy()
+        out_pd['ReadID'] = np.unique(out_pd['ReadID'], return_inverse=True)[1] + 1
+        if verbose:
+            print 'Got [{:,d}] reads and [{:,d}] fragments after re-indexing.'.format(
+                np.max(out_pd['ReadID']), out_pd.shape[0])
+
+    return out_pd[header_lst]

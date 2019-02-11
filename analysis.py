@@ -9,8 +9,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     from matplotlib import pyplot as plt, patches
     from matplotlib.colors import LinearSegmentedColormap
 
-    from utilities import hasOL
-    from mc4c_tools import load_mc4c, load_annotation
+    from utilities import load_mc4c, load_annotation, hasOL
 
     # initialization
     if configs['output_file'] is None:
@@ -141,8 +140,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     from matplotlib import pyplot as plt, patches
     from matplotlib.colors import LinearSegmentedColormap
 
-    from utilities import hasOL, flatten
-    from mc4c_tools import load_mc4c, load_annotation
+    from utilities import load_mc4c, load_annotation, hasOL, flatten
 
     # initialization
     if configs['output_file'] is None:
