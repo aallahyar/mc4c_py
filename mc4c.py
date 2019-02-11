@@ -515,12 +515,10 @@ def getSumRep(args):
     # call the requested function
     if args.report_type == 'readSizeDist':
         reports.plot_readSizeDistribution(configs)
-    elif args.report_type == 'frgSD':
+    elif args.report_type == 'frgSizeDist':
         reports.plot_frg_size_distribution(configs)
     elif args.report_type == 'chrCvg':
         reports.plot_chrCvg(configs)
-    elif args.report_type == 'cvgDist':
-        reports.plot_cvgDistribution(configs)
     elif args.report_type == 'cirSizeDist':
         reports.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
@@ -656,7 +654,7 @@ def main():
     parser_sumReport = subparsers.add_parser('getSumRep',
                                             description='Generate various summary reports about an MC-4C dataset.')
     parser_sumReport.add_argument('report_type', type=str,
-                                 choices=['readSizeDist', 'frgSD', 'chrCvg', 'cvgDist', 'cirSizeDist', 'overallProfile'],
+                                 choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile'],
                                  help='Type of summary report that needs to be generated')
     parser_sumReport.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
@@ -700,7 +698,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-GATA1']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'frgSD', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'getSumRep', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']

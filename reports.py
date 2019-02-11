@@ -64,142 +64,6 @@ def plot_readSizeDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_cvgDistribution(configs):
-    import numpy as np
-    import gzip
-    from os import path
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
-    from matplotlib import pyplot as plt
-
-    from utilities import load_mc4c, get_chr_info, get_re_info
-
-    # initialization
-    if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_CvgDistribution_' + configs['run_id'] + '.pdf'
-    MAX_SIZE = 1500
-    edge_lst = np.linspace(0, MAX_SIZE, 31)
-    n_bin = len(edge_lst) - 1
-
-    # get chr info
-    chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
-    n_chr = len(chr_lst)
-
-    # Read res-enz positions
-    re_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
-    print 'Loading RE positions from: {:s}'.format(re_fname)
-    if not path.isfile(re_fname):
-        from utilities import extract_re_positions
-        extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
-                             output_fname=re_fname, ref_fasta=configs['reference_fasta'])
-    re_pos_lst = get_re_info(re_name='-'.join(configs['re_name']), property='pos', genome_str=configs['genome_build'])
-
-    # compute ref fragment size
-    dist_ref = np.zeros(n_bin, dtype=np.int64)
-    for chr_idx, chr_name in enumerate(chr_lst):
-        re_size = np.diff(re_pos_lst[chr_idx]) + 1
-        re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
-
-        bin_idx = np.digitize(re_size, edge_lst) - 1
-        dist_ref += np.bincount(bin_idx, minlength=n_bin)
-
-    # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
-    frg_np = frg_dp[['Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
-    del frg_dp
-    print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
-
-    # calculate chromosome coverage
-    is_mq20 = frg_np[:, 3] >= 20
-    ccvg_mq01 = np.bincount(frg_np[:, 0] - 1, minlength=n_chr)
-    ccvg_mq20 = np.bincount(frg_np[is_mq20, 0] - 1, minlength=n_chr)
-
-    frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
-    n_bp_mq01 = np.sum(frg_size)
-    n_bp_mq20 = np.sum(frg_size[is_mq20])
-    n_frg_mq01 = len(frg_size)
-    n_frg_mq20 = np.sum(is_mq20)
-    del frg_np
-
-    # calculate fragment size distribution
-    frg_size[frg_size >= MAX_SIZE] = MAX_SIZE - 1
-    bin_idx = np.digitize(frg_size, edge_lst) - 1
-    dist_mq01 = np.bincount(bin_idx, minlength=n_bin)
-    bin_idx = np.digitize(frg_size[is_mq20], edge_lst) - 1
-    dist_mq20 = np.bincount(bin_idx, minlength=n_bin)
-    del frg_size
-
-    # calculate raw fragment size
-    frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print 'Scanning raw fragments in {:s}'.format(frg_fname)
-    dist_mq00 = np.zeros(n_bin, dtype=np.int64)
-    n_bp_mq00 = 0
-    n_frg_mq00 = 0
-    with gzip.open(frg_fname, 'r') as splt_fid:
-        while True:
-            frg_sid = splt_fid.readline()
-            frg_seq = splt_fid.readline().rstrip('\n')
-            if frg_sid == '':
-                break
-            if n_frg_mq00 % 250000 == 0:
-                print('{:,d} fragments are processed.'.format(n_frg_mq00))
-
-            seq_size = len(frg_seq)
-            n_bp_mq00 += seq_size
-            if seq_size >= MAX_SIZE:
-                seq_size = MAX_SIZE - 1
-
-            bin_idx = np.digitize(seq_size, edge_lst) - 1
-            dist_mq00[bin_idx] += 1
-            n_frg_mq00 += 1
-
-    # Plotting
-    plt.figure(figsize=(15, 5))
-    plt.subplot(1, 2, 1)
-    q01_h = plt.bar(range(n_chr), ccvg_mq01, color='#bc85ff', width=0.80, alpha=0.7)
-    q20_h = plt.bar(range(n_chr), ccvg_mq20, color='#8929ff', width=0.60, alpha=0.7)
-    plt.legend([q01_h, q20_h], [
-        'MQ>=1, #mapped bp: {:0,.0f}m'.format(n_bp_mq01 / 1e6),
-        'MQ>=20, #mapped bp: {:0,.0f}m'.format(n_bp_mq20 / 1e6)
-    ])
-    plt.xticks(range(n_chr), chr_lst, rotation=35, ha='right')
-    plt.xlim([-0.5, n_chr - 0.5])
-    y_ticks = plt.yticks()[0]
-    y_tick_lbl = ['{:0,.1f}k'.format(y / 1e3) for y in y_ticks]
-    plt.yticks(y_ticks, y_tick_lbl)
-    plt.ylabel('#Fragments')
-    plt.title('Chromosome coverage, {:s}\n'.format(configs['run_id']) +
-              '#unmapped MQ1={:0,.1f}k; '.format((n_frg_mq00 - n_frg_mq01) / 1e3) +
-              'MQ20={:0,.1f}k'.format((n_frg_mq00 - n_frg_mq20) / 1e3))
-
-    plt.subplot(1, 2, 2)
-    ref_h = plt.bar(range(n_bin), dist_ref * float(n_frg_mq00) / np.sum(dist_ref), width=1.00, color='#dddddd')
-    q00_h = plt.bar(range(n_bin), dist_mq00, width=0.90, color='#aaaaaa')
-    q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
-    q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
-    plt.legend([ref_h, q00_h, q01_h, q20_h], [
-        'Ref (#frg={:0,.0f}k), normed'.format(np.sum(dist_ref) / 1e3),
-        'Raw (#frg={:0,.0f}k)'.format(n_frg_mq00 / 1e3),
-        'MQ1 (#frg={:0,.0f}k)'.format(n_frg_mq01 / 1e3),
-        'MQ20 (#frg={:0,.0f}k)'.format(n_frg_mq20 / 1e3)])
-    plt.xlim([-1, n_bin + 1])
-    x_ticks_idx = range(1, n_bin, 2)
-    plt.xticks(x_ticks_idx, ['{:0.0f}'.format(edge_lst[i + 1]) for i in x_ticks_idx], rotation=35)
-    plt.xlabel('#base pairs')
-
-    y_ticks = plt.yticks()[0]
-    y_tick_lbl = ['{:0,.1f}k'.format(y / 1e3) for y in y_ticks]
-    plt.yticks(y_ticks, y_tick_lbl)
-    plt.ylabel('#Fragments')
-
-    plt.title('Fragment size distribution, {:s}'.format(configs['run_id']) +
-              '\n#map/#all: MQ1={:0.1f}%; '.format(n_frg_mq01 * 100.0 / n_frg_mq00) +
-              'MQ20={:0.1f}%]'.format(n_frg_mq20 * 100.0 / n_frg_mq00))
-    plt.savefig(configs['output_file'], bbox_inches='tight')
-
-
 def plot_frg_size_distribution(configs):
     import numpy as np
     import gzip
@@ -234,8 +98,10 @@ def plot_frg_size_distribution(configs):
 
     # compute ref fragment size
     dist_ref = np.zeros(n_bin, dtype=np.int64)
+    n_re_ref = 0
     for chr_idx, chr_name in enumerate(chr_lst):
         re_size = np.diff(re_pos_lst[chr_idx]) + 1
+        n_re_ref += len(re_size)
         re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
 
         bin_idx = np.digitize(re_size, edge_lst) - 1
@@ -296,7 +162,7 @@ def plot_frg_size_distribution(configs):
     q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
     q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
     plt.legend([ref_h, q00_h, q01_h, q20_h], [
-        'Ref (#frg={:0,.0f}k), normed'.format(np.sum(dist_ref) / 1e3),
+        'Ref (#frg={:0,.0f}k), normed'.format(n_re_ref / 1e3),
         'Raw (#frg={:0,.0f}k)'.format(n_frg_mq00 / 1e3),
         'MQ1', 'MQ20'])
     plt.xlim([-1, n_bin + 1])
