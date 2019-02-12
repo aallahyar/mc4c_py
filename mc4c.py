@@ -221,7 +221,7 @@ def processMappedFragments(args):
 
     # identify vp_fragment coordinates
     idx_lft = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
-    idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']), side='left')
+    idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='left')
     vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
     assert idx_lft + 1 == idx_rgt, 'Can not map primer positions on a single fragment.'
 
@@ -695,10 +695,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'K562-GATA1']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'getSumRep', 'frgSizeDist', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'getSumRep', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']

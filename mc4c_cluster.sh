@@ -32,12 +32,13 @@ echo "[5] Duplicate filter is submitted with id: $jid_dup"
 #### Plotting scripts
 if [[ 1 -eq 1 ]]; then
 echo "submitting jobs for plotting statistics"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-01RdSDist -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep readSizeDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-02CvgDist -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cvgDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-03CSDistA -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cirSizeDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-03CSDistR -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cirSizeDist ${cfg_name} --roi-only --uniq-only"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-04OvAProf -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep overallProfile ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-05VpSoiPr -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis vpSoi ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-RdSDist   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep readSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-FrgDist   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep frgSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-ChrCvg    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep chrCvg ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-CirSDistA -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cirSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-CirSDistR -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep cirSizeDist ${cfg_name} --roi-only --uniq-only"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py getSumRep overallProfile ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4cPy_${cfg_name}_06-VpSoiPr   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis vpSoi ${cfg_name}"
 fi
 
 #set +x
