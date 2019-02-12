@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 from sys import argv
+from os import path
 import numpy as np
 import pandas as pd
 
@@ -10,7 +11,7 @@ pd.set_option('display.max_rows', 200)
 pd.set_option('display.max_columns', 25)
 
 # initialization
-src_fname = '../../64_Cleaning_Up/Dataset_info.tsv'
+src_fname = '../64_Cleaning_Up/Dataset_info.tsv'
 vpi_pd = pd.read_csv(src_fname, delimiter='\t', comment='#')
 if len(argv) > 1:
     run_lst = [argv[1]]
@@ -23,7 +24,8 @@ for run_id in run_lst:
     assert len(di) == 1
 
     vp_info = vpi_pd.loc[di[0]]
-    out_fname = './cfg_{:s}.cfg'.format(vp_info['id'])
+    out_fname = './configs/cfg_{:s}.cfg'.format(vp_info['id'])
+    assert not path.isfile(out_fname), 'File exists: {:s}'.format(out_fname)
     print 'writing config file to: ' + out_fname
     with open(out_fname, 'w') as out_fid:
         out_fid.write('run_id\t{:s}\n'.format(vp_info['id']))
