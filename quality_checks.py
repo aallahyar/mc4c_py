@@ -97,15 +97,16 @@ def plot_frg_size_distribution(configs):
     re_pos_lst = get_re_info(re_name='-'.join(configs['re_name']), property='pos', genome_str=configs['genome_build'])
 
     # compute ref fragment size
-    dist_ref = np.zeros(n_bin, dtype=np.int64)
-    n_re_ref = 0
-    for chr_idx, chr_name in enumerate(chr_lst):
-        re_size = np.diff(re_pos_lst[chr_idx]) + 1
-        n_re_ref += len(re_size)
-        re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
-
-        bin_idx = np.digitize(re_size, edge_lst) - 1
-        dist_ref += np.bincount(bin_idx, minlength=n_bin)
+    lcl_area = [np.min(configs['prm_start']) - 5e6, np.max(configs['prm_end']) + 5e6]
+    chr_idx = np.where(np.isin(chr_lst, configs['vp_chr']))[0]
+    assert len(chr_idx) == 1
+    re_pos = re_pos_lst[chr_idx[0]]
+    re_lcl = re_pos[(re_pos > lcl_area[0]) & (re_pos < lcl_area[1])]
+    re_size = np.diff(re_lcl) + 1
+    n_re_ref = len(re_size)
+    re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
+    bin_idx = np.digitize(re_size, edge_lst) - 1
+    dist_ref = np.bincount(bin_idx, minlength=n_bin)
 
     # Load MC-HC data
     frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
@@ -162,7 +163,7 @@ def plot_frg_size_distribution(configs):
     q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
     q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
     plt.legend([ref_h, q00_h, q01_h, q20_h], [
-        'Ref (#frg={:0,.0f}k), normed'.format(n_re_ref / 1e3),
+        '{:0.0f}mb local area (#frg={:0,.0f}k), normed'.format((lcl_area[1] - lcl_area[0]) / 1e6, n_re_ref / 1e3),
         'Raw (#frg={:0,.0f}k)'.format(n_frg_mq00 / 1e3),
         'MQ1', 'MQ20'])
     plt.xlim([-1, n_bin + 1])

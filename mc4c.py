@@ -7,7 +7,7 @@ from os import path, makedirs, environ
 import numpy as np
 import pandas as pd
 
-import reports
+import quality_checks
 
 # import platform  # ###
 # flag_DEBUG = platform.system() != 'Linux'
@@ -496,8 +496,8 @@ def removeDuplicates(args):
     print '[i] PCR duplicates are removed from MC4C dataset successfully.'
 
 
-def getSumRep(args):
-    import reports
+def perform_qc(args):
+    import quality_checks
     from utilities import load_configs
 
     # load config files
@@ -514,15 +514,15 @@ def getSumRep(args):
 
     # call the requested function
     if args.report_type == 'readSizeDist':
-        reports.plot_readSizeDistribution(configs)
+        quality_checks.plot_readSizeDistribution(configs)
     elif args.report_type == 'frgSizeDist':
-        reports.plot_frg_size_distribution(configs)
+        quality_checks.plot_frg_size_distribution(configs)
     elif args.report_type == 'chrCvg':
-        reports.plot_chrCvg(configs)
+        quality_checks.plot_chrCvg(configs)
     elif args.report_type == 'cirSizeDist':
-        reports.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
+        quality_checks.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        reports.plot_overallProfile(configs, MIN_N_FRG=2)
+        quality_checks.plot_overallProfile(configs, MIN_N_FRG=2)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -547,7 +547,7 @@ def perform_analysis(args):
         analysis.perform_mc_analysis(configs)
     if args.analysis_type == 'vpSoi':
         if args.ant_name is None:
-            from reports import load_annotation
+            from utilities import load_annotation
             roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
             ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
             ant_name_lst = ant_pd['ant_name'].values
@@ -651,22 +651,22 @@ def main():
     parser_remDup.set_defaults(func=removeDuplicates)
 
     # produce statistics plots
-    parser_sumReport = subparsers.add_parser('getSumRep',
+    parser_qc = subparsers.add_parser('QC',
                                             description='Generate various summary reports about an MC-4C dataset.')
-    parser_sumReport.add_argument('report_type', type=str,
+    parser_qc.add_argument('report_type', type=str,
                                  choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile'],
                                  help='Type of summary report that needs to be generated')
-    parser_sumReport.add_argument('config_file', metavar='config-file', type=str,
+    parser_qc.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
-    parser_sumReport.add_argument('--input-file', default=None, type=str,
+    parser_qc.add_argument('--input-file', default=None, type=str,
                                  help='Input file (in HDF5 format) containing MC4C data.')
-    parser_sumReport.add_argument('--output-file', default=None, type=str,
+    parser_qc.add_argument('--output-file', default=None, type=str,
                                  help='Output file (in PDF format) containing the requested summary report.')
-    parser_sumReport.add_argument('--roi-only', action="store_true", default=False,
+    parser_qc.add_argument('--roi-only', action="store_true", default=False,
                                   help='Limits the requested summary report to be generated from roi-fragments only.')
-    parser_sumReport.add_argument('--uniq-only', action="store_true", default=False,
+    parser_qc.add_argument('--uniq-only', action="store_true", default=False,
                                   help='Limits the requested summary report to unique (duplicate removed) reads.')
-    parser_sumReport.set_defaults(func=getSumRep)
+    parser_qc.set_defaults(func=perform_qc)
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
@@ -695,14 +695,14 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-BMaj-PB']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'readSizeDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'frgSizeDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'chrCvg', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cvgDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
-        # sys.argv = ['./mc4c.py', 'getSumRep', 'overallProfile', 'K562-WplD-10x']
+        # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'cvgDist', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
 
