@@ -97,12 +97,12 @@ def plot_frg_size_distribution(configs):
     re_pos_lst = get_re_info(re_name='-'.join(configs['re_name']), property='pos', genome_str=configs['genome_build'])
 
     # compute ref fragment size
-    lcl_area = [np.min(configs['prm_start']) - 5e6, np.max(configs['prm_end']) + 5e6]
+    # lcl_area = [np.min(configs['prm_start']) - 5e6, np.max(configs['prm_end']) + 5e6]
     chr_idx = np.where(np.isin(chr_lst, configs['vp_chr']))[0]
     assert len(chr_idx) == 1
     re_pos = re_pos_lst[chr_idx[0]]
-    re_lcl = re_pos[(re_pos > lcl_area[0]) & (re_pos < lcl_area[1])]
-    re_size = np.diff(re_lcl) + 1
+    # re_lcl = re_pos[(re_pos > lcl_area[0]) & (re_pos < lcl_area[1])]
+    re_size = np.diff(re_pos) + 1
     n_re_ref = len(re_size)
     re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
     bin_idx = np.digitize(re_size, edge_lst) - 1
@@ -130,7 +130,7 @@ def plot_frg_size_distribution(configs):
     dist_mq01 = np.bincount(bin_idx, minlength=n_bin)
     bin_idx = np.digitize(frg_size[is_mq20], edge_lst) - 1
     dist_mq20 = np.bincount(bin_idx, minlength=n_bin)
-    del frg_size
+    # del frg_size
 
     # calculate raw fragment size
     frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
@@ -138,6 +138,7 @@ def plot_frg_size_distribution(configs):
     dist_mq00 = np.zeros(n_bin, dtype=np.int64)
     n_bp_mq00 = 0
     n_frg_mq00 = 0
+    # seq_size_lst = []
     with gzip.open(frg_fname, 'r') as splt_fid:
         while True:
             frg_sid = splt_fid.readline()
@@ -149,6 +150,7 @@ def plot_frg_size_distribution(configs):
 
             seq_size = len(frg_seq)
             n_bp_mq00 += seq_size
+            # seq_size_lst.append(seq_size)
             if seq_size >= MAX_SIZE:
                 seq_size = MAX_SIZE - 1
 
@@ -163,7 +165,7 @@ def plot_frg_size_distribution(configs):
     q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
     q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
     plt.legend([ref_h, q00_h, q01_h, q20_h], [
-        '{:0.0f}mb local area (#frg={:0,.0f}k), normed'.format((lcl_area[1] - lcl_area[0]) / 1e6, n_re_ref / 1e3),
+        'Ref (#frg={:0,.0f}k), normed'.format(n_re_ref / 1e3),
         'Raw (#frg={:0,.0f}k)'.format(n_frg_mq00 / 1e3),
         'MQ1', 'MQ20'])
     plt.xlim([-1, n_bin + 1])
@@ -184,6 +186,23 @@ def plot_frg_size_distribution(configs):
               'MQ1={:0,.1f}k ({:0.1f}%); '.format(n_frg_mq01 / 1e3, n_frg_mq01 * 1e2 / n_frg_mq00) +
               'MQ20={:0,.1f}k ({:0.1f}%)'.format(n_frg_mq20 / 1e3, n_frg_mq20 * 1e2 / n_frg_mq00))
     plt.savefig(configs['output_file'], bbox_inches='tight')
+
+    # from scipy.stats import gamma
+    # shape, loc, scale = gamma.fit(seq_size_lst, floc=0)
+    # print(shape, loc, scale)
+    # x = np.linspace(50, MAX_SIZE, 30)
+    # y = gamma.pdf(x, shape, loc, scale)
+    # raw_h = plt.plot(range(n_bin), y * 2e6)
+    # # ln_h[0].remove()
+    # 
+    # # shape, loc, scale = gamma.fit(frg_size, floc=0)
+    # k = gamma.pdf(x, shape + 1, loc, scale)
+    # map_h = plt.plot(range(n_bin), k * 1e6)
+    # # ln_h[0].remove()
+    #
+    # raw_h[0].remove()
+    # map_h[0].remove()
+
 
 
 def plot_chrCvg(configs):
@@ -297,7 +316,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
         filter_lst += ['roi', 'ex.vp']
 
     # group circles
-    read_grp = accum_array(frg_np[:, 0] - 1, frg_np)
+    read_grp = accum_array(frg_np[:, 0] - 1, frg_np, rebuild_index=True)
     n_grp = len(read_grp)
 
     # Looping over circles
@@ -323,9 +342,14 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
             size_dist[2, bin_idx] += 1
         size_dist[3, bin_idx] += 1
 
+    # calculate measures
+    n_map0 = np.sum(size_dist[3, :])
+    n_map1 = np.sum(size_dist[3, 1:])
+    n_map2 = np.sum(size_dist[3, 2:])
+
     # Plotting
     clr_map = [cm.Blues(x) for x in np.linspace(0.3, 1.0, 3)] + [(1.0, 0.5, 0.25)]
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(7, 5))
     plt_h = [None] * 4
     for cls_idx in range(4):
         plt_h[cls_idx] = plt.bar(edge_lst, size_dist[cls_idx, :] * 100.0 / np.sum(size_dist[cls_idx, :]),
@@ -339,14 +363,14 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     title_msg = configs['run_id']
     if len(filter_lst) != 0:
         title_msg += ' ({:s})'.format(', '.join(filter_lst))
-    title_msg += '\n#mapped={:,d}; '.format(np.sum(size_dist[3, :])) + \
-                 '#map>1={:,d}; '.format(np.sum(size_dist[3, 1:])) + \
-                 '#map>2={:,d}'.format(np.sum(size_dist[3, 2:]))
+    title_msg += '\n#map>0={:,d};\n'.format(n_map0) + \
+                 '#map>1={:,d} ({:0.0f}%); '.format(n_map1, n_map1 * 1e2 / n_map0) + \
+                 '#map>2={:,d} ({:0.0f}%)'.format(n_map2, n_map2 * 1e2 / n_map0)
     plt.title(title_msg)
     plt.legend(plt_h, [
-        'read size <1.5kb (n={:,d})'.format(np.sum(size_dist[0, :])),
-        'read size <8kb (n={:,d})'.format(np.sum(size_dist[1, :])),
-        'read size >8kb (n={:,d})'.format(np.sum(size_dist[2, :])),
+        'read #bp <1.5kb (n={:,d})'.format(np.sum(size_dist[0, :])),
+        'read #bp <8kb (n={:,d})'.format(np.sum(size_dist[1, :])),
+        'read #bp >8kb (n={:,d})'.format(np.sum(size_dist[2, :])),
         'All (n={:,d})'.format(np.sum(size_dist[3, :]))
     ])
 

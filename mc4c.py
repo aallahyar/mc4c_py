@@ -698,10 +698,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'LVR-BMaj-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'cvgDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'BMaj-test', '--roi-only', '--uniq-only']
+        # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
