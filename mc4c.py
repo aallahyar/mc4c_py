@@ -229,7 +229,6 @@ def processMappedFragments(args):
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
                   'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'ErrFlag']
     n_header = len(header_lst)
-    # desc: Fragment flags -> 1:overlapping frags, 2: fused-reads
 
     # Processing fragments:
     # 1. extending fragment coordinates to nearest restriction site in the reference genome
@@ -456,20 +455,22 @@ def removeDuplicates(args):
     # make duplicate list of fragments
     frg_uid, frg_idx, frg_cnt = np.unique(frg_trs[:, 1:4], axis=0, return_index=True, return_counts=True)
     frg_idx = np.argsort(frg_idx)
-    dup_info = np.hstack([frg_uid[frg_idx, :], frg_cnt[frg_idx].reshape(-1, 1)])
+    frg_umi = np.hstack([frg_uid[frg_idx, :], frg_cnt[frg_idx].reshape(-1, 1)])
 
     # sort trans-fragments according to #duplicates
-    dup_info = dup_info[np.lexsort([-dup_info[:, -1]]), :]
+    frg_umi = frg_umi[np.lexsort([-frg_umi[:, -1]]), :]
 
     # loop over trans fragments
-    dup_idx = 0
+    umi_idx = 0
+    duplicate_info = []
     print 'Scanning for duplicated trans-fragments:'
-    while dup_idx < dup_info.shape[0]:
-        if dup_idx % 1000 == 0:
-            print '\tscanned {:,d} trans-fragments, '.format(dup_idx) + \
+    while umi_idx < frg_umi.shape[0]:
+        if umi_idx % 1000 == 0:
+            print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
-        has_ol = hasOL(dup_info[dup_idx, :3], frg_trs[:, 1:4], offset=0)
-        if np.sum(has_ol) > 1:
+        has_ol = hasOL(frg_umi[umi_idx, :3], frg_trs[:, 1:4], offset=0)
+        n_ovl = len(np.unique(frg_trs[has_ol, 0]))
+        if n_ovl > 1:
             # select duplicates
             dup_set = frg_trs[has_ol, :]
 
@@ -479,7 +480,16 @@ def removeDuplicates(args):
 
             # remove extra duplicates
             frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], dup_set[:, 0]), :]
-        dup_idx = dup_idx + 1
+        elif n_ovl == 1:
+            keep_rid = frg_trs[has_ol, 0][0]
+            dup_set = frg_trs[has_ol, :]
+        else:
+            keep_rid = -1
+            dup_set = np.empty([0, 5])
+
+        # save information
+        duplicate_info.append((keep_rid, dup_set[:, 0], frg_umi[umi_idx, :]))
+        umi_idx = umi_idx + 1
     print 'Result statistics (before --> after filtering):'
     print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(frg_trs[:, 0])))
     print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], frg_trs.shape[0])
@@ -492,6 +502,12 @@ def removeDuplicates(args):
     h5_fid.create_dataset('frg_np', data=uniq_pd.values, compression='gzip', compression_opts=5)
     h5_fid.create_dataset('frg_np_header_lst', data=list(uniq_pd.columns.values))
     h5_fid.create_dataset('chr_lst', data=chr_lst)
+
+    dup_dt = np.dtype([('kept_id', np.int64),
+                       ('dup_ids', h5py.special_dtype(vlen=np.int64)),
+                       ('dup_frg', h5py.special_dtype(vlen=np.int64))])
+    h5_fid.create_dataset('duplicate_info', data=np.array(duplicate_info, dtype=dup_dt), dtype=dup_dt)
+
     h5_fid.close()
     print '[i] PCR duplicates are removed from MC4C dataset successfully.'
 
@@ -696,9 +712,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-10x']
@@ -714,3 +730,6 @@ if __name__ == '__main__':
 
 # cluster run example:
 # qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"
+
+# fragment flag
+# desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:

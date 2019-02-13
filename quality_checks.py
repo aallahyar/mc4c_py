@@ -161,9 +161,9 @@ def plot_frg_size_distribution(configs):
     # Plotting
     plt.figure(figsize=(7, 5))
     ref_h = plt.bar(range(n_bin), dist_ref * float(n_frg_mq00) / np.sum(dist_ref), width=1.00, color='#dddddd')
-    q00_h = plt.bar(range(n_bin), dist_mq00, width=0.90, color='#aaaaaa')
-    q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70)
-    q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50)
+    q00_h = plt.bar(range(n_bin), dist_mq00, width=0.90, color='#c9ae18', alpha=0.5)
+    q01_h = plt.bar(range(n_bin), dist_mq01, width=0.70, color='#4766ff', alpha=1.0)
+    q20_h = plt.bar(range(n_bin), dist_mq20, width=0.50, color='#1be600')
     plt.legend([ref_h, q00_h, q01_h, q20_h], [
         'Ref (#frg={:0,.0f}k), normed'.format(n_re_ref / 1e3),
         'Raw (#frg={:0,.0f}k)'.format(n_frg_mq00 / 1e3),
