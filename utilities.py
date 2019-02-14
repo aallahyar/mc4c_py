@@ -245,7 +245,7 @@ def load_annotation(genome_str, roi_crd=None):
     ant_pd['ant_cnum'] = ant_pd['ant_chr'].map(chr_map)
 
     # filter annotations outside ROI
-    if roi_crd:
+    if roi_crd is None:
         is_in = (ant_pd['ant_cnum'] == roi_crd[0]) & \
                 (ant_pd['ant_pos'] >= roi_crd[1]) & \
                 (ant_pd['ant_pos'] <= roi_crd[2])

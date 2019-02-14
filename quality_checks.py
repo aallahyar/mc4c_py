@@ -446,11 +446,11 @@ def plot_overallProfile(configs, min_n_frg=2):
 
     # add vp area
     y_lim = [0, np.nanmax(bin_nrm) * 1.1]
-    plt.gca().add_patch(patches.Rectangle([configs['vp_start'], 0], configs['vp_end'] - configs['vp_start'], y_lim[1],
+    plt.gca().add_patch(patches.Rectangle([vp_crd[1], 0], vp_crd[2] - vp_crd[1], y_lim[1],
                                           linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add annotations
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
         plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
@@ -462,7 +462,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 20, dtype=np.int64)
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
     plt.xticks(x_ticks, x_tick_label, rotation=20)
-    plt.ylabel('Frequency (% of #reads)')
+    plt.ylabel('Frequency (% of reads)')
     plt.ylim(y_lim)
     plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']) +
               '#read: all={:,d}; uniq={:,d}\n'.format(n_read[0], n_read[1]))
