@@ -345,15 +345,14 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
     header_lst = []
     for cfg_idx, configs in enumerate(config_lst):
-        if configs['input_file'] is None:
-            if uniq_only:
-                configs['input_file'] = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
-            else:
-                configs['input_file'] = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
+        if uniq_only:
+            inp_fname = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+        else:
+            inp_fname = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
         if verbose:
-            print('Loading mc4c dataset: {:s}'.format(configs['input_file']))
+            print('Loading mc4c dataset: {:s}'.format(inp_fname))
 
-        h5_fid = h5py.File(configs['input_file'], 'r')
+        h5_fid = h5py.File(inp_fname, 'r')
         if np.isinf(max_rows):
             data_np = h5_fid[target_field].value
         else:

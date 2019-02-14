@@ -383,7 +383,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_overallProfile(configs, uniq_only=True, MIN_N_FRG=2):
+def plot_overallProfile(configs, min_n_frg=2):
     import platform
     if platform.system() == 'Linux':
         import matplotlib
@@ -398,45 +398,56 @@ def plot_overallProfile(configs, uniq_only=True, MIN_N_FRG=2):
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
-    n_bin = len(bin_bnd)
+    bin_cen = np.mean(bin_bnd, axis=1)
+    n_bin = bin_bnd.shape[0]
     del edge_lst
+    vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
+    roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
 
-    # load MC-HC data
-    frg_dp = load_mc4c(configs, uniq_only=uniq_only, valid_only=True, min_mq=20, reindex_reads=True)
-    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
-    del frg_dp
+    # loop over datasets
+    bin_frq = np.zeros([2, n_bin], dtype=np.int)
+    n_read = np.zeros(2, dtype=np.int)
+    for di in range(2):
 
-    # select within roi fragments
-    is_roi = hasOL([configs['vp_cnum'], configs['roi_start'], configs['roi_end']], frg_np[:, 1:4])
-    frg_roi = frg_np[is_roi, :]
-    del frg_np
+        # load MC-HC data
+        frg_dp = load_mc4c(configs, uniq_only=di != 0, valid_only=True, min_mq=20, reindex_reads=True)
+        frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
 
-    # filter small circles
-    cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
-    frg_roi = frg_roi[cir_size >= MIN_N_FRG, :]
-    n_read = len(np.unique(frg_roi[:, 0]))
+        # filter small circles
+        is_vp = hasOL(vp_crd, frg_np[:, 1:4], offset=0)
+        is_roi = hasOL(roi_crd, frg_np[:, 1:4], offset=0)
+        frg_nvp = frg_np[~is_vp & is_roi, :]
+        cir_size = np.bincount(frg_nvp[:, 0])[frg_nvp[:, 0]]
+        is_inf = np.isin(frg_np[:, 0], frg_nvp[cir_size >= min_n_frg, 0])
+        frg_inf = frg_np[is_inf, :]
 
-    # looping over bins
-    bin_freq = np.zeros(n_bin)
-    for bi in range(n_bin):
-        is_in = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
-        bin_freq[bi] = len(np.unique(frg_roi[is_in, 0]))  # each circle can contribute only once to a bin
+        # select within roi fragments
+        is_roi = hasOL(roi_crd, frg_inf[:, 1:4], offset=0)
+        frg_roi = frg_inf[is_roi, :]
+        n_read[di] = len(np.unique(frg_roi[:, 0]))
+
+        # looping over bins
+        for bi in range(n_bin):
+            is_in = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
+            bin_frq[di, bi] = len(np.unique(frg_roi[is_in, 0]))  # each circle can contribute only once to a bin
 
     # set vp bins to nan
-    is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
-    bin_freq[is_vp] = np.nan
-    vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
+    # is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
+    # bin_frq[:, is_vp] = np.nan
 
     # plotting
     plt.figure(figsize=(15, 5))
-    bin_cen = np.mean(bin_bnd, axis=1)
-    bin_nrm = bin_freq * 100.0 / np.nansum(bin_freq)
-    plt.bar(bin_cen, bin_nrm, width=bin_width, color='#43ff14')
+    plt_h = [None] * 2
+    clr_map = ['#d0d0d0', '#43ff14']
+    bin_nrm = np.zeros([2, n_bin])
+    for di in range(2):
+        bin_nrm[di, :] = bin_frq[di, :] * 100.0 / n_read[di]
+        plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=clr_map[di])
 
     # add vp area
     y_lim = [0, np.nanmax(bin_nrm) * 1.1]
-    plt.gca().add_patch(patches.Rectangle([vp_bnd[0], 0], vp_bnd[1] - vp_bnd[0], y_lim[1],
-                      linewidth=0, edgecolor='None', facecolor='orange'))
+    plt.gca().add_patch(patches.Rectangle([configs['vp_start'], 0], configs['vp_end'] - configs['vp_start'], y_lim[1],
+                                          linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add annotations
     ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
@@ -453,8 +464,7 @@ def plot_overallProfile(configs, uniq_only=True, MIN_N_FRG=2):
     plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (%)')
     plt.ylim(y_lim)
-    plt.title('Overall profile, {:s}\n'.format(configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n'.format(MIN_N_FRG - 1, n_read)
-              )
+    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']) +
+              '#read: all={:,d}; uniq={:,d}\n'.format(n_read[0], n_read[1]))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

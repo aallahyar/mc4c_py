@@ -538,7 +538,7 @@ def perform_qc(args):
     elif args.report_type == 'cirSizeDist':
         quality_checks.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        quality_checks.plot_overallProfile(configs, MIN_N_FRG=2)
+        quality_checks.plot_overallProfile(configs, min_n_frg=2)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -711,13 +711,13 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-PCDHaC1-96x']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-PCDHaC1-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-10x']
+        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
 
