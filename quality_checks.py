@@ -442,7 +442,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     bin_nrm = np.zeros([2, n_bin])
     for di in range(2):
         bin_nrm[di, :] = bin_frq[di, :] * 100.0 / n_read[di]
-        plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=clr_map[di])
+        plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=clr_map[di], alpha=0.7)
 
     # add vp area
     y_lim = [0, np.nanmax(bin_nrm) * 1.1]
@@ -462,7 +462,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 20, dtype=np.int64)
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
     plt.xticks(x_ticks, x_tick_label, rotation=20)
-    plt.ylabel('Frequency (%)')
+    plt.ylabel('Frequency (% of #reads)')
     plt.ylim(y_lim)
     plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']) +
               '#read: all={:,d}; uniq={:,d}\n'.format(n_read[0], n_read[1]))
