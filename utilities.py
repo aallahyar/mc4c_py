@@ -49,6 +49,10 @@ def get_re_info(re_name='DpnII', property='seq', genome_str=None):
         'MboI': dict({'seq': 'GATC'}),
         'Csp6I': dict({'seq': 'GTAC'}),
         'NlaIII': dict({'seq': 'CATG'}),
+        'XbaI': dict({'seq': 'TCTAGA'}),
+        'BamHI': dict({'seq': 'GGATCC'}),
+        'SacI': dict({'seq': 'GAGCTC'}),
+        'PstI': dict({'seq': 'CTGCAG'}),
         'HindIII': dict({'seq': 'AAGCTT'})
     })
 
