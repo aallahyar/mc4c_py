@@ -409,7 +409,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
 
         # compute score for annotations
-        print 'Computing expected profile for annotations:'
+        print 'Computing expected profile for {:s}:'.format(soi_pd['ant_name'])
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
         ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
         ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
@@ -425,15 +425,15 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         ant_scr[ai, is_vp | is_soi] = np.nan
 
     # plotting
-    fig = plt.figure(figsize=(15, 3))
+    plt.figure(figsize=(8, 7))
     ax_scr = plt.subplot2grid((40, 40), (0,  0), rowspan=40, colspan=39)
-    ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=10, colspan=1)
+    ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
 
     # set up colorbar
     c_lim = [-6, 6]
     clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
-    clr_map.set_bad('gray', 0.05)
+    clr_map.set_bad('gray', 0.2)
     norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
@@ -447,12 +447,13 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     ax_scr.set_ylim(x_lim)
 
     # final adjustments
-    ax_scr.set_xticks(range(n_ant))
+    ax_scr.set_xticks(np.arange(n_ant) + 0.5)
+    ax_scr.set_yticks(np.arange(n_ant) + 0.5)
     ax_scr.set_xticklabels(ant_name_lst)
     ax_scr.set_yticklabels(ant_name_lst)
     ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     '#perm={:d}\n\n\n'.format(n_perm)
+                     '#perm={:d}'.format(n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

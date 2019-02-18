@@ -722,7 +722,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=10', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
