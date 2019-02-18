@@ -438,7 +438,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     vpd_bnd = [bin_bnd[vpb_idx][0, 0], bin_bnd[vpb_idx][-1, 1]]
 
     # plotting
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(15, 3))
     plt_h = [None] * 2
     clr_map = ['#d0d0d0', '#43ff14']
     bin_nrm = np.zeros([2, n_bin])
