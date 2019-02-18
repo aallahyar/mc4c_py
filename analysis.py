@@ -1,6 +1,53 @@
 import numpy as np
 
 
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True):
+    from utilities import hasOL, flatten
+
+    # initialization
+    n_bin = bin_bnd.shape[0]
+
+    # re-index circles
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(frg_inf[:, 0])
+
+    # convert fragments to bin-coverage
+    cfb_lst = [list() for i in range(n_read + 1)]
+    n_frg = frg_inf.shape[0]
+    for fi in range(n_frg):
+        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
+
+    # select positive/negative circles
+    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
+    frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
+    cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
+    n_pos = len(cfb_pos)
+    n_neg = len(cfb_neg)
+
+    # make positive profile
+    prf_pos = np.zeros(n_bin)
+    for pi in range(n_pos):
+        bin_lst = flatten(cfb_pos[pi])
+        prf_pos[bin_lst] += 1
+
+    # make background profile from negative set
+    prf_rnd = np.zeros([n_perm, n_bin])
+    neg_lst = range(n_neg)
+    for ei in np.arange(n_perm):
+        if verbose and (((ei + 1) % 200) == 0):
+            print '\t{:d} randomized profiles are computed.'.format(ei + 1)
+        np.random.shuffle(neg_lst)
+        for rd_idx in neg_lst[:n_pos]:
+            f2b_rnd = cfb_neg[rd_idx]
+            np.random.shuffle(f2b_rnd)
+            prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly removed everytime
+
+    return prf_pos, prf_rnd, frg_pos, frg_neg
+
+
 def perform_mc_analysis(configs, min_n_frg=2):
     import platform
     if platform.system() == 'Linux':
@@ -296,53 +343,118 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True):
-    from utilities import hasOL, flatten
+def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
+    import platform
+    import matplotlib
+    if platform.system() == 'Linux':
+        matplotlib.use('Agg')
+    from matplotlib import pyplot as plt, patches
+    from matplotlib.colors import LinearSegmentedColormap
+
+    from utilities import load_mc4c, load_annotation, hasOL, flatten
 
     # initialization
-    n_bin = bin_bnd.shape[0]
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/plt_atmat_{:s}.pdf'.format(configs['run_id'])
+    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
+    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
+    x_lim = [configs['roi_start'], configs['roi_end']]
+    y_lim = [0, 10]
 
-    # re-index circles
+    # load MC-HC data
+    frg_dp = load_mc4c(configs, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    del frg_dp
+
+    # select within roi fragments
+    vp_crd = [configs['vp_cnum'], configs['vp_start'], configs['vp_end']]
+    roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
+    is_vp = hasOL(vp_crd, frg_np[:, 1:4])
+    is_roi = hasOL(roi_crd, frg_np[:, 1:4])
+    frg_roi = frg_np[~is_vp & is_roi, :]
+    del frg_np
+
+    # filter small circles (>1 roi-frg, ex.)
+    cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
+    frg_inf = frg_roi[cir_size >= min_n_frg, :]
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
-    n_read = np.max(frg_inf[:, 0])
+    n_read = len(np.unique(frg_inf[:, 0]))
 
     # convert fragments to bin-coverage
     cfb_lst = [list() for i in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
+        cfb_lst[frg_inf[fi, 0]].append(bin_idx.tolist())
 
-    # select positive/negative circles
-    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
-    frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
-    frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
-    cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
-    cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
-    n_pos = len(cfb_pos)
-    n_neg = len(cfb_neg)
+    # filter circles for (>1 bin cvg)
+    valid_lst = []
+    for rd_nid in range(1, n_read + 1):
+        fb_lst = cfb_lst[rd_nid]
+        bin_cvg = np.unique(flatten(fb_lst))
+        if len(bin_cvg) > 1:
+            valid_lst.append(rd_nid)
+    frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(frg_inf[:, 0])
 
-    # make positive profile
-    prf_pos = np.zeros(n_bin)
-    for pi in range(n_pos):
-        bin_lst = flatten(cfb_pos[pi])
-        prf_pos[bin_lst] += 1
+    # loop over each SOI
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    n_ant = ant_pd.shape[0]
+    ant_name_lst = ant_pd['ant_name'].values
+    ant_scr = np.zeros([n_ant, n_ant])
+    for ai in range(n_ant):
+        soi_pd = ant_pd.loc[ai, :]
+        soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
 
-    # make background profile from negative set
-    prf_rnd = np.zeros([n_perm, n_bin])
-    neg_lst = range(n_neg)
-    for ei in np.arange(n_perm):
-        if verbose and (((ei + 1) % 200) == 0):
-            print '\t{:d} randomized profiles are computed.'.format(ei + 1)
-        np.random.shuffle(neg_lst)
-        for rd_idx in neg_lst[:n_pos]:
-            f2b_rnd = cfb_neg[rd_idx]
-            np.random.shuffle(f2b_rnd)
-            prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly removed everytime
+        # compute score for annotations
+        print 'Computing expected profile for annotations:'
+        ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
+        ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
+        ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
+        ant_exp = np.mean(soi_rnd, axis=0)
+        ant_std = np.std(soi_rnd, axis=0, ddof=0)
+        np.seterr(all='ignore')
+        ant_scr[ai, :] = np.divide(ant_obs - ant_exp, ant_std)
+        np.seterr(all=None)
 
-    return prf_pos, prf_rnd, frg_pos, frg_neg
+        # set vp score to nan
+        is_vp = hasOL(vp_crd[1:], ant_bnd)
+        is_soi = hasOL(soi_crd[1:3], ant_bnd)
+        ant_scr[ai, is_vp | is_soi] = np.nan
 
+    # plotting
+    fig = plt.figure(figsize=(15, 3))
+    ax_scr = plt.subplot2grid((40, 40), (0,  0), rowspan=40, colspan=39)
+    ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=10, colspan=1)
 
+    # set up colorbar
+    c_lim = [-6, 6]
+    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
+    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
+    clr_map.set_bad('gray', 0.05)
+    norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
+    cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
+    # cbar_h.ax.tick_params(labelsize=12)
+    cbar_h.ax.set_ylabel('z-score', rotation=90)
+
+    # add score plot
+    x_lim = [0, n_ant]
+    ax_scr.imshow(ant_scr, extent=x_lim + x_lim, cmap=clr_map,
+                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
+    ax_scr.set_xlim(x_lim)
+    ax_scr.set_ylim(x_lim)
+
+    # final adjustments
+    ax_scr.set_xticks(range(n_ant))
+    ax_scr.set_xticklabels(ant_name_lst)
+    ax_scr.set_yticklabels(ant_name_lst)
+    ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
+                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
+                     '#perm={:d}\n\n\n'.format(n_perm)
+                     )
+    plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
 

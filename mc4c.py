@@ -561,7 +561,7 @@ def perform_analysis(args):
     # call the requested function
     if args.analysis_type == 'mcTest':
         analysis.perform_mc_analysis(configs)
-    if args.analysis_type == 'vpSoi':
+    elif args.analysis_type == 'vpSoi':
         if args.ant_name is None:
             from utilities import load_annotation
             roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
@@ -573,6 +573,8 @@ def perform_analysis(args):
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
             analysis.perform_vpsoi_analysis(configs.copy(), soi_name=ant_name, n_perm=args.n_perm)
+    elif args.analysis_type == 'atMat':
+        analysis.perform_atmat_analysis(configs.copy(), n_perm=args.n_perm)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -686,7 +688,7 @@ def main():
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
-    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi'], type=str,
+    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atMat'], type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
@@ -717,9 +719,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=10', 'BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
