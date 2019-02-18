@@ -288,8 +288,8 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
 
     # set up colorbar
     c_lim = [-6, 6]
-    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
-    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
+    clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
+    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
     clr_map.set_bad('gray', 0.05)
     norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
@@ -417,7 +417,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
         ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
-        x_tick_lbl.append('{:s}\n#rd={:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
+        x_tick_lbl.append('{:s}\n#{:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
         del frg_pos
 
         # calculate expected profile
@@ -439,8 +439,8 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
 
     # set up colorbar
     c_lim = [-6, 6]
-    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
-    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
+    clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
+    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
     clr_map.set_bad('gray', 0.2)
     norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
