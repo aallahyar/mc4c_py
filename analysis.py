@@ -348,7 +348,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     import matplotlib
     if platform.system() == 'Linux':
         matplotlib.use('Agg')
-    from matplotlib import pyplot as plt, patches
+    from matplotlib import pyplot as plt
     from matplotlib.colors import LinearSegmentedColormap
 
     from utilities import load_mc4c, load_annotation, hasOL, flatten
@@ -358,9 +358,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         configs['output_file'] = configs['output_dir'] + '/plt_atmat_{:s}.pdf'.format(configs['run_id'])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
-    x_lim = [configs['roi_start'], configs['roi_end']]
-    y_lim = [0, 10]
+    del edge_lst
 
     # load MC-HC data
     frg_dp = load_mc4c(configs, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
@@ -403,10 +401,12 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
     n_ant = ant_pd.shape[0]
     ant_name_lst = ant_pd['ant_name'].values
-    ant_scr = np.zeros([n_ant, n_ant])
+    ant_scr = np.full(shape=[n_ant, n_ant], fill_value=np.nan)
     for ai in range(n_ant):
         soi_pd = ant_pd.loc[ai, :]
         soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
+        if hasOL(vp_crd[1:], soi_crd[1:]):
+            continue
 
         # compute score for annotations
         print 'Computing expected profile for {:s}:'.format(soi_pd['ant_name'])
@@ -426,7 +426,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
 
     # plotting
     plt.figure(figsize=(8, 7))
-    ax_scr = plt.subplot2grid((40, 40), (0,  0), rowspan=40, colspan=39)
+    ax_scr = plt.subplot2grid((40, 40), (0,  0), rowspan=39, colspan=39)
     ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
 
     # set up colorbar
