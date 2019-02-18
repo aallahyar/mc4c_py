@@ -434,6 +434,8 @@ def plot_overallProfile(configs, min_n_frg=2):
     # set vp bins to nan
     # is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
     # bin_frq[:, is_vp] = np.nan
+    vpb_idx = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
+    vpd_bnd = [bin_bnd[vpb_idx][0, 0], bin_bnd[vpb_idx][-1, 1]]
 
     # plotting
     plt.figure(figsize=(15, 5))
@@ -442,11 +444,13 @@ def plot_overallProfile(configs, min_n_frg=2):
     bin_nrm = np.zeros([2, n_bin])
     for di in range(2):
         bin_nrm[di, :] = bin_frq[di, :] * 100.0 / n_read[di]
+        bin_nrm[di, vpb_idx] = np.nan
+
         plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=clr_map[di], alpha=0.7)
 
     # add vp area
     y_lim = [0, np.nanmax(bin_nrm) * 1.1]
-    plt.gca().add_patch(patches.Rectangle([vp_crd[1], 0], vp_crd[2] - vp_crd[1], y_lim[1],
+    plt.gca().add_patch(patches.Rectangle([vpd_bnd[0], 0], vpd_bnd[1] - vpd_bnd[0], y_lim[1],
                                           linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add annotations
@@ -464,7 +468,10 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (% of reads)')
     plt.ylim(y_lim)
-    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']) +
-              '#read: all={:,d}; uniq={:,d}\n'.format(n_read[0], n_read[1]))
+    plt.legend(plt_h, [
+        'All reads (n={:0.0f})'.format(n_read[0]),
+        'Unique reads (n={:0.0f})'.format(n_read[1])
+    ])
+    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
