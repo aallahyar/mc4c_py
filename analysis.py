@@ -402,27 +402,35 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     n_ant = ant_pd.shape[0]
     ant_name_lst = ant_pd['ant_name'].values
     ant_scr = np.full(shape=[n_ant, n_ant], fill_value=np.nan)
+    n_pos = np.zeros(n_ant)
+    x_tick_lbl = []
     for ai in range(n_ant):
         soi_pd = ant_pd.loc[ai, :]
         soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
         if hasOL(vp_crd[1:], soi_crd[1:]):
+            x_tick_lbl.append(ant_name_lst[ai])
             continue
 
         # compute score for annotations
         print 'Computing expected profile for {:s}:'.format(soi_pd['ant_name'])
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
         ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
-        ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
+        ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
+        n_pos[ai] = len(np.unique(frg_pos[:, 0]))
+        x_tick_lbl.append('{:s}\n#rd={:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
+        del frg_pos
+
+        # calculate expected profile
         ant_exp = np.mean(soi_rnd, axis=0)
         ant_std = np.std(soi_rnd, axis=0, ddof=0)
         np.seterr(all='ignore')
-        ant_scr[ai, :] = np.divide(ant_obs - ant_exp, ant_std)
+        ant_scr[:, ai] = np.divide(ant_obs - ant_exp, ant_std)
         np.seterr(all=None)
 
         # set vp score to nan
         is_vp = hasOL(vp_crd[1:], ant_bnd)
         is_soi = hasOL(soi_crd[1:3], ant_bnd)
-        ant_scr[ai, is_vp | is_soi] = np.nan
+        ant_scr[is_vp | is_soi, ai] = np.nan
 
     # plotting
     plt.figure(figsize=(8, 7))
@@ -463,8 +471,9 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     # final adjustments
     ax_scr.set_xticks(np.arange(n_ant) + 0.5)
     ax_scr.set_yticks(np.arange(n_ant) + 0.5)
-    ax_scr.set_xticklabels(ant_name_lst)
+    ax_scr.set_xticklabels(x_tick_lbl)
     ax_scr.set_yticklabels(ant_name_lst)
+    ax_scr.set_xlabel('Selected SOIs')
     ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      '#perm={:d}'.format(n_perm)
