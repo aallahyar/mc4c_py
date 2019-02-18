@@ -438,13 +438,27 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
     cbar_h.ax.set_ylabel('z-score', rotation=90)
+    cbar_edge = np.round(cbar_h.cmap(norm(c_lim)), decimals=2)
 
-    # add score plot
+    # add score scatter matrix
     x_lim = [0, n_ant]
-    ax_scr.imshow(ant_scr, extent=x_lim + x_lim, cmap=clr_map,
-                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
+    img_h = ax_scr.imshow(ant_scr, extent=x_lim + x_lim, cmap=clr_map,
+                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='bottom')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
+
+    # add score values to each box
+    for ai in range(n_ant):
+        for aj in range(n_ant):
+            if np.isnan(ant_scr[ai, aj]):
+                continue
+            ant_clr = np.round(img_h.cmap(img_h.norm(ant_scr[ai, aj])), decimals=2)
+            if np.array_equal(ant_clr, cbar_edge[0]) or np.array_equal(ant_clr, cbar_edge[1]):
+                txt_clr = '#ffffff'
+            else:
+                txt_clr = '#000000'
+            ax_scr.text(aj + 0.5, ai + 0.5, '{:+0.1f}'.format(ant_scr[ai, aj]), color=txt_clr,
+                        horizontalalignment='center', verticalalignment='center', fontsize=12)
 
     # final adjustments
     ax_scr.set_xticks(np.arange(n_ant) + 0.5)
