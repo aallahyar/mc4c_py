@@ -1,6 +1,52 @@
 import numpy as np
 
 
+def remove_duplicates_by_umi(umi_set):
+    from utilities import hasOL
+
+    # make duplicate list of fragments
+    frg_uid, frg_idx, frg_cnt = np.unique(umi_set[:, 1:4], axis=0, return_index=True, return_counts=True)
+    frg_idx = np.argsort(frg_idx)
+    frg_umi = np.hstack([frg_uid[frg_idx, :], frg_cnt[frg_idx].reshape(-1, 1)])
+
+    # sort trans-fragments according to #duplicates
+    frg_umi = frg_umi[np.lexsort([-frg_umi[:, -1]]), :]
+
+    # loop over trans fragments
+    umi_idx = 0
+    duplicate_info = []
+    print 'Scanning for duplicated trans-fragments:'
+    while umi_idx < frg_umi.shape[0]:
+        if umi_idx % 1000 == 0:
+            print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
+                  '{:,d} reads are still unique.'.format(len(np.unique(umi_set[:, 0])))
+        has_ol = hasOL(frg_umi[umi_idx, :3], umi_set[:, 1:4], offset=0)
+        n_ovl = len(np.unique(umi_set[has_ol, 0]))
+        if n_ovl > 1:
+            # select duplicates
+            dup_set = umi_set[has_ol, :]
+
+            # keep largest read according to #roi fragments
+            keep_rid = dup_set[np.argmax(dup_set[:, -1]), 0]
+            dup_set = dup_set[dup_set[:, 0] != keep_rid, :]
+
+            # remove extra duplicates
+            umi_set = umi_set[~ np.isin(umi_set[:, 0], dup_set[:, 0]), :]
+        elif n_ovl == 1:
+            keep_rid = umi_set[has_ol, 0][0]
+            dup_set = umi_set[has_ol, :]
+        else:
+            keep_rid = -1
+            dup_set = np.empty([0, 5])
+
+        # save information
+        duplicate_info.append((keep_rid, dup_set[:, 0], frg_umi[umi_idx, :]))
+        umi_idx = umi_idx + 1
+
+    return umi_set, duplicate_info
+
+
+##########################################################
 def processMC4C(args):
     from copy import deepcopy
 
@@ -63,6 +109,7 @@ def setReadIds(args):
                     out_fid.write('>' + rd_sid + '\n')
                     out_fid.write(rd_seq + '\n')
     print '[i] Read identifier conversion is completed successfully.'
+    # TODO: check to see if #lines in inp_file equals #lines read
 
 
 def splitReads(args):
@@ -432,53 +479,17 @@ def removeDuplicates(args):
     roi_size = configs['roi_end'] - configs['roi_start']
     lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
     is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
-    frg_trs = read_inf[~is_lcl, :]
-    print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(frg_trs[:, 0])))
+    umi_set = read_inf[~is_lcl, :]
+    print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0])))
 
-    # make duplicate list of fragments
-    frg_uid, frg_idx, frg_cnt = np.unique(frg_trs[:, 1:4], axis=0, return_index=True, return_counts=True)
-    frg_idx = np.argsort(frg_idx)
-    frg_umi = np.hstack([frg_uid[frg_idx, :], frg_cnt[frg_idx].reshape(-1, 1)])
-
-    # sort trans-fragments according to #duplicates
-    frg_umi = frg_umi[np.lexsort([-frg_umi[:, -1]]), :]
-
-    # loop over trans fragments
-    umi_idx = 0
-    duplicate_info = []
-    print 'Scanning for duplicated trans-fragments:'
-    while umi_idx < frg_umi.shape[0]:
-        if umi_idx % 1000 == 0:
-            print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
-                  '{:,d} reads are still unique.'.format(len(np.unique(frg_trs[:, 0])))
-        has_ol = hasOL(frg_umi[umi_idx, :3], frg_trs[:, 1:4], offset=0)
-        n_ovl = len(np.unique(frg_trs[has_ol, 0]))
-        if n_ovl > 1:
-            # select duplicates
-            dup_set = frg_trs[has_ol, :]
-
-            # keep largest read according to #roi fragments
-            keep_rid = dup_set[np.argmax(dup_set[:, -1]), 0]
-            dup_set = dup_set[dup_set[:, 0] != keep_rid, :]
-
-            # remove extra duplicates
-            frg_trs = frg_trs[~ np.isin(frg_trs[:, 0], dup_set[:, 0]), :]
-        elif n_ovl == 1:
-            keep_rid = frg_trs[has_ol, 0][0]
-            dup_set = frg_trs[has_ol, :]
-        else:
-            keep_rid = -1
-            dup_set = np.empty([0, 5])
-
-        # save information
-        duplicate_info.append((keep_rid, dup_set[:, 0], frg_umi[umi_idx, :]))
-        umi_idx = umi_idx + 1
+    # remove duplicates
+    unq_set, duplicate_info = remove_duplicates_by_umi(umi_set)
     print 'Result statistics (before --> after filtering):'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(frg_trs[:, 0])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], frg_trs.shape[0])
+    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(unq_set[:, 0])))
+    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], unq_set.shape[0])
 
     # select and save unique reads
-    is_uniq = np.isin(mc4c_pd['ReadID'], frg_trs[:, 0])
+    is_uniq = np.isin(mc4c_pd['ReadID'], unq_set[:, 0])
     uniq_pd = mc4c_pd.loc[is_uniq, :]
     print('Writing dataset to: {:s}'.format(args.output_file))
     h5_fid = h5py.File(args.output_file, 'w')

@@ -33,7 +33,7 @@ def initialize_run(args):
 
 
 def perform_qc(args):
-    import quality_checks
+    import quality_check
     from utilities import load_configs
 
     # load config files
@@ -50,15 +50,15 @@ def perform_qc(args):
 
     # call the requested function
     if args.report_type == 'readSizeDist':
-        quality_checks.plot_readSizeDistribution(configs)
+        quality_check.plot_readSizeDistribution(configs)
     elif args.report_type == 'frgSizeDist':
-        quality_checks.plot_frg_size_distribution(configs)
+        quality_check.plot_frg_size_distribution(configs)
     elif args.report_type == 'chrCvg':
-        quality_checks.plot_chrCvg(configs)
+        quality_check.plot_chrCvg(configs)
     elif args.report_type == 'cirSizeDist':
-        quality_checks.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
+        quality_check.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        quality_checks.plot_overallProfile(configs, min_n_frg=2)
+        quality_check.plot_overallProfile(configs, min_n_frg=2)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -234,12 +234,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-PCDHaC1-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'LVR-BMaj-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x']
@@ -257,3 +257,6 @@ if __name__ == '__main__':
 
 # fragment flag
 # desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:
+
+# TODO: Use frequent k-mers to check primer sequences
+# TODO: Check if a dup_set of reads share a second fragment in ROI

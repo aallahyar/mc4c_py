@@ -11,7 +11,7 @@ def plot_readSizeDistribution(configs):
 
     # initializations
     if configs['input_file'] is None:
-        configs['input_file'] = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
+        configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/plt_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8000
@@ -174,7 +174,7 @@ def plot_frg_size_distribution(configs):
     plt.xlabel('#base pairs')
 
     y_ticks = plt.yticks()[0]
-    y_tick_lbl = ['{:0,.1f}k'.format(y / 1e3) for y in y_ticks]
+    y_tick_lbl = ['{:0,.0f}k'.format(y / 1e3) for y in y_ticks]
     plt.yticks(y_ticks, y_tick_lbl)
     plt.ylabel('#Fragments')
 
@@ -469,8 +469,8 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.ylabel('Frequency (% of reads)')
     plt.ylim(y_lim)
     plt.legend(plt_h, [
-        'All reads (n={:0.0f})'.format(n_read[0]),
-        'Unique reads (n={:0.0f})'.format(n_read[1])
+        'All reads (n={:0,.0f})'.format(n_read[0]),
+        'Unique reads (n={:0,.0f})'.format(n_read[1])
     ])
     plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
