@@ -232,18 +232,18 @@ def main():
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'mapFragments', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'NPC-PCDHaC1-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=10', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=10', 'asMC4C_mESC_WT_C']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

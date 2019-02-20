@@ -11,6 +11,7 @@ def remove_duplicates_by_umi(umi_set):
 
     # sort trans-fragments according to #duplicates
     frg_umi = frg_umi[np.lexsort([-frg_umi[:, -1]]), :]
+    # np.savetxt('/Users/aallahyar/Downloads/python.txt', frg_umi, delimiter='\t', fmt='%0.0f')
 
     # loop over trans fragments
     umi_idx = 0
@@ -305,7 +306,7 @@ def processMappedFragments(args):
 
             ExtStart = re_pos[MapChrNum - 1][nei_left]
             try:
-                ExtEnd = re_pos[MapChrNum - 1][nei_right]
+                ExtEnd = re_pos[MapChrNum - 1][nei_right] - 1  # Adjacent fragments in ref should not overlap with 1bp
             except:
                 if nei_right == len(re_pos[MapChrNum - 1]):
                     ExtEnd = re_pos[MapChrNum - 1][-1] + 100

@@ -320,13 +320,16 @@ def load_configs(input_fname, max_n_configs=None):
                 'Error: different lengths for linked configs:'+','.join(str(x) for x in cnf_set)
 
         # set default if needed
-        if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
-            configs['vp_start'] = np.min(configs['prm_start']) - 1500
-            configs['vp_end'] = np.max(configs['prm_end']) + 1500
+        roi_cen = int(np.mean([np.min(configs['prm_start']), np.max(configs['prm_end'])]))
         if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
-            roi_cen = np.abs(configs['vp_end'] - configs['vp_start']) / 2
             configs['roi_start'] = roi_cen - 1000000
             configs['roi_end'] = roi_cen + 1000000
+        if 'bin_width' not in configs.keys():
+            edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64)
+            configs['bin_width'] = edge_lst[1] - edge_lst[0]
+        if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
+            configs['vp_start'] = roi_cen - int(configs['bin_width'] * 1.5)
+            configs['vp_end'] = roi_cen + int(configs['bin_width'] * 1.5)
 
         # add to list of configs
         config_lst.append(configs.copy())

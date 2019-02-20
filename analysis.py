@@ -195,6 +195,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
+    bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     x_lim = [configs['roi_start'], configs['roi_end']]
     y_lim = [0, 10]
 
@@ -236,12 +237,12 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     n_read = np.max(frg_inf[:, 0])
 
     # get soi info
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
     n_ant = ant_pd.shape[0]
     is_in = np.where(np.isin(ant_pd['ant_name'], soi_name))[0]
     assert len(is_in) == 1
     soi_pd = ant_pd.loc[is_in[0], :]
-    soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
+    soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - int(bin_w * 1.5), soi_pd['ant_pos'] + int(bin_w * 1.5)]
 
     # compute positive profile and backgrounds
     print 'Computing expected profile for bins:'
@@ -267,7 +268,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     # compute score for annotations
     print 'Computing expected profile for annotations:'
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
-    ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
+    ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
     ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
     ant_exp = np.mean(soi_rnd, axis=0)
     ant_std = np.std(soi_rnd, axis=0, ddof=0)
@@ -358,6 +359,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         configs['output_file'] = configs['output_dir'] + '/plt_atmat_{:s}.pdf'.format(configs['run_id'])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+    bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     del edge_lst
 
     # load MC-HC data
@@ -398,7 +400,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     n_read = np.max(frg_inf[:, 0])
 
     # loop over each SOI
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
     n_ant = ant_pd.shape[0]
     ant_name_lst = ant_pd['ant_name'].values
     ant_scr = np.full(shape=[n_ant, n_ant], fill_value=np.nan)
@@ -406,7 +408,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     x_tick_lbl = []
     for ai in range(n_ant):
         soi_pd = ant_pd.loc[ai, :]
-        soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - 1500, soi_pd['ant_pos'] + 1500]
+        soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - int(bin_w * 1.5), soi_pd['ant_pos'] + int(bin_w * 1.5)]
         if hasOL(vp_crd[1:], soi_crd[1:]):
             x_tick_lbl.append(ant_name_lst[ai])
             continue
@@ -414,7 +416,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         # compute score for annotations
         print 'Computing expected profile for {:s}:'.format(soi_pd['ant_name'])
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
-        ant_bnd = np.hstack([ant_pos - 1500, ant_pos + 1500])
+        ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
         ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
         x_tick_lbl.append('{:s}\n#{:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
@@ -476,7 +478,7 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     ax_scr.set_xlabel('Selected SOIs')
     ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     '#perm={:d}'.format(n_perm)
+                     'bin-w={:d}; #perm={:d}'.format(configs['bin_width'], n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

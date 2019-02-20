@@ -9,14 +9,15 @@ from pre_process import remove_duplicates_by_umi
 from utilities import load_configs, hasOL
 
 # initialization
-# config_file = 'LVR-BMaj-96x'
+config_file = 'LVR-BMaj-96x'
 # config_file = 'WPL-KOC'
 # config_file = 'WPL-KOD2'
-config_file = 'NPC-PCDHa4-96x'
+# config_file = 'NPC-PCDHa4-96x'
 # config_file = 'LVR-HS2-96x'
 configs = load_configs(config_file, max_n_configs=1)[0]
 input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
 min_mq = 20
+cvg_tresh = 0.02
 
 # load mc4c data
 h5_fid = h5py.File(input_file, 'r')
@@ -119,8 +120,8 @@ for bi in range(n_blk):
 # check similarity
 plt.figure(figsize=[8, 7])
 plt.plot(blk_cvg[0] / float(n_read[0]), blk_cvg[1] / float(n_read[1]), 'o')
-plt.xlim([0, 0.1])
-plt.ylim([0, 0.1])
+plt.xlim([0, cvg_tresh+0.02])
+plt.ylim([0, cvg_tresh+0.02])
 plt.title('Chromosome coverage, far-cis + trans vs. trans only duplicate filter\n' +
           'spr-corr: {:0.5f}'.format(spearmanr(blk_cvg.T).correlation))
 plt.savefig(out_fname + 'ChrCvg_Cmp.pdf', bbox_inches='tight')
@@ -138,13 +139,17 @@ plt.plot([roi_crd[1], roi_crd[1]], [0, 1], color='k')
 plt.plot([roi_crd[2], roi_crd[2]], [0, 1], color='k')
 plt.plot([lcl_crd[1], lcl_crd[1]], [0, 1], color='gray')
 plt.plot([lcl_crd[2], lcl_crd[2]], [0, 1], color='gray')
-plt.plot([blk_lst[0], blk_lst[-1]], [0.05, 0.05], '-.', color='lightgray')
+plt.plot([blk_lst[0], blk_lst[-1]], [cvg_tresh, cvg_tresh], '-.', color='lightgray')
 plt.ylim([0, 0.1])
+plt.legend(plt_h, [
+    'Far-cis (n={:0.0f})'.format(n_read[0]),
+    'Trans only (n={:0.0f})'.format(n_read[1])
+])
 plt.savefig(out_fname + 'ProfileChrom.pdf', bbox_inches='tight')
 
 # use adjusted area
 prf_rol = p1_pd.rolling(5).mean().values
-high_cvg_blks = np.where(prf_rol > 0.05)[0]
+high_cvg_blks = np.where(prf_rol > cvg_tresh)[0]
 adj_crd = np.array([configs['vp_cnum'], blk_bnd[high_cvg_blks[0], 0], blk_bnd[high_cvg_blks[-1], 1]])
 adj_w = adj_crd[2] - adj_crd[1]
 is_adj = hasOL([adj_crd[0], adj_crd[1]-adj_w, adj_crd[2]+adj_w], read_inf[:, 1:4], offset=0)
