@@ -475,3 +475,127 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
+
+def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
+    import pandas as pd
+    from matplotlib import pyplot as plt
+    from scipy.stats import spearmanr
+
+    from utilities import load_configs, load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_per_bin
+    from pre_process import remove_duplicates_by_umi
+
+    # initialization
+    print '%% Finding optimal ROI by analysing local coverage ...'
+    if configs['output_file'] is None:
+        configs['output_file'] = './plots/plt_OptimalROI_' + configs['run_id'] + '.pdf'
+    vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
+    roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+
+    # load dataset
+    mc4c_pd = load_mc4c(configs, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
+    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd']
+    read_all = mc4c_pd[header_lst].values
+    del mc4c_pd
+
+    # select >1 #frg
+    read_inf = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
+
+    # select reads with #traceable fragment > 1
+    roi_size = configs['roi_end'] - configs['roi_start']
+    lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
+    is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
+    umi_def = read_inf[~is_lcl, :].copy()
+
+    # remove duplicates
+    unq_set, lcl_info = remove_duplicates_by_umi(umi_def)
+    is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
+    pcr_def = read_all[is_unq, :].copy()
+    n_def = len(np.unique(pcr_def[:, 0]))
+
+    # use trans-umi only
+    is_cis = lcl_crd[0] == read_inf[:, 1]
+    umi_trs = read_inf[~is_cis, :].copy()
+    unq_set, trs_info = remove_duplicates_by_umi(umi_trs)
+    is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
+    pcr_trs = read_all[is_unq, :].copy()
+    n_trs = len(np.unique(pcr_def[:, 0]))
+
+    # split vp chromosome into blocks
+    chr_size = get_chr_info(genome_str=configs['genome_build'], property='chr_size')
+    blk_lst = np.arange(0, chr_size[configs['vp_cnum'] - 1], 30e3, dtype=np.int64).reshape(-1, 1)
+    blk_lst[-1] = chr_size[configs['vp_cnum'] - 1]
+    n_blk = len(blk_lst) - 1
+    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_blk).reshape(-1, 1), blk_lst[:-1], blk_lst[1:] - 1])
+    blk_w = blk_crd[0, 1] - blk_crd[0, 0]
+    blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
+
+    # compute coverage over chromosome
+    cvg_def = get_nreads_per_bin(pcr_def[:, :4], bin_crd=blk_crd)[0]
+    cvg_trs = get_nreads_per_bin(pcr_trs[:, :4], bin_crd=blk_crd)[0]
+    nrm_def = pd.Series(cvg_def * 1e2 / n_def).rolling(5).mean().values
+    nrm_trs = pd.Series(cvg_trs * 1e2 / n_trs).rolling(5).mean().values
+
+    # select highly covered region
+    high_cvg_idx = np.where(nrm_trs > min_cvg)[0]
+    roi_crd_adj = np.array([configs['vp_cnum'], blk_crd[high_cvg_idx[0], 0], blk_crd[high_cvg_idx[-1], 1]])
+    edge_lst_adj = np.linspace(roi_crd_adj[1], roi_crd_adj[2], num=201, dtype=np.int64).reshape(-1, 1)
+    bin_w_adj = edge_lst_adj[1] - edge_lst_adj[0]
+    roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
+    vp_crd_adj = np.array([configs['vp_cnum'], roi_cen - int(bin_w_adj * 1.5), roi_cen + int(bin_w_adj * 1.5)])
+
+    # use adjusted area to compute duplicates
+    adj_w = roi_crd_adj[2] - roi_crd_adj[1]
+    is_adj = hasOL([roi_crd_adj[0], roi_crd_adj[1] - adj_w, roi_crd_adj[2] + adj_w], read_inf[:, 1:4], offset=0)
+    umi_adj = read_inf[~is_adj, :].copy()
+    adj_set, adj_info = remove_duplicates_by_umi(umi_adj)
+    is_adj = np.isin(read_all[:, 0], adj_set[:, 0])
+    pcr_adj = read_all[is_adj, :].copy()
+
+    # compute coverage over chromosome using adjusted region
+    cvg_adj = get_nreads_per_bin(pcr_adj[:, :4], bin_crd=blk_crd)[0]
+    nrm_adj = pd.Series(cvg_adj * 1e2 / n_def).rolling(5).mean().values
+
+    # compute roi profiles
+    n_bin = 200
+    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
+    bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
+    bin_w = edge_lst[1] - edge_lst[0]
+    prf_def, n_def = get_nreads_per_bin(pcr_def[:, :4], bin_crd=bin_crd, min_n_frg=2)
+    prf_trs, n_trs = get_nreads_per_bin(pcr_trs[:, :4], bin_crd=bin_crd, min_n_frg=2)
+    prf_adj, n_adj = get_nreads_per_bin(pcr_adj[:, :4], bin_crd=bin_crd, min_n_frg=2)
+
+    # plotting
+    fig = plt.figure(figsize=(15, 5))
+    ax_crr = plt.subplot2grid((1, 3), (0, 0), rowspan=1, colspan=1)
+    ax_prf = plt.subplot2grid((1, 3), (0, 1), rowspan=1, colspan=2)
+
+    # plot correlations
+    ax_crr.plot(prf_def * 1e2 / n_def, prf_trs * 1e2 / n_trs, 'o', color='gray')
+    ax_crr.plot(prf_adj * 1e2 / n_adj, prf_trs * 1e2 / n_trs, 'x', color='blue')
+    ax_crr.xlim([0, 10])
+    ax_crr.ylim([0, 10])
+    ax_crr.title('ROI coverage correlations, trans UMI vs far-cis + trans UMI' +
+              'spr-corr: {:0.5f}'.format(spearmanr([prf_def, prf_adj]).correlation))
+
+    # plot roi profiles
+    y_lim = [0, 10]
+    plt.plot([roi_crd_adj[1], roi_crd_adj[1]], [0, 1], color='blue')
+    plt.plot([roi_crd_adj[2], roi_crd_adj[2]], [0, 1], color='blue')
+    plt.text(roi_crd_adj[1], y_lim[1] * 0.8, '{:,d}> '.format(roi_crd_adj[1]), horizontalalignment='right', color='red')
+    plt.text(roi_crd_adj[2], y_lim[1] * 0.8, ' <{:,d}'.format(roi_crd_adj[2]), horizontalalignment='left', color='red')
+    plt.xlim([roi_crd_adj[1] - adj_w * 3, roi_crd_adj[2] + adj_w * 3])
+    plt.ylim(y_lim)
+
+    plt_h = [None] * 3
+    plt_h[0] = plt.plot(blk_cen, nrm_def, ':', color='gray')[0]
+    plt_h[1] = plt.plot(blk_cen, nrm_trs, ':', color='gray')[0]
+    plt_h[2] = plt.plot(blk_cen, nrm_adj, ':', color='gray')[0]
+    plt.legend(plt_h, [
+        'Far-cis (n={:0.0f})'.format(n_def),
+        'Trans only (n={:0.0f})'.format(n_trs),
+        'Adjusted (n={:0.0f})'.format(n_adj)
+    ])
+    plt.suptitle('{:s}\n'.format(configs['run_id']) +
+                 '#block={:d}, block_w={:0.0f}k, bin_w={:0.0f}\n'.format(n_blk, blk_w / 1e3, bin_w))
+    plt.savefig(configs['output_file'], bbox_inches='tight')
+

@@ -59,6 +59,8 @@ def perform_qc(args):
         quality_check.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
         quality_check.plot_overallProfile(configs, min_n_frg=2)
+    elif args.report_type == 'findOptimalROI':
+        quality_check.find_optimal_roi(configs)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -194,7 +196,8 @@ def main():
     parser_qc = subparsers.add_parser('QC',
                                             description='Generate various summary reports about an MC-4C dataset.')
     parser_qc.add_argument('report_type', type=str,
-                                 choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile'],
+                                 choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile',
+                                          'findOptimalROI'],
                                  help='Type of summary report that needs to be generated')
     parser_qc.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
@@ -241,7 +244,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
