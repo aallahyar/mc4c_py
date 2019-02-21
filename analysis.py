@@ -344,7 +344,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
+def perform_atmat_analysis(config_lst, min_n_frg=2, n_perm=1000):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -355,21 +355,22 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     from utilities import load_mc4c, load_annotation, hasOL, flatten
 
     # initialization
-    if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_atmat_{:s}.pdf'.format(configs['run_id'])
-    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    if config_lst[0]['output_file'] is None:
+        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/plt_atmat_{:s}.pdf'.format(run_id)
+    edge_lst = np.linspace(config_lst[0]['roi_start'], config_lst[0]['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     del edge_lst
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_dp = load_mc4c(config_lst, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
     # select within roi fragments
-    vp_crd = [configs['vp_cnum'], configs['vp_start'], configs['vp_end']]
-    roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
+    vp_crd = [config_lst[0]['vp_cnum'], config_lst[0]['vp_start'], config_lst[0]['vp_end']]
+    roi_crd = [config_lst[0]['vp_cnum'], config_lst[0]['roi_start'], config_lst[0]['roi_end']]
     is_vp = hasOL(vp_crd, frg_np[:, 1:4])
     is_roi = hasOL(roi_crd, frg_np[:, 1:4])
     frg_roi = frg_np[~is_vp & is_roi, :]
@@ -396,11 +397,15 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
         if len(bin_cvg) > 1:
             valid_lst.append(rd_nid)
     frg_inf = frg_inf[np.isin(frg_inf[:, 0], valid_lst), :]
+
+    # Downsample and re-index
+    # rnd_rid = np.random.choice(np.unique(frg_inf[:, 0]), 8618, replace=False)  ### random selection
+    # frg_inf = frg_inf[np.isin(frg_inf[:, 0], rnd_rid), :]
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(frg_inf[:, 0])
 
     # loop over each SOI
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
+    ant_pd = load_annotation(config_lst[0]['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
     n_ant = ant_pd.shape[0]
     ant_name_lst = ant_pd['ant_name'].values
     ant_scr = np.full(shape=[n_ant, n_ant], fill_value=np.nan)
@@ -476,11 +481,11 @@ def perform_atmat_analysis(configs, min_n_frg=2, n_perm=1000):
     ax_scr.set_xticklabels(x_tick_lbl)
     ax_scr.set_yticklabels(ant_name_lst)
     ax_scr.set_xlabel('Selected SOIs')
-    ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
+    ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     'bin-w={:d}; #perm={:d}'.format(configs['bin_width'], n_perm)
+                     'bin-w={:d}; #perm={:d}'.format(config_lst[0]['bin_width'], n_perm)
                      )
-    plt.savefig(configs['output_file'], bbox_inches='tight')
+    plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
 

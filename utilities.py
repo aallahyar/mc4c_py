@@ -265,8 +265,8 @@ def load_configs(input_fname, max_n_configs=None):
     from os import path
 
     # check number of given configs
-    cfg_file_list = input_fname.split(';')
-    if max_n_configs:
+    cfg_file_list = input_fname.split(',')
+    if max_n_configs is not None:
         assert len(cfg_file_list) <= max_n_configs, \
             'Maximum of {:d} configs are allowed to be loaded.'.format(max_n_configs)
 
@@ -353,7 +353,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         else:
             inp_fname = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
         if verbose:
-            print('Loading mc4c dataset: {:s}'.format(inp_fname))
+            print('Loading {:s} dataset ...'.format(inp_fname))
 
         h5_fid = h5py.File(inp_fname, 'r')
         if np.isinf(max_rows):
@@ -375,17 +375,21 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
         part_pd['ReadID'] = part_pd['ReadID'] + (cfg_idx + 1) * MAX_N_CIR
+        if verbose:
+            print '\tGot [{:,d}] reads and [{:,d}] fragments.'.format(
+                len(np.unique(part_pd['ReadID'])), part_pd.shape[0])
 
         # Append the part
         out_pd = out_pd.append(part_pd, ignore_index=True)
     out_pd = out_pd[header_lst]
 
     if reindex_reads:
+        print 'Reindexing reads ...'
         header_lst.append('ReadID_original')
         out_pd[header_lst[-1]] = out_pd['ReadID'].copy()
         out_pd['ReadID'] = np.unique(out_pd['ReadID'], return_inverse=True)[1] + 1
-        if verbose:
-            print 'Got [{:,d}] reads and [{:,d}] fragments after re-indexing.'.format(
-                np.max(out_pd['ReadID']), out_pd.shape[0])
+    if verbose:
+        print 'In total, [{:,d}] reads and [{:,d}] fragments are loaded.'.format(
+            len(np.unique(out_pd['ReadID'])), out_pd.shape[0])
 
     return out_pd[header_lst]

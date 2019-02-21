@@ -454,7 +454,7 @@ def plot_overallProfile(configs, min_n_frg=2):
                                           linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add annotations
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
         plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],

@@ -68,33 +68,35 @@ def perform_analysis(args):
     import analysis
     from utilities import load_configs
 
-    configs = load_configs(args.config_file, max_n_configs=1)[0]
+    config_lst = load_configs(args.config_file)
     if args.output_file is None:
-        configs['output_dir'] = './plots/'
+        config_lst[0]['output_dir'] = './plots/'
     else:
-        configs['output_dir'] = path.dirname(args.output_file)
-    if not path.isdir(configs['output_dir']):
-        makedirs(configs['output_dir'])
-    configs['input_file'] = args.input_file
-    configs['output_file'] = args.output_file
+        config_lst[0]['output_dir'] = path.dirname(args.output_file)
+    if not path.isdir(config_lst[0]['output_dir']):
+        makedirs(config_lst[0]['output_dir'])
+    config_lst[0]['input_file'] = args.input_file
+    config_lst[0]['output_file'] = args.output_file
 
     # call the requested function
     if args.analysis_type == 'mcTest':
-        analysis.perform_mc_analysis(configs)
+        assert len(config_lst) == 1
+        analysis.perform_mc_analysis(config_lst[0])
     elif args.analysis_type == 'vpSoi':
+        assert len(config_lst) == 1
         if args.ant_name is None:
             from utilities import load_annotation
-            roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
-            ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+            roi_crd = [config_lst[0]['vp_cnum'], config_lst[0]['roi_start'], config_lst[0]['roi_end']]
+            ant_pd = load_annotation(config_lst[0]['genome_build'], roi_crd=roi_crd)
             ant_name_lst = ant_pd['ant_name'].values
         else:
             ant_name_lst = args.ant_name.split(',')
 
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
-            analysis.perform_vpsoi_analysis(configs.copy(), soi_name=ant_name, n_perm=args.n_perm)
+            analysis.perform_vpsoi_analysis(config_lst[0].copy(), soi_name=ant_name, n_perm=args.n_perm)
     elif args.analysis_type == 'atMat':
-        analysis.perform_atmat_analysis(configs.copy(), n_perm=args.n_perm)
+        analysis.perform_atmat_analysis(list(config_lst), n_perm=args.n_perm)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -233,17 +235,19 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x-Adj']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x-Adj']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'K562-WplD-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=10', 'asMC4C_mESC_WT_C']
+        sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'asMC4C_mESC_WT_C']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
