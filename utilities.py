@@ -421,6 +421,8 @@ def get_nreads_per_bin(reads, bin_crd=None, n_bin=None, boundary=None, min_n_frg
     # Bin format: Chr, StartCrd, EndCrd
     assert reads.shape[1] == 4
 
+    if boundary is None:
+        boundary = [bin_crd[0, 0], bin_crd[0, 1], bin_crd[-1, 2]]
     if min_n_frg is not None:
         assert len(boundary) == 3
         reads = limit_to_roi(reads, vp_crd=None, roi_crd=boundary, min_n_frg=min_n_frg)

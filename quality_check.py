@@ -498,7 +498,8 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     del mc4c_pd
 
     # select >1 #frg
-    read_inf = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
+    set_inf = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
+    read_inf = read_all[np.isin(read_all[:, 0], set_inf[:, 0]), :].copy()
 
     # select reads with #traceable fragment > 1
     roi_size = configs['roi_end'] - configs['roi_start']
@@ -526,7 +527,7 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     blk_lst[-1] = chr_size[configs['vp_cnum'] - 1]
     n_blk = len(blk_lst) - 1
     blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_blk).reshape(-1, 1), blk_lst[:-1], blk_lst[1:] - 1])
-    blk_w = blk_crd[0, 1] - blk_crd[0, 0]
+    blk_w = blk_crd[0, 2] - blk_crd[0, 1]
     blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
 
     # compute coverage over chromosome
@@ -537,16 +538,19 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
 
     # select highly covered region
     high_cvg_idx = np.where(nrm_trs > min_cvg)[0]
-    roi_crd_adj = np.array([configs['vp_cnum'], blk_crd[high_cvg_idx[0], 0], blk_crd[high_cvg_idx[-1], 1]])
+    roi_crd_adj = np.array([configs['vp_cnum'], blk_crd[high_cvg_idx[0], 1], blk_crd[high_cvg_idx[-1], 2]])
     edge_lst_adj = np.linspace(roi_crd_adj[1], roi_crd_adj[2], num=201, dtype=np.int64).reshape(-1, 1)
-    bin_w_adj = edge_lst_adj[1] - edge_lst_adj[0]
+    bin_w_adj = edge_lst_adj[1, 0] - edge_lst_adj[0, 0]
     roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
     vp_crd_adj = np.array([configs['vp_cnum'], roi_cen - int(bin_w_adj * 1.5), roi_cen + int(bin_w_adj * 1.5)])
 
     # use adjusted area to compute duplicates
     adj_w = roi_crd_adj[2] - roi_crd_adj[1]
-    is_adj = hasOL([roi_crd_adj[0], roi_crd_adj[1] - adj_w, roi_crd_adj[2] + adj_w], read_inf[:, 1:4], offset=0)
-    umi_adj = read_inf[~is_adj, :].copy()
+
+    set_inf_adj = limit_to_roi(read_all[:, :4], vp_crd=vp_crd_adj, roi_crd=roi_crd_adj, min_n_frg=2)
+    read_inf_adj = read_all[np.isin(read_all[:, 0], set_inf_adj[:, 0]), :].copy()
+    is_adj = hasOL([roi_crd_adj[0], roi_crd_adj[1] - adj_w, roi_crd_adj[2] + adj_w], read_inf_adj[:, 1:4], offset=0)
+    umi_adj = read_inf_adj[~is_adj, :].copy()
     adj_set, adj_info = remove_duplicates_by_umi(umi_adj)
     is_adj = np.isin(read_all[:, 0], adj_set[:, 0])
     pcr_adj = read_all[is_adj, :].copy()
@@ -559,43 +563,59 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     n_bin = 200
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
     bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
-    bin_w = edge_lst[1] - edge_lst[0]
+    bin_w = bin_crd[0, 2] - bin_crd[0, 1]
     prf_def, n_def = get_nreads_per_bin(pcr_def[:, :4], bin_crd=bin_crd, min_n_frg=2)
     prf_trs, n_trs = get_nreads_per_bin(pcr_trs[:, :4], bin_crd=bin_crd, min_n_frg=2)
     prf_adj, n_adj = get_nreads_per_bin(pcr_adj[:, :4], bin_crd=bin_crd, min_n_frg=2)
 
     # plotting
-    fig = plt.figure(figsize=(15, 5))
-    ax_crr = plt.subplot2grid((1, 3), (0, 0), rowspan=1, colspan=1)
-    ax_prf = plt.subplot2grid((1, 3), (0, 1), rowspan=1, colspan=2)
+    fig = plt.figure(figsize=(25, 5))
+    ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
+    ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
 
     # plot correlations
     ax_crr.plot(prf_def * 1e2 / n_def, prf_trs * 1e2 / n_trs, 'o', color='gray')
     ax_crr.plot(prf_adj * 1e2 / n_adj, prf_trs * 1e2 / n_trs, 'x', color='blue')
-    ax_crr.xlim([0, 10])
-    ax_crr.ylim([0, 10])
-    ax_crr.title('ROI coverage correlations, trans UMI vs far-cis + trans UMI' +
-              'spr-corr: {:0.5f}'.format(spearmanr([prf_def, prf_adj]).correlation))
+    ax_crr.set_xlim([0, 10])
+    ax_crr.set_ylim([0, 10])
+    ax_crr.set_xlabel('Default ROI')
+    ax_crr.set_ylabel('Trans / Adjusted ROI')
+    ax_crr.set_title('ROI coverage Spearman correlations\n' +
+                     'def-UMI vs. trs-UMI: {:0.5f}\n'.format(spearmanr(prf_def, prf_trs).correlation) +
+                     'def-UMI vs. adj-UMI: {:0.5f}\n'.format(spearmanr(prf_def, prf_adj).correlation))
 
     # plot roi profiles
+    x_lim = [roi_crd_adj[1] - adj_w * 3, roi_crd_adj[2] + adj_w * 3]
     y_lim = [0, 10]
-    plt.plot([roi_crd_adj[1], roi_crd_adj[1]], [0, 1], color='blue')
-    plt.plot([roi_crd_adj[2], roi_crd_adj[2]], [0, 1], color='blue')
-    plt.text(roi_crd_adj[1], y_lim[1] * 0.8, '{:,d}> '.format(roi_crd_adj[1]), horizontalalignment='right', color='red')
-    plt.text(roi_crd_adj[2], y_lim[1] * 0.8, ' <{:,d}'.format(roi_crd_adj[2]), horizontalalignment='left', color='red')
-    plt.xlim([roi_crd_adj[1] - adj_w * 3, roi_crd_adj[2] + adj_w * 3])
-    plt.ylim(y_lim)
+    ax_prf.plot([roi_crd[1], roi_crd[1]], y_lim, color='#9c9c9c')
+    ax_prf.plot([roi_crd[2], roi_crd[2]], y_lim, color='#9c9c9c')
+    ax_prf.plot([roi_crd_adj[1], roi_crd_adj[1]], y_lim, color='#41deec')
+    ax_prf.plot([roi_crd_adj[2], roi_crd_adj[2]], y_lim, color='#41deec')
+    ax_prf.plot([x_lim[0], x_lim[1]], [min_cvg, min_cvg], '--', color='#ff8f8f')
+    ax_prf.text(roi_crd_adj[1], y_lim[1] * 0.8, '{:,d}> '.format(roi_crd_adj[1]), horizontalalignment='right', color='#41deec')
+    ax_prf.text(roi_crd_adj[2], y_lim[1] * 0.8, ' <{:,d}'.format(roi_crd_adj[2]), horizontalalignment='left', color='#41deec')
+    ax_prf.text(roi_crd[1], y_lim[1] * 0.9, '{:,d}> '.format(roi_crd[1]), horizontalalignment='right', color='#9c9c9c')
+    ax_prf.text(roi_crd[2], y_lim[1] * 0.9, ' <{:,d}'.format(roi_crd[2]), horizontalalignment='left', color='#9c9c9c')
 
     plt_h = [None] * 3
-    plt_h[0] = plt.plot(blk_cen, nrm_def, ':', color='gray')[0]
-    plt_h[1] = plt.plot(blk_cen, nrm_trs, ':', color='gray')[0]
-    plt_h[2] = plt.plot(blk_cen, nrm_adj, ':', color='gray')[0]
-    plt.legend(plt_h, [
+    plt_h[0] = ax_prf.plot(blk_cen, nrm_def, ':', color='gray')[0]
+    plt_h[1] = ax_prf.plot(blk_cen, nrm_trs, '-.', color='orange')[0]
+    plt_h[2] = ax_prf.plot(blk_cen, nrm_adj, '-', color='#3d4aff')[0]
+
+    ax_prf.set_xlim(x_lim)
+    ax_prf.set_ylim(y_lim)
+    x_ticks = np.linspace(x_lim[0], x_lim[1], 25, dtype=np.int64)
+    x_tick_label = ['{:0.3f}m'.format(x / 1e6) for x in x_ticks]
+    plt.xticks(x_ticks, x_tick_label, rotation=20)
+    plt.ylabel('Frequency (% of reads)')
+    ax_prf.legend(plt_h, [
         'Far-cis (n={:0.0f})'.format(n_def),
         'Trans only (n={:0.0f})'.format(n_trs),
         'Adjusted (n={:0.0f})'.format(n_adj)
     ])
-    plt.suptitle('{:s}\n'.format(configs['run_id']) +
-                 '#block={:d}, block_w={:0.0f}k, bin_w={:0.0f}\n'.format(n_blk, blk_w / 1e3, bin_w))
+
+    plt.title('{:s}\n'.format(configs['run_id']) +
+              '#block={:d}, block_w={:0.0f}k\n'.format(n_blk, blk_w / 1e3) +
+              'bin-w (def, adjusted): {:0,.0f}bp; {:0,.0f}bp'.format(bin_w, bin_w_adj))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

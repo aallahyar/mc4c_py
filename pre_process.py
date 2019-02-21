@@ -16,7 +16,7 @@ def remove_duplicates_by_umi(umi_set):
     # loop over trans fragments
     umi_idx = 0
     duplicate_info = []
-    print 'Scanning for duplicated trans-fragments:'
+    print 'Scanning for duplicated UMIs:'
     while umi_idx < frg_umi.shape[0]:
         if umi_idx % 1000 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
