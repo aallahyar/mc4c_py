@@ -68,7 +68,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     x_lim = [configs['roi_start'], configs['roi_end']]
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=False)
+    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=False)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -200,7 +200,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     y_lim = [0, 10]
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -364,7 +364,7 @@ def perform_atmat_analysis(config_lst, min_n_frg=2, n_perm=1000):
     del edge_lst
 
     # load MC-HC data
-    frg_dp = load_mc4c(config_lst, uniq_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 

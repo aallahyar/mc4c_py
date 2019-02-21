@@ -109,7 +109,7 @@ def plot_frg_size_distribution(configs):
     dist_ref = np.bincount(bin_idx, minlength=n_bin)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
+    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
     print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
@@ -225,7 +225,7 @@ def plot_chrCvg(configs):
     n_chr = len(chr_lst)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, uniq_only=False, valid_only=True)
+    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
     print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
@@ -297,7 +297,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     n_edge = len(edge_lst)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True, uniq_only=uniq_only)
+    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True, unique_only=uniq_only)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ReadLength']].values
     del frg_dp
 
@@ -410,7 +410,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     for di in range(2):
 
         # load MC-HC data
-        frg_dp = load_mc4c(configs, uniq_only=di != 0, valid_only=True, min_mq=20, reindex_reads=True)
+        frg_dp = load_mc4c(configs, unique_only=di != 0, valid_only=True, min_mq=20, reindex_reads=True)
         frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
 
         # filter small circles

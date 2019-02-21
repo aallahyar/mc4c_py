@@ -23,15 +23,15 @@ y_lim = [0, 0.1]
 def load_data(config_lst, vp_crd, roi_crd):
 
     # load mc4c data
-    mc4c_pd = load_mc4c(config_lst, uniq_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
+    mc4c_pd = load_mc4c(config_lst, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # filtering reads according to their MQ
-    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ErrFlag']
+    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']
     read_all = mc4c_pd[header_lst].values
     is_mapped = read_all[:, 4] >= min_mq
-    is_valid = read_all[:, 5] == 0
+    is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
     read_all = read_all[is_mapped & is_valid, :4]
     print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
         min_mq, len(np.unique(read_all[:, 0])))

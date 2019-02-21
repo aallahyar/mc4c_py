@@ -241,10 +241,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_mESC_WT_C']
+        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
-        sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'asMC4C_mESC_WT_C']

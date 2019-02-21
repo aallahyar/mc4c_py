@@ -337,7 +337,7 @@ def load_configs(input_fname, max_n_configs=None):
 
 
 def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbose=True,
-              min_mq=20, valid_only=True, uniq_only=True, reindex_reads=True, max_rows=np.inf):
+              min_mq=20, valid_only=True, unique_only=True, reindex_reads=True, max_rows=np.inf):
     import pandas as pd
     import h5py
 
@@ -348,7 +348,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
     header_lst = []
     for cfg_idx, configs in enumerate(config_lst):
-        if uniq_only:
+        if unique_only:
             inp_fname = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
         else:
             inp_fname = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
@@ -370,7 +370,8 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         if min_mq > 0:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
         if valid_only:
-            part_pd = part_pd.loc[part_pd['ErrFlag'] == 0]
+            is_val = np.bitwise_and(part_pd['Flag'], 1) == 0
+            part_pd = part_pd.loc[is_val, :]
 
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
@@ -393,3 +394,21 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
             len(np.unique(out_pd['ReadID'])), out_pd.shape[0])
 
     return out_pd[header_lst]
+
+
+def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
+    assert reads.shape[1] - 1 == len(vp_crd) == len(roi_crd)
+    n_frg = reads.shape[0]
+    is_val = np.ones(n_frg, dtype=np.bool)
+
+    if vp_crd is not None:
+        is_val = is_val & ~ hasOL(vp_crd, reads[:, 1:], offset=0)
+    if roi_crd is not None:
+        is_val = is_val & hasOL(roi_crd, reads[:, 1:], offset=0)
+    reads_roi = reads[is_val, :].copy()
+
+    if min_n_frg is not None:
+        read_size = np.bincount(reads_roi[:, 0], minlength=np.max(reads_roi[:, 0]) + 1)[reads_roi[:, 0]]
+        reads_roi = reads_roi[read_size >= min_n_frg, :]
+
+    return reads_roi

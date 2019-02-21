@@ -255,7 +255,7 @@ def processMappedFragments(args):
 
     # define fragment headers
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
-                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'ErrFlag']
+                  'FileID', 'FrgID', 'SeqStart', 'SeqEnd', 'ReadLength', 'Flag']
     n_header = len(header_lst)
 
     # Processing fragments:
@@ -457,9 +457,9 @@ def removeDuplicates(args):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # filtering reads according to their MQ
-    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ErrFlag']].values
+    read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']].values
     is_mapped = read_all[:, 4] >= args.min_mq
-    is_valid = read_all[:, 5] == 0
+    is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
     read_all = read_all[is_mapped & is_valid, :4]
     print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
         args.min_mq, len(np.unique(read_all[:, 0])))
