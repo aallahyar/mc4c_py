@@ -6,15 +6,15 @@ from matplotlib import pyplot as plt
 from scipy.stats import spearmanr
 
 from pre_process import remove_duplicates_by_umi
-from utilities import load_configs, hasOL, load_mc4c
+from utilities import load_configs, hasOL, load_mc4c, get_nreads_per_bin
 
 # initialization
-# cfg_fname = 'LVR-BMaj-96x'
+cfg_fname = 'LVR-BMaj-96x'
 # config_file = 'WPL-KOC'
 # config_file = 'WPL-KOD2'
 # config_file = 'NPC-PCDHa4-96x'
 # config_file = 'LVR-HS2-96x'
-cfg_fname = 'BRN-BMaj-96x,BRN-BMaj-96x2'
+# cfg_fname = 'BRN-BMaj-96x,BRN-BMaj-96x2'
 min_mq = 20
 cvg_tresh = 0.02
 y_lim = [0, 0.1]
@@ -28,7 +28,7 @@ def load_data(config_lst, vp_crd, roi_crd):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # filtering reads according to their MQ
-    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']
+    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ErrFlag']  ###
     read_all = mc4c_pd[header_lst].values
     is_mapped = read_all[:, 4] >= min_mq
     is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
@@ -86,14 +86,10 @@ n_bin = bin_bnd.shape[0]
 bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
 del edge_lst
 
-# looping over bins
+# compute profiles
 bin_frq = np.zeros([2, n_bin], dtype=np.int)
-for bi in range(n_bin):
-    is_in = hasOL(bin_bnd[bi, :], frg_org[:, 2:4])
-    bin_frq[0, bi] = len(np.unique(frg_org[is_in, 0]))
-
-    is_in = hasOL(bin_bnd[bi, :], frg_trs[:, 2:4])
-    bin_frq[1, bi] = len(np.unique(frg_trs[is_in, 0]))
+bin_frq[0, :] = get_nreads_per_bin(frg_org[:, :4], n_bin=200, boundary=roi_crd)
+bin_frq[1, :] = get_nreads_per_bin(frg_trs[:, :4], n_bin=200, boundary=roi_crd)
 
 # compare profiles
 plt.figure(figsize=[8, 7])

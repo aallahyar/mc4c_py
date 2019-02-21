@@ -397,13 +397,15 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
 
 def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
-    assert reads.shape[1] - 1 == len(vp_crd) == len(roi_crd)
+    # Reads format: ReadID, Chr, StartCrd, EndCrd
     n_frg = reads.shape[0]
-    is_val = np.ones(n_frg, dtype=np.bool)
 
+    is_val = np.ones(n_frg, dtype=np.bool)
     if vp_crd is not None:
+        assert reads.shape[1] - 1 == len(vp_crd)
         is_val = is_val & ~ hasOL(vp_crd, reads[:, 1:], offset=0)
     if roi_crd is not None:
+        assert reads.shape[1] - 1 == len(roi_crd)
         is_val = is_val & hasOL(roi_crd, reads[:, 1:], offset=0)
     reads_roi = reads[is_val, :].copy()
 
@@ -414,23 +416,28 @@ def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
     return reads_roi
 
 
-def get_nreads_per_bin(reads, bin_bnd=None, n_bin=None, region_boundary=None):
-    # only read IDs and coordinates are needed, fragmets are assumed to be from cis chromosome only
-    # Reads format should be [ReadID, StartCrd, EndCrd]
-    assert reads.shape[1] == 3
+def get_nreads_per_bin(reads, bin_crd=None, n_bin=None, boundary=None, min_n_frg=None):
+    # Reads format: ReadID, Chr, StartCrd, EndCrd
+    # Bin format: Chr, StartCrd, EndCrd
+    assert reads.shape[1] == 4
+
+    if min_n_frg is not None:
+        assert len(boundary) == 3
+        reads = limit_to_roi(reads, vp_crd=None, roi_crd=boundary, min_n_frg=min_n_frg)
 
     if n_bin is not None:
-        edge_lst = np.linspace(region_boundary[0], region_boundary[1], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
-        bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-        # bin_bnd[-1, 1] = region_boundary[1]
+        edge_lst = np.linspace(boundary[1], boundary[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
+        bin_crd = np.hstack([np.repeat(boundary[0], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
     else:
-        n_bin = bin_bnd.shape[0]
+        n_bin = bin_crd.shape[0]
+    assert bin_crd.shape[1] == 3
+    n_read = len(np.unique(reads[:, 0]))
 
     # looping over bins
     bin_cvg = np.zeros(n_bin, dtype=np.int)
     for bi in range(n_bin):
-        is_in = hasOL(bin_bnd[bi, :], reads[:, 1:3])
+        is_in = hasOL(bin_crd[bi, :], reads[:, 1:4])
         bin_cvg[bi] = len(np.unique(reads[is_in, 0]))
 
-    return bin_cvg
+    return bin_cvg, n_read
 
