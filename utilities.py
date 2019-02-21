@@ -370,7 +370,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         if min_mq > 0:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
         if valid_only:
-            is_val = np.bitwise_and(part_pd['Flag'], 1) == 0
+            is_val = np.bitwise_and(part_pd['ErrFlag'], 1) == 0  ###
             part_pd = part_pd.loc[is_val, :]
 
         # Adjust Read IDs
@@ -412,3 +412,25 @@ def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
         reads_roi = reads_roi[read_size >= min_n_frg, :]
 
     return reads_roi
+
+
+def get_nreads_per_bin(reads, bin_bnd=None, n_bin=None, region_boundary=None):
+    # only read IDs and coordinates are needed, fragmets are assumed to be from cis chromosome only
+    # Reads format should be [ReadID, StartCrd, EndCrd]
+    assert reads.shape[1] == 3
+
+    if n_bin is not None:
+        edge_lst = np.linspace(region_boundary[0], region_boundary[1], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
+        bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+        # bin_bnd[-1, 1] = region_boundary[1]
+    else:
+        n_bin = bin_bnd.shape[0]
+
+    # looping over bins
+    bin_cvg = np.zeros(n_bin, dtype=np.int)
+    for bi in range(n_bin):
+        is_in = hasOL(bin_bnd[bi, :], reads[:, 1:3])
+        bin_cvg[bi] = len(np.unique(reads[is_in, 0]))
+
+    return bin_cvg
+
