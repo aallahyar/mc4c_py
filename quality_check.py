@@ -1,11 +1,11 @@
 import numpy as np
+import platform
+if platform.system() == 'Linux':
+    import matplotlib
+    matplotlib.use('Agg')
 
 
 def plot_readSizeDistribution(configs):
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
     from matplotlib import pyplot as plt
     import pysam
 
@@ -68,10 +68,6 @@ def plot_frg_size_distribution(configs):
     import numpy as np
     import gzip
     from os import path
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
     from matplotlib import pyplot as plt
 
     from utilities import load_mc4c, get_chr_info, get_re_info
@@ -208,10 +204,6 @@ def plot_frg_size_distribution(configs):
 def plot_chrCvg(configs):
     import numpy as np
     import gzip
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
     from matplotlib import pyplot as plt
 
     from utilities import load_mc4c, get_chr_info
@@ -283,10 +275,6 @@ def plot_chrCvg(configs):
 
 
 def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
     from matplotlib import pyplot as plt, cm
 
     from utilities import accum_array, load_mc4c
@@ -384,10 +372,6 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
 
 
 def plot_overallProfile(configs, min_n_frg=2):
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
     from matplotlib import pyplot as plt, patches
 
     from utilities import hasOL, load_mc4c, load_annotation

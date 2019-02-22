@@ -1,5 +1,6 @@
 #!/bin/bash
 # run: ./mc4c_cluster.sh $cfg_name $n_thread
+# run all: for fn in ./configs/*.cfg; do cfg=`basename $fn`; ./mc4c_cluster.sh ${cfg:4:-4} 6; done
 
 #set -x
 pid=$$
@@ -38,7 +39,8 @@ echo "submitting jobs for plotting statistics"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-CirSDistA -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py QC cirSizeDist ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-CirSDistR -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py QC cirSizeDist ${cfg_name} --roi-only --uniq-only"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py QC overallProfile ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-VpSoiPr   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis vpSoi ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-OptSOI    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py QC findOptimalROI ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_07-VpSoiPr   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis vpSoi ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_07-atMat     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 mc4c.py analysis atMat ${cfg_name}"
 fi
 

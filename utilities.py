@@ -370,7 +370,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         if min_mq > 0:
             part_pd = part_pd.loc[part_pd['MQ'] >= min_mq]
         if valid_only:
-            is_val = np.bitwise_and(part_pd['ErrFlag'], 1) == 0  ###
+            is_val = np.bitwise_and(part_pd['Flag'], 1) == 0
             part_pd = part_pd.loc[is_val, :]
 
         # Adjust Read IDs

@@ -28,7 +28,7 @@ def load_data(config_lst, vp_crd, roi_crd):
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
 
     # filtering reads according to their MQ
-    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ErrFlag']  ###
+    header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']
     read_all = mc4c_pd[header_lst].values
     is_mapped = read_all[:, 4] >= min_mq
     is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
