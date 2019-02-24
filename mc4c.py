@@ -1,5 +1,15 @@
 #! /usr/bin/env python
 
+# cluster run example:
+# qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"
+# downloader: aria2c -x 4 -s 4 --file-allocation=none URL
+
+# fragment flag
+# desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:
+
+# TODO: Use frequent k-mers to check primer sequences
+# TODO: Check if a dup_set of reads share a second fragment in ROI
+
 import argparse
 import sys
 from os import path, makedirs, environ
@@ -260,12 +270,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# cluster run example:
-# qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"
-
-# fragment flag
-# desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:
-
-# TODO: Use frequent k-mers to check primer sequences
-# TODO: Check if a dup_set of reads share a second fragment in ROI

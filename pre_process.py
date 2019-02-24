@@ -11,13 +11,14 @@ def remove_duplicates_by_umi(umi_set):
 
     # sort trans-fragments according to #duplicates
     frg_umi = frg_umi[np.lexsort([-frg_umi[:, -1]]), :]
+    n_umi = frg_umi.shape[0]
     # np.savetxt('/Users/aallahyar/Downloads/python.txt', frg_umi, delimiter='\t', fmt='%0.0f')
 
     # loop over trans fragments
     umi_idx = 0
     duplicate_info = []
-    print 'Scanning for duplicated UMIs:'
-    while umi_idx < frg_umi.shape[0]:
+    print 'Scanning {:,d} UMIs for duplicates:'.format(n_umi)
+    while umi_idx < n_umi:
         if umi_idx % 1000 == 0:
             print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(umi_set[:, 0])))
@@ -251,7 +252,8 @@ def processMappedFragments(args):
     idx_lft = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
     idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='left')
     vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
-    assert idx_lft + 1 == idx_rgt, 'Can not map primer positions on a single fragment.'
+    if idx_lft + 1 == idx_rgt:
+        print '[w] Can not map primer positions on a single fragment.'
 
     # define fragment headers
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
