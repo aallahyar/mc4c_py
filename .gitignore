@@ -7,5 +7,5 @@ datasets/
 reads/
 renzs/
 bams/
-configs/
+#configs/
 plots/
