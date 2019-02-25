@@ -47,30 +47,30 @@ def perform_qc(args):
     from utilities import load_configs
 
     # load config files
-    configs = load_configs(args.config_file, max_n_configs=1)[0]
+    config_lst = load_configs(args.config_file)
 
     if args.output_file is None:
-        configs['output_dir'] = './plots/'
+        config_lst[0]['output_dir'] = './plots/'
     else:
-        configs['output_dir'] = path.dirname(args.output_file)
-    if not path.isdir(configs['output_dir']):
-        makedirs(configs['output_dir'])
-    configs['input_file'] = args.input_file
-    configs['output_file'] = args.output_file
+        config_lst[0]['output_dir'] = path.dirname(args.output_file)
+    if not path.isdir(config_lst[0]['output_dir']):
+        makedirs(config_lst[0]['output_dir'])
+    config_lst[0]['input_file'] = args.input_file
+    config_lst[0]['output_file'] = args.output_file
 
     # call the requested function
     if args.report_type == 'readSizeDist':
-        quality_check.plot_readSizeDistribution(configs)
+        quality_check.plot_readSizeDistribution(config_lst[0])
     elif args.report_type == 'frgSizeDist':
-        quality_check.plot_frg_size_distribution(configs)
+        quality_check.plot_frg_size_distribution(config_lst[0])
     elif args.report_type == 'chrCvg':
-        quality_check.plot_chrCvg(configs)
+        quality_check.plot_chrCvg(config_lst[0])
     elif args.report_type == 'cirSizeDist':
-        quality_check.plot_cirSizeDistribution(configs, roi_only=args.roi_only, uniq_only=args.uniq_only)
+        quality_check.plot_cirSizeDistribution(config_lst[0], roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        quality_check.plot_overallProfile(configs, min_n_frg=2)
+        quality_check.plot_overallProfile(config_lst[0], min_n_frg=2)
     elif args.report_type == 'findOptimalROI':
-        quality_check.find_optimal_roi(configs)
+        quality_check.find_optimal_roi(config_lst)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -255,7 +255,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2,WPL-KOD']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']

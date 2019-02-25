@@ -456,7 +456,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
+def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     import pandas as pd
     from matplotlib import pyplot as plt
     from scipy.stats import spearmanr
@@ -466,8 +466,10 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
 
     # initialization
     print '%% Finding optimal ROI by analysing local coverage ...'
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = './plots/plt_OptimalROI_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = './plots/plt_OptimalROI_' + run_id + '.pdf'
     vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
     blk_w = 30000
@@ -482,7 +484,7 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
 
     # load dataset
-    mc4c_pd = load_mc4c(configs, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
+    mc4c_pd = load_mc4c(config_lst, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd']
     read_all = mc4c_pd[header_lst].values
     del mc4c_pd
@@ -491,6 +493,8 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     read_m1c = read_all[read_all[:, 1] == configs['vp_cnum'], :].copy()
     read_size = np.bincount(read_m1c[:, 0], minlength=np.max(read_m1c[:, 0]) + 1)[read_m1c[:, 0]]
     read_m1c = read_all[np.isin(read_all[:, 0], read_m1c[read_size >= 2, 0]), :].copy()
+    cvg_m1c, n_m1c = get_nreads_per_bin(read_m1c[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    nrm_m1c = pd.Series(cvg_m1c * 1e2 / n_m1c).rolling(5).mean().values
     del read_size
 
     # follow default approach
@@ -552,7 +556,7 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.figure(figsize=(25, 5))
     ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
     ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
-    plt_h = [None] * 3
+    plt_h = [None] * 4
 
     # plot correlations
     plt_h[0] = ax_crr.plot(prf_def * 1e2 / n_def, prf_trs * 1e2 / n_trs, 'o', color='gray')
@@ -579,9 +583,10 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_prf.text(roi_crd[1], y_lim[1] * 0.9, '{:,d}> '.format(roi_crd[1]), horizontalalignment='right', color='#9c9c9c')
     ax_prf.text(roi_crd[2], y_lim[1] * 0.9, ' <{:,d}'.format(roi_crd[2]), horizontalalignment='left', color='#9c9c9c')
 
-    plt_h[0] = ax_prf.plot(blk_cen, nrm_def, '-.', color='black')[0]
-    plt_h[1] = ax_prf.plot(blk_cen, nrm_trs, ':',  color='gray')[0]
-    plt_h[2] = ax_prf.plot(blk_cen, nrm_adj, '-',  color='#2462ff', alpha=0.9)[0]
+    plt_h[0] = ax_prf.plot(blk_cen, nrm_m1c, '-.', color='gray')[0]
+    plt_h[1] = ax_prf.plot(blk_cen, nrm_def, '-.', color='black')[0]
+    plt_h[2] = ax_prf.plot(blk_cen, nrm_trs, ':',  color='orange')[0]
+    plt_h[3] = ax_prf.plot(blk_cen, nrm_adj, '-',  color='#2462ff', alpha=0.9)[0]
 
     ax_prf.set_xlim(x_lim)
     ax_prf.set_ylim(y_lim)
@@ -590,12 +595,13 @@ def find_optimal_roi(configs, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (% of reads)')
     ax_prf.legend(plt_h, [
+        '>1c reads (n={:0.0f})'.format(n_m1c),
         'Default (n={:0.0f})'.format(n_def),
         'Trans only (n={:0.0f})'.format(n_trs),
         'Adjusted (n={:0.0f})'.format(n_adj)
     ])
 
-    plt.title('{:s}\n'.format(configs['run_id']) +
+    plt.title('{:s}\n'.format(run_id) +
               '#block={:d}, block_w={:0.0f}k\n'.format(n_blk, blk_w / 1e3) +
               'bin-w (def, adjusted): {:0,.0f}bp; {:0,.0f}bp'.format(bin_w, bin_w_adj))
     plt.savefig(configs['output_file'], bbox_inches='tight')
