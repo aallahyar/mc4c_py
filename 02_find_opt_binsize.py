@@ -8,9 +8,9 @@ from analysis import compute_mc_associations
 
 # initialization
 cnf_name = 'BMaj-test'
-n_bin_lst = np.arange(50, 100, 40, dtype=np.int)
-n_param = len(n_bin_lst)
-n_perm = 1000
+option_lst = np.arange(50, 500, 50, dtype=np.int)
+n_option = len(option_lst)
+n_perm = 100
 pos_ratio = 0.1
 n_ant = 10
 
@@ -18,11 +18,8 @@ n_ant = 10
 config_lst = load_configs(cnf_name)
 configs = config_lst[0]
 roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
-roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
+roi_cen = np.mean([configs['vp_start'], configs['vp_end']], dtype=np.int)
 run_id = ','.join([config['run_id'] for config in config_lst])
-
-# get chromosome info
-chr_size = get_chr_info(genome_str=configs['genome_build'], property='chr_size')
 
 # load dataset
 mc4c_pd = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
@@ -31,8 +28,8 @@ read_all = mc4c_pd[header_lst].values
 del mc4c_pd
 
 # loop over bin sets
-fp_freq = np.zeros([n_perm, n_param], dtype=np.int)
-for size_idx, n_bin in enumerate(n_bin_lst):
+fp_freq = np.zeros([n_perm, n_option], dtype=np.int)
+for opt_idx, n_bin in enumerate(option_lst):
 
     # define bins and vp area
     edge_lst = np.linspace(roi_crd[1], roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
@@ -42,8 +39,7 @@ for size_idx, n_bin in enumerate(n_bin_lst):
     print 'Checking {:d} bins of {:d}bp size'.format(n_bin, bin_w)
 
     # get informative reads
-    has_inf = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
-    reads = read_all[np.isin(read_all[:, 0], has_inf[:, 0]), :].copy()
+    reads = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
     reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
     n_read = len(np.unique(reads[:, 0]))
 
@@ -69,15 +65,18 @@ for size_idx, n_bin in enumerate(n_bin_lst):
     reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
     reads_ids = np.unique(reads[:, 0])
     n_read = len(reads_ids)
+    print 'Total {:,d} informative reads available.'.format(n_read)
 
+    # iterate over random selection
+    n_rnd = int(n_read * pos_ratio)
+    if n_rnd < 100:
+        print '[w] Only {:d} reads will be selected for positive set. Result might be unreliable.'.format(n_rnd)
+    np.seterr(all='ignore')
     for pi in range(n_perm):
         showprogress(pi, n_perm)
 
         # random selection
-        n_rnd = int(n_read * pos_ratio * 2)
-        rnd_ids = np.random.choice(reads_ids, n_rnd, replace=False)
-        pos_ids = rnd_ids[:n_rnd]
-        read_pos = read_all[np.isin(read_all[:, 0], pos_ids), :]
+        pos_ids = np.random.choice(reads_ids, n_rnd, replace=False)
 
         # define random annotations
         rnd_cen = np.random.randint(roi_crd[1], roi_crd[2], size=[1000, 1])
@@ -89,14 +88,13 @@ for size_idx, n_bin in enumerate(n_bin_lst):
         ant_crd = ant_crd[:n_ant]
 
         # compute scores
-        ant_obs, soi_rnd, frg_pos = compute_mc_associations(read_pos, [], ant_crd[:, 1:3], n_perm=10, pos_ids=pos_ids)[:3]
+        ant_obs, soi_rnd, frg_pos = compute_mc_associations(reads, [], ant_crd[:, 1:3], n_perm=100, pos_ids=pos_ids)[:3]
         ant_exp = np.mean(soi_rnd, axis=0)
         ant_std = np.std(soi_rnd, axis=0, ddof=0)
-        np.seterr(all='ignore')
         ant_scr = np.divide(ant_obs - ant_exp, ant_std)
-        np.seterr(all=None)
 
-        fp_freq[pi, size_idx] = np.sum(np.abs(ant_scr) > 4)
+        fp_freq[pi, opt_idx] = np.sum(np.abs(ant_scr) > 4)
+    np.seterr(all=None)
 
 # plotting
 plt.figure(figsize=(7, 8))
@@ -106,18 +104,18 @@ plt_h = [None] * 1
 # plot correlations
 fp_avg = np.mean(fp_freq, axis=0)
 fp_std = np.std(fp_freq, axis=0)
-x_tick_idx = range(n_param)
+x_tick_idx = range(n_option)
 plt_h[0] = ax_fpr.plot(x_tick_idx, fp_avg, color='gray')[0]
 ax_fpr.fill_between(x_tick_idx, fp_avg - fp_std, fp_avg + fp_std, color='#ebebeb', linewidth=0.2)
 
-ax_fpr.set_xlim([0, n_param])
+ax_fpr.set_xlim([-1, n_option])
 # ax_fpr.set_ylim([0, n_param])
 ax_fpr.set_xlabel('Default ROI')
 ax_fpr.set_ylabel('Trans / Adjusted ROI')
 ax_fpr.set_title('ROI coverage Spearman correlations')
 ax_fpr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
 
-x_tick_label = ['{:d}bp'.format(item) for item in n_bin_lst]
+x_tick_label = ['{:d}bp'.format(item) for item in option_lst]
 plt.xticks(x_tick_idx, x_tick_label, rotation=20)
 plt.ylabel('Frequency of False Positives (% of tests)')
 # ax_fpr.legend(plt_h, [
