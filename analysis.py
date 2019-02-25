@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True):
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None, verbose=True):
     from utilities import hasOL, flatten
 
     # initialization
@@ -19,7 +19,12 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True
         cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
 
     # select positive/negative circles
-    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
+    if pos_ids is not None:
+        assert len(pos_crd) == 0
+        is_pos = np.isin(frg_inf[:, 0], pos_ids)
+    else:
+        assert pos_ids is None
+        is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
     frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]

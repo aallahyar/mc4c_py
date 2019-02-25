@@ -242,7 +242,7 @@ def main():
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
     if 'FROM_PYCHARM' in environ:
-        Warning('We are in the PyCharm!')
+        Warning('This script is being run interactively!')
         # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
@@ -255,8 +255,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2,WPL-KOD']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2,WPL-KOD']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_C']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']

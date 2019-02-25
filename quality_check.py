@@ -472,6 +472,8 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
         configs['output_file'] = './plots/plt_OptimalROI_' + run_id + '.pdf'
     vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
     roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
+    roi_w = configs['roi_end'] - configs['roi_start']
     blk_w = 30000
     n_bin = 200
 
@@ -484,6 +486,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
 
     # load dataset
+    # TODO: Duplicates within each dataset should be removed using Trans reads
     mc4c_pd = load_mc4c(config_lst, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd']
     read_all = mc4c_pd[header_lst].values
@@ -493,16 +496,26 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     read_m1c = read_all[read_all[:, 1] == configs['vp_cnum'], :].copy()
     read_size = np.bincount(read_m1c[:, 0], minlength=np.max(read_m1c[:, 0]) + 1)[read_m1c[:, 0]]
     read_m1c = read_all[np.isin(read_all[:, 0], read_m1c[read_size >= 2, 0]), :].copy()
-    cvg_m1c, n_m1c = get_nreads_per_bin(read_m1c[:, :4], bin_crd=blk_crd, min_n_frg=2)
-    nrm_m1c = pd.Series(cvg_m1c * 1e2 / n_m1c).rolling(5).mean().values
     del read_size
+
+    # use 5mb around
+    roi_5mb_crd = np.array([configs['vp_cnum'], roi_cen - 2e6, roi_cen + 2e6], dtype=np.int)
+    is_5mb = limit_to_roi(read_m1c[:, :4], vp_crd=vp_crd, roi_crd=roi_5mb_crd, min_n_frg=2)
+    read_5mb = read_all[np.isin(read_all[:, 0], is_5mb[:, 0]), :].copy()
+    del is_5mb
+    roi_w_5mb = roi_5mb_crd[2] - roi_5mb_crd[1]
+    lcl_5mb = np.array([configs['vp_cnum'], roi_cen - roi_w_5mb, roi_cen + roi_w_5mb], dtype=np.int)
+    is_lcl = hasOL(lcl_5mb, read_5mb[:, 1:4], offset=0)
+    umi_5mb = read_5mb[~is_lcl, :].copy()
+    unq_set = remove_duplicates_by_umi(umi_5mb)[0]
+    is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
+    pcr_5mb = read_all[is_unq, :].copy()
 
     # follow default approach
     is_inf = limit_to_roi(read_m1c[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
     read_inf = read_all[np.isin(read_all[:, 0], is_inf[:, 0]), :].copy()
     del is_inf
 
-    roi_w = configs['roi_end'] - configs['roi_start']
     lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_w, configs['roi_end'] + roi_w])
     is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
     umi_def = read_inf[~is_lcl, :].copy()
@@ -517,8 +530,14 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     pcr_trs = read_all[is_unq, :].copy()
 
     # compute coverage over chromosome
+    cvg_m1c, n_m1c = get_nreads_per_bin(read_m1c[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    cvg_5al, n_5al = get_nreads_per_bin(read_5mb[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    cvg_5mb, n_5mb = get_nreads_per_bin(pcr_5mb[:, :4], bin_crd=blk_crd, min_n_frg=2)
     cvg_def, n_def = get_nreads_per_bin(pcr_def[:, :4], bin_crd=blk_crd, min_n_frg=2)
     cvg_trs, n_trs = get_nreads_per_bin(pcr_trs[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    nrm_m1c = pd.Series(cvg_m1c * 1e2 / n_m1c).rolling(5).mean().values
+    nrm_5al = pd.Series(cvg_5al * 1e2 / n_5al).rolling(5).mean().values
+    nrm_5mb = pd.Series(cvg_5mb * 1e2 / n_5mb).rolling(5).mean().values
     nrm_def = pd.Series(cvg_def * 1e2 / n_def).rolling(5).mean().values
     nrm_trs = pd.Series(cvg_trs * 1e2 / n_trs).rolling(5).mean().values
 
@@ -527,7 +546,6 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     adj_crd = np.array([configs['vp_cnum'], blk_crd[cvd_idx[0], 1], blk_crd[cvd_idx[-1], 2]])
     edge_lst_adj = np.linspace(adj_crd[1], adj_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
     bin_w_adj = edge_lst_adj[1, 0] - edge_lst_adj[0, 0]
-    roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
     vp_crd_adj = np.array([configs['vp_cnum'], roi_cen - int(bin_w_adj * 1.5), roi_cen + int(bin_w_adj * 1.5)])
 
     # use adjusted area to compute duplicates
@@ -549,6 +567,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
     bin_w = bin_crd[0, 2] - bin_crd[0, 1]
     prf_def, n_def = get_nreads_per_bin(pcr_def[:, :4], bin_crd=bin_crd, min_n_frg=2)
+    prf_5mb, n_5mb = get_nreads_per_bin(pcr_5mb[:, :4], bin_crd=bin_crd, min_n_frg=2)
     prf_trs, n_trs = get_nreads_per_bin(pcr_trs[:, :4], bin_crd=bin_crd, min_n_frg=2)
     prf_adj, n_adj = get_nreads_per_bin(pcr_adj[:, :4], bin_crd=bin_crd, min_n_frg=2)
 
@@ -556,11 +575,12 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.figure(figsize=(25, 5))
     ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
     ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
-    plt_h = [None] * 4
+    plt_h = [None] * 6
 
     # plot correlations
-    plt_h[0] = ax_crr.plot(prf_def * 1e2 / n_def, prf_trs * 1e2 / n_trs, 'o', color='gray')
-    plt_h[1] = ax_crr.plot(prf_def * 1e2 / n_def, prf_adj * 1e2 / n_adj, 'x', color='blue')
+    plt_h[0] = ax_crr.plot(prf_def * 1e2 / n_def, prf_trs * 1e2 / n_trs, 'o', color='gray')[0]
+    plt_h[1] = ax_crr.plot(prf_def * 1e2 / n_def, prf_adj * 1e2 / n_adj, 'x', color='blue')[0]
+    plt_h[2] = ax_crr.plot(prf_def * 1e2 / n_def, prf_5mb * 1e2 / n_5mb, 'x', color='green')[0]
     ax_crr.set_xlim([0, 10])
     ax_crr.set_ylim([0, 10])
     ax_crr.set_xlabel('Default ROI')
@@ -568,7 +588,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_crr.set_title('ROI coverage Spearman correlations\n' +
                      'def-UMI vs. trs-UMI: {:0.5f}\n'.format(spearmanr(prf_def, prf_trs).correlation) +
                      'def-UMI vs. adj-UMI: {:0.5f}'.format(spearmanr(prf_def, prf_adj).correlation))
-    ax_crr.legend(plt_h[:2], ['Default vs Trans profile', 'Default vs. Adjusted profile'])
+    ax_crr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
 
     # plot roi profiles
     x_lim = [configs['roi_start'] - roi_w * 2, configs['roi_end'] + roi_w * 2]
@@ -584,9 +604,11 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_prf.text(roi_crd[2], y_lim[1] * 0.9, ' <{:,d}'.format(roi_crd[2]), horizontalalignment='left', color='#9c9c9c')
 
     plt_h[0] = ax_prf.plot(blk_cen, nrm_m1c, '-.', color='gray')[0]
-    plt_h[1] = ax_prf.plot(blk_cen, nrm_def, '-.', color='black')[0]
-    plt_h[2] = ax_prf.plot(blk_cen, nrm_trs, ':',  color='orange')[0]
-    plt_h[3] = ax_prf.plot(blk_cen, nrm_adj, '-',  color='#2462ff', alpha=0.9)[0]
+    plt_h[1] = ax_prf.plot(blk_cen, nrm_5al, '--', color='#feb8fa')[0]
+    plt_h[2] = ax_prf.plot(blk_cen, nrm_5mb, '-.', color='#fd30ef')[0]
+    plt_h[3] = ax_prf.plot(blk_cen, nrm_def, '-.', color='black')[0]
+    plt_h[4] = ax_prf.plot(blk_cen, nrm_trs, ':',  color='orange')[0]
+    plt_h[5] = ax_prf.plot(blk_cen, nrm_adj, '-',  color='#2462ff', alpha=0.9)[0]
 
     ax_prf.set_xlim(x_lim)
     ax_prf.set_ylim(y_lim)
@@ -596,6 +618,8 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.ylabel('Frequency (% of reads)')
     ax_prf.legend(plt_h, [
         '>1c reads (n={:0.0f})'.format(n_m1c),
+        '5al reads (n={:0.0f})'.format(n_5al),
+        '5mb reads (n={:0.0f})'.format(n_5mb),
         'Default (n={:0.0f})'.format(n_def),
         'Trans only (n={:0.0f})'.format(n_trs),
         'Adjusted (n={:0.0f})'.format(n_adj)
