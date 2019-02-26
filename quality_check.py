@@ -469,10 +469,10 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = './plots/plt_OptimalROI_' + run_id + '.pdf'
+        configs['output_file'] = './plots/plt_FindROI_' + run_id + '.pdf'
     def_vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
     def_roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
-    def_roi_cen = np.mean([configs['vp_start'], configs['vp_end']])
+    def_roi_cen = int(np.mean([configs['vp_start'], configs['vp_end']]))
     def_roi_w = configs['roi_end'] - configs['roi_start']
     blk_w = 30000
     n_bin = 200
@@ -496,15 +496,19 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
         mc4c_part = load_mc4c(cfg, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
         read_prt = mc4c_part[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
 
-        # use default approach
+        # use default approach, use >1 roi-frg
         has_inf = limit_to_roi(read_prt[:, :4], vp_crd=def_vp_crd, roi_crd=def_roi_crd, min_n_frg=2)
         def_read_inf = read_prt[np.isin(read_prt[:, 0], has_inf[:, 0]), :].copy()
         def_umi_set = def_read_inf[def_read_inf[:, 1] != configs['vp_cnum'], :].copy()
-        def_uid = remove_duplicates_by_umi(def_umi_set)[0]
-        def_pcr_prt = read_prt[np.isin(read_prt[:, 0], def_uid[:, 0]), :].copy()
+        has_uid = remove_duplicates_by_umi(def_umi_set)[0]
+        def_pcr_prt = read_prt[np.isin(read_prt[:, 0], has_uid[:, 0]), :].copy()
+        del has_inf, has_uid
 
-        # select >1 cis
-        adj_read_m1c = read_prt[read_prt[:, 1] == configs['vp_cnum'], :].copy()
+        # select >1 cis-frg
+        trs_vp_crd = np.array([configs['vp_cnum'], def_roi_cen - 5000, def_roi_cen + 5000])
+        is_cis = read_prt[:, 1] == configs['vp_cnum']
+        is_vp = hasOL(trs_vp_crd, read_prt[:, 1:4])
+        adj_read_m1c = read_prt[~is_vp & is_cis, :].copy()
         read_size = np.bincount(adj_read_m1c[:, 0], minlength=np.max(adj_read_m1c[:, 0]) + 1)[adj_read_m1c[:, 0]]
         adj_read_m1c = read_prt[np.isin(read_prt[:, 0], adj_read_m1c[read_size >= 2, 0]), :].copy()
         del read_size
@@ -564,7 +568,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.figure(figsize=(25, 5))
     ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
     ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
-    plt_h = [None] * 6
+    plt_h = [None] * 3
 
     # plot correlations
     plt_h[0] = ax_crr.plot(def_prf * 1e2 / n_def, trs_prf * 1e2 / n_trs, 'x', color='#ffad14')[0]
@@ -576,7 +580,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_crr.set_title('ROI coverage Spearman correlations\n' +
                      'def-UMI vs. trs-UMI: {:0.5f}\n'.format(spearmanr(def_prf, trs_prf).correlation) +
                      'def-UMI vs. adj-UMI: {:0.5f}'.format(spearmanr(def_prf, adj_prf).correlation))
-    ax_crr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '4MB'])
+    ax_crr.legend(plt_h[:2], ['Default vs Trans profile', 'Default vs. Adjusted profile'])
 
     # plot roi profiles
     x_lim = [configs['roi_start'] - def_roi_w * 2, configs['roi_end'] + def_roi_w * 2]
