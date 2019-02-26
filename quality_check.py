@@ -524,10 +524,32 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     pcr_def = read_all[is_unq, :].copy()
 
     # use trans-umi only
-    umi_trs = read_m1c[read_m1c[:, 1] != configs['vp_cnum'], :].copy()
-    unq_set = remove_duplicates_by_umi(umi_trs)[0]
-    is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
-    pcr_trs = read_all[is_unq, :].copy()
+    read_cmb = np.empty([0, 4], dtype=np.int)
+    unq_set = np.empty([0, 4], dtype=np.int)
+    MAX_N_CIR = 10000000
+    for idx, cfg in enumerate(config_lst):
+
+        # load raw data
+        mc4c_part = load_mc4c(cfg, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
+        read_prt = mc4c_part[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+
+        # select >1 cis
+        prt_m1c = read_prt[read_prt[:, 1] == configs['vp_cnum'], :].copy()
+        read_size = np.bincount(prt_m1c[:, 0], minlength=np.max(prt_m1c[:, 0]) + 1)[prt_m1c[:, 0]]
+        prt_m1c = read_prt[np.isin(read_prt[:, 0], prt_m1c[read_size >= 2, 0]), :].copy()
+        del read_size
+
+        # add run specific identifier
+        assert len(np.unique(read_cmb[:, 0])) < MAX_N_CIR
+        prt_m1c[:, 0] = prt_m1c[:, 0] + (idx + 1) * MAX_N_CIR
+        read_cmb = np.vstack([read_cmb, prt_m1c])
+
+        prt_umi = prt_m1c[prt_m1c[:, 1] != configs['vp_cnum'], :].copy()
+        unq_prt = remove_duplicates_by_umi(prt_umi)[0]
+        unq_set = np.vstack([unq_set, unq_prt])
+
+    is_unq = np.isin(read_cmb[:, 0], unq_set[:, 0])
+    pcr_trs = read_cmb[is_unq, :].copy()
 
     # compute coverage over chromosome
     cvg_m1c, n_m1c = get_nreads_per_bin(read_m1c[:, :4], bin_crd=blk_crd, min_n_frg=2)
@@ -588,7 +610,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_crr.set_title('ROI coverage Spearman correlations\n' +
                      'def-UMI vs. trs-UMI: {:0.5f}\n'.format(spearmanr(prf_def, prf_trs).correlation) +
                      'def-UMI vs. adj-UMI: {:0.5f}'.format(spearmanr(prf_def, prf_adj).correlation))
-    ax_crr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
+    ax_crr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '4MB'])
 
     # plot roi profiles
     x_lim = [configs['roi_start'] - roi_w * 2, configs['roi_end'] + roi_w * 2]

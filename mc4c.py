@@ -4,6 +4,10 @@
 # qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"
 # downloader: aria2c -x 4 -s 4 --file-allocation=none URL
 
+# compress raw: tar -czf ESCs-V122-PM.tar.gz ./deLaatUDNHiC5Pro3
+# check integrity: tar -tzf my_tar.tar.gz > /dev/null
+# combine fasq: cat *.fastq | gzip > ../../ESCs-V121-PM.fastq.gz
+
 # fragment flag
 # desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:
 
@@ -255,10 +259,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2,WPL-KOD']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa11-96x,NPC-PCDHa4-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_C']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']

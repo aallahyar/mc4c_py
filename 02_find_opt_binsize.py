@@ -7,7 +7,8 @@ from utilities import load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_p
 from analysis import compute_mc_associations
 
 # initialization
-cnf_name = 'BMaj-test'
+# cnf_name = 'BMaj-test'
+cnf_name = 'LVR-BMaj-96x'
 option_lst = np.arange(50, 500, 50, dtype=np.int)
 n_option = len(option_lst)
 n_perm = 100
@@ -29,14 +30,14 @@ del mc4c_pd
 
 # loop over bin sets
 fp_freq = np.zeros([n_perm, n_option], dtype=np.int)
+bin_w = np.zeros(n_option, dtype=np.int)
 for opt_idx, n_bin in enumerate(option_lst):
 
     # define bins and vp area
     edge_lst = np.linspace(roi_crd[1], roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
-    bin_w = edge_lst[1, 0] - edge_lst[0, 0]
+    bin_w[opt_idx] = edge_lst[1, 0] - edge_lst[0, 0]
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w * 1.5), roi_cen + int(bin_w * 1.5)])
-    print 'Checking {:d} bins of {:d}bp size'.format(n_bin, bin_w)
+    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w[opt_idx] * 1.5), roi_cen + int(bin_w[opt_idx] * 1.5)])
 
     # get informative reads
     reads = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
@@ -59,19 +60,17 @@ for opt_idx, n_bin in enumerate(option_lst):
             valid_lst.append(rd_nid)
     reads = reads[np.isin(reads[:, 0], valid_lst), :]
 
-    # downsample and re-index
-    # rnd_rid = np.random.choice(np.unique(frg_inf[:, 0]), 8618, replace=False)  ### random selection
-    # frg_inf = frg_inf[np.isin(frg_inf[:, 0], rnd_rid), :]
+    # re-index reads
     reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
     reads_ids = np.unique(reads[:, 0])
     n_read = len(reads_ids)
-    print 'Total {:,d} informative reads available.'.format(n_read)
 
     # iterate over random selection
     n_rnd = int(n_read * pos_ratio)
     if n_rnd < 100:
         print '[w] Only {:d} reads will be selected for positive set. Result might be unreliable.'.format(n_rnd)
-    np.seterr(all='ignore')
+    print '[#bin, bin-width, #informative, #pos: {:5d}, {:5d}bp, {:8,d}]'.format(n_bin, bin_w[opt_idx], n_read, n_rnd),
+    # np.seterr(all='ignore')
     for pi in range(n_perm):
         showprogress(pi, n_perm)
 
@@ -81,7 +80,8 @@ for opt_idx, n_bin in enumerate(option_lst):
         # define random annotations
         rnd_cen = np.random.randint(roi_crd[1], roi_crd[2], size=[1000, 1])
         ant_crd = np.hstack([np.repeat(configs['vp_cnum'], 1000).reshape(-1, 1),
-                             rnd_cen - int(bin_w * 1.5), rnd_cen + int(bin_w * 1.5)])
+                             rnd_cen - int(bin_w[opt_idx] * 1.5),
+                             rnd_cen + int(bin_w[opt_idx] * 1.5)])
         is_vp_adj = hasOL(vp_crd, ant_crd, offset=20e3)
         ant_crd = ant_crd[~is_vp_adj, :]
         assert ant_crd.shape > n_ant, 'Can not find non-overlaping SOIs'
@@ -94,7 +94,7 @@ for opt_idx, n_bin in enumerate(option_lst):
         ant_scr = np.divide(ant_obs - ant_exp, ant_std)
 
         fp_freq[pi, opt_idx] = np.sum(np.abs(ant_scr) > 4)
-    np.seterr(all=None)
+    # np.seterr(all=None)
 
 # plotting
 plt.figure(figsize=(7, 8))
@@ -115,8 +115,8 @@ ax_fpr.set_ylabel('Trans / Adjusted ROI')
 ax_fpr.set_title('ROI coverage Spearman correlations')
 ax_fpr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
 
-x_tick_label = ['{:d}bp'.format(item) for item in option_lst]
-plt.xticks(x_tick_idx, x_tick_label, rotation=20)
+x_tick_label = ['#{:d}\n{:d}bp'.format(bin_w[i], option_lst[i]) for i in range(n_option)]
+plt.xticks(x_tick_idx, x_tick_label, rotation=0)
 plt.ylabel('Frequency of False Positives (% of tests)')
 # ax_fpr.legend(plt_h, [
 #     '>1c reads (n=)'.format(),
