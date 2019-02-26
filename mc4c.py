@@ -260,10 +260,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC,WPL-KOD2']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa11-96x,NPC-PCDHa4-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa11-96x,NPC-PCDHa4-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BRN-BMaj-96x,BRN-BMaj-96x2,LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
