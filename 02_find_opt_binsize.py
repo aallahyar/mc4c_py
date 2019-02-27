@@ -83,9 +83,10 @@ for oi, n_bin in enumerate(n_bin_lst):
         cls_prf = np.zeros([n_cls, n_bin], dtype=np.int)
         cls_nrm = np.zeros([n_cls, n_bin], dtype=np.float)
         n_sel = np.zeros(n_cls, dtype=np.int)
-        for ci, read_sel in enumerate(read_set):
-            cls_prf[ci, :], n_sel[ci] = get_nreads_per_bin(read_sel[:, :4], bin_crd=bin_crd, min_n_frg=2)
-            cls_nrm[ci, :] = pd.Series(cls_prf[ci, :] * 1e2 / n_sel[ci]).rolling(5, center=True).mean().values
+        with np.errstate(divide='ignore', invalid='ignore'):
+            for ci, read_sel in enumerate(read_set):
+                cls_prf[ci, :], n_sel[ci] = get_nreads_per_bin(read_sel[:, :4], bin_crd=bin_crd, min_n_frg=2)
+                cls_nrm[ci, :] = pd.Series(cls_prf[ci, :] * 1e2 / n_sel[ci]).rolling(5, center=True).mean().values
 
         # check if coverage is enough
         if any(n_sel < 100):
@@ -119,13 +120,16 @@ for oi, n_bin in enumerate(n_bin_lst):
     size_score[oi, :] = np.nanmean(bin_scr.T, axis=0)
 
 # plotting the scores
-plt.figure(figsize=(7, 7))
+plt.figure(figsize=(8, 7))
+plt_h = [None] * n_option
 for oi in range(n_option):
-    plt.plot(size_score[oi, 1], size_score[oi, 0], '*')
+    plt_h[oi] = plt.plot(size_score[oi, 1], size_score[oi, 0], '*')[0]
     plt.text(size_score[oi, 1], size_score[oi, 0], ' #{:d}'.format(n_bin_lst[oi]),
              horizontalalignment='left', verticalalignment='center')
 plt.xlabel('Inter SOI correlation')
 plt.ylabel('Intra SOI correlation')
+plt.legend(plt_h, ['#bin={:d}, bin-w={:d}, #test={:d}'.format(n_bin_lst[oi], bin_w[oi], size_n_test[oi])
+                   for oi in range(n_option)])
 plt.title('Coverage correlation Inter vs. Intera SOIs\n{:s}'.format(run_id))
 plt.savefig('./plots/plt_OptimalBinW_' + run_id + '.pdf', bbox_inches='tight')
 
