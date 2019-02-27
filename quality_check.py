@@ -456,12 +456,12 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
+def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     import pandas as pd
     from matplotlib import pyplot as plt
     from scipy.stats import spearmanr
 
-    from utilities import load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_per_bin
+    from utilities import load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_per_bin, load_annotation
     from pre_process import remove_duplicates_by_umi
 
     # initialization
@@ -489,7 +489,7 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     read_all = np.empty([0, 4], dtype=np.int)
     def_pcr = np.empty([0, 4], dtype=np.int)
     trs_pcr = np.empty([0, 4], dtype=np.int)
-    MAX_N_CIR = 10000000
+    max_n_read = 10000000
     for idx, cfg in enumerate(config_lst):
 
         # load raw data
@@ -508,25 +508,26 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
         trs_vp_crd = np.array([configs['vp_cnum'], def_roi_cen - 5000, def_roi_cen + 5000])
         is_cis = read_prt[:, 1] == configs['vp_cnum']
         is_vp = hasOL(trs_vp_crd, read_prt[:, 1:4])
-        adj_read_m1c = read_prt[~is_vp & is_cis, :].copy()
-        read_size = np.bincount(adj_read_m1c[:, 0], minlength=np.max(adj_read_m1c[:, 0]) + 1)[adj_read_m1c[:, 0]]
-        adj_read_m1c = read_prt[np.isin(read_prt[:, 0], adj_read_m1c[read_size >= 2, 0]), :].copy()
+        trs_read_m1c = read_prt[~is_vp & is_cis, :].copy()
+        read_size = np.bincount(trs_read_m1c[:, 0], minlength=np.max(trs_read_m1c[:, 0]) + 1)[trs_read_m1c[:, 0]]
+        trs_read_m1c = read_prt[np.isin(read_prt[:, 0], trs_read_m1c[read_size >= 2, 0]), :].copy()
         del read_size
 
         # select and process UMIs
-        adj_umi_set = adj_read_m1c[adj_read_m1c[:, 1] != configs['vp_cnum'], :].copy()
-        adj_uid = remove_duplicates_by_umi(adj_umi_set)[0]
-        adj_pcr_prt = read_prt[np.isin(read_prt[:, 0], adj_uid[:, 0]), :].copy()
+        trs_umi_set = trs_read_m1c[trs_read_m1c[:, 1] != configs['vp_cnum'], :].copy()
+        trs_uid = remove_duplicates_by_umi(trs_umi_set)[0]
+        trs_pcr_prt = read_prt[np.isin(read_prt[:, 0], trs_uid[:, 0]), :].copy()
 
         # add data specific identifiers
-        def_pcr_prt[:, 0] = def_pcr_prt[:, 0] + (idx + 1) * MAX_N_CIR
-        adj_pcr_prt[:, 0] = adj_pcr_prt[:, 0] + (idx + 1) * MAX_N_CIR
-        read_prt[:, 0] = read_prt[:, 0] + (idx + 1) * MAX_N_CIR
+        assert np.max(read_prt[:, 0]) < max_n_read
+        def_pcr_prt[:, 0] = def_pcr_prt[:, 0] + (idx + 1) * max_n_read
+        trs_pcr_prt[:, 0] = trs_pcr_prt[:, 0] + (idx + 1) * max_n_read
+        read_prt[:, 0] = read_prt[:, 0] + (idx + 1) * max_n_read
 
         # appending
         read_all = np.vstack([read_all, read_prt])
         def_pcr = np.vstack([def_pcr, def_pcr_prt])
-        trs_pcr = np.vstack([trs_pcr, adj_pcr_prt])
+        trs_pcr = np.vstack([trs_pcr, trs_pcr_prt])
 
     # compute coverage over chromosome
     def_cvg, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
@@ -546,8 +547,8 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     has_inf = limit_to_roi(read_all[:, :4], vp_crd=adj_vp_crd, roi_crd=adj_roi_crd, min_n_frg=2)
     adj_read_inf = read_all[np.isin(read_all[:, 0], has_inf[:, 0]), :].copy()
     adj_lcl_crd = [adj_roi_crd[0], adj_roi_crd[1] - adj_roi_w, adj_roi_crd[2] + adj_roi_w]
-    is_adj = hasOL(adj_lcl_crd, adj_read_inf[:, 1:4], offset=0)
-    adj_umi = adj_read_inf[~is_adj, :].copy()
+    is_lcl = hasOL(adj_lcl_crd, adj_read_inf[:, 1:4], offset=0)
+    adj_umi = adj_read_inf[~is_lcl, :].copy()
     adj_uid = remove_duplicates_by_umi(adj_umi)[0]
     is_adj = np.isin(adj_read_inf[:, 0], adj_uid[:, 0])
     adj_pcr = adj_read_inf[is_adj, :].copy()
@@ -568,13 +569,15 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     plt.figure(figsize=(25, 5))
     ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
     ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
-    plt_h = [None] * 3
+    plt_h = [None] * 4
+    x_lim = [configs['roi_start'] - def_roi_w * 2, configs['roi_end'] + def_roi_w * 2]
+    y_lim = [0, 10]
 
     # plot correlations
     plt_h[0] = ax_crr.plot(def_prf * 1e2 / n_def, trs_prf * 1e2 / n_trs, 'x', color='#ffad14')[0]
-    plt_h[1] = ax_crr.plot(def_prf * 1e2 / n_def, adj_prf * 1e2 / n_adj, 'x', color='#2e2eff')[0]
-    ax_crr.set_xlim([0, 10])
-    ax_crr.set_ylim([0, 10])
+    plt_h[1] = ax_crr.plot(def_prf * 1e2 / n_def, adj_prf * 1e2 / n_adj, 'o', color='#2e2eff')[0]
+    ax_crr.set_xlim(y_lim)
+    ax_crr.set_ylim(y_lim)
     ax_crr.set_xlabel('Default ROI')
     ax_crr.set_ylabel('Trans / Adjusted ROI')
     ax_crr.set_title('ROI coverage Spearman correlations\n' +
@@ -583,21 +586,29 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_crr.legend(plt_h[:2], ['Default vs Trans profile', 'Default vs. Adjusted profile'])
 
     # plot roi profiles
-    x_lim = [configs['roi_start'] - def_roi_w * 2, configs['roi_end'] + def_roi_w * 2]
-    y_lim = [0, 10]
-    ax_prf.plot([def_roi_crd[1], def_roi_crd[1]], y_lim, color='#9c9c9c')
-    ax_prf.plot([def_roi_crd[2], def_roi_crd[2]], y_lim, color='#9c9c9c')
+    ax_prf.plot([def_roi_crd[1], def_roi_crd[1]], y_lim, color='#bcbcbc')
+    ax_prf.plot([def_roi_crd[2], def_roi_crd[2]], y_lim, color='#bcbcbc')
     ax_prf.plot([adj_roi_crd[1], adj_roi_crd[1]], y_lim, color='#a3d1ff')
     ax_prf.plot([adj_roi_crd[2], adj_roi_crd[2]], y_lim, color='#a3d1ff')
-    ax_prf.plot([x_lim[0], x_lim[1]], [min_cvg, min_cvg], '--', color='#ff8f8f')
     ax_prf.text(def_roi_crd[1], y_lim[1] * 0.9, '{:,d}> '.format(def_roi_crd[1]), horizontalalignment='right', color='#9c9c9c')
     ax_prf.text(def_roi_crd[2], y_lim[1] * 0.9, ' <{:,d}'.format(def_roi_crd[2]), horizontalalignment='left', color='#9c9c9c')
     ax_prf.text(adj_roi_crd[1], y_lim[1] * 0.8, '{:,d}> '.format(adj_roi_crd[1]), horizontalalignment='right', color='#52a8ff')
     ax_prf.text(adj_roi_crd[2], y_lim[1] * 0.8, ' <{:,d}'.format(adj_roi_crd[2]), horizontalalignment='left', color='#52a8ff')
 
-    plt_h[0] = ax_prf.plot(blk_cen, def_nrm, '--', color='#000000')[0]
+    plt_h[0] = ax_prf.plot(blk_cen, def_nrm, '--', color='#777777')[0]
     plt_h[1] = ax_prf.plot(blk_cen, trs_nrm, ':',  color='#ffad14')[0]
     plt_h[2] = ax_prf.plot(blk_cen, adj_nrm, '-',  color='#2e2eff')[0]
+
+    # add annotations
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum']] + x_lim)
+    for ai in range(ant_pd.shape[0]):
+        ant_pos = ant_pd.loc[ai, 'ant_pos']
+        if (ai == 0) or (np.abs(ant_pd.loc[ai - 1, 'ant_pos'] - ant_pos) > def_roi_w / 50.0):
+            ax_prf.text(ant_pos, y_lim[0], ' ' + ant_pd.loc[ai, 'ant_name'],
+                        horizontalalignment='center', verticalalignment='bottom', rotation=90, fontsize=6)
+        ax_prf.plot([ant_pos, ant_pos], [y_lim[0] + y_lim[1] * 0.05, y_lim[1]],
+                    ':', color='#bfbfbf', linewidth=1, alpha=0.3)
+    plt_h[3] = ax_prf.plot([x_lim[0], x_lim[1]], [min_cvg, min_cvg], '--', color='#ff8f8f')[0]
 
     ax_prf.set_xlim(x_lim)
     ax_prf.set_ylim(y_lim)
@@ -608,7 +619,8 @@ def find_optimal_roi(config_lst, set_optimal_roi=False, min_cvg=2, min_mq=20):
     ax_prf.legend(plt_h, [
         'Default (n={:0.0f})'.format(n_def),
         'Trans only (n={:0.0f})'.format(n_trs),
-        'Adjusted (n={:0.0f})'.format(n_adj)
+        'Adjusted (n={:0.0f})'.format(n_adj),
+        'Coverage threshold ({:0.1f}%)'.format(min_cvg)
     ])
 
     plt.title('{:s}\n'.format(run_id) +

@@ -251,7 +251,7 @@ def load_annotation(genome_str, roi_crd=None):
                 (ant_pd['ant_pos'] <= roi_crd[2])
         ant_pd = ant_pd.loc[is_in]
 
-    return ant_pd
+    return ant_pd.reset_index(drop=True)
 
 
 def load_configs(input_fname, max_n_configs=None):
