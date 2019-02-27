@@ -2,19 +2,15 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr
-from utilities import showprogress
 
-from utilities import load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_per_bin, load_configs, flatten
-from analysis import compute_mc_associations
+from utilities import load_mc4c, limit_to_roi, hasOL, get_nreads_per_bin, load_configs, flatten
 
 # initialization
+np.set_printoptions(linewidth=180, threshold=5000)
 # cnf_name = 'BMaj-test'
 cnf_name = 'LVR-BMaj-96x'
 n_bin_lst = np.arange(50, 500, 50, dtype=np.int)
 n_option = len(n_bin_lst)
-n_perm = 100
-pos_ratio = 0.1
-n_ant = 10
 
 # get configs
 config_lst = load_configs(cnf_name)
@@ -30,16 +26,18 @@ read_all = mc4c_pd[header_lst].values
 del mc4c_pd
 
 # loop over bin sets
-fp_freq = np.zeros([n_perm, n_option], dtype=np.int)
 bin_w = np.zeros(n_option, dtype=np.int)
-for opt_idx, n_bin in enumerate(n_bin_lst):
+size_score = np.zeros([n_option, 2])
+size_n_test = np.zeros(n_option, dtype=np.int)
+for oi, n_bin in enumerate(n_bin_lst):
 
     # define bins and vp area
     edge_lst = np.linspace(roi_crd[1], roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
-    bin_w[opt_idx] = edge_lst[1, 0] - edge_lst[0, 0]
+    bin_w[oi] = edge_lst[1, 0] - edge_lst[0, 0]
     bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_crd[:, 1:], axis=1, dtype=np.int)
-    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w[opt_idx] * 1.5), roi_cen + int(bin_w[opt_idx] * 1.5)])
+    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w[oi] * 1.5), roi_cen + int(bin_w[oi] * 1.5)])
+    print 'Computing scores for #bin={:d}, bin-w={:0.0f}bp ...'.format(n_bin, bin_w[oi])
 
     # get informative reads
     reads = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
@@ -68,97 +66,66 @@ for opt_idx, n_bin in enumerate(n_bin_lst):
     n_read = len(reads_ids)
 
     # iterate over each bin
-    n_cls = 5
+    cls_name = ['Out left', 'In Left', 'Center', 'In right', 'Out right']
+    cls_clr = ['#ed0202', '#fe9f9f', '#02b66b', '#62f8fd', '#2202f2']
+    n_cls = len(cls_name)
+    bin_scr = np.zeros([2, n_bin])
     for bi in range(2, n_bin - 2):
 
-        # define coordinate set
-        crd_set = np.array([bin_crd[bi, :],
-                            bin_crd[bi - 1, :],
-                            bin_crd[bi - 2, :],
-                            bin_crd[bi + 1, :],
-                            bin_crd[bi + 2, :]
-                            ])
-
         # select reads
+        cls_crd = bin_crd[[bi - 2, bi - 1, bi, bi + 1, bi + 2], :]
         read_set = [None] * n_cls
         for ci in range(n_cls):
-            is_in = hasOL(crd_set[ci, :], reads[:, 1:4])
+            is_in = hasOL(cls_crd[ci, :], reads[:, 1:4])
             read_set[ci] = reads[np.isin(reads[:, 0], reads[is_in, 0]), :].copy()
 
         # compute coverage profile
-        plt.figure(figsize=(25, 5))
-        plt_h = [None] * n_cls
-        prf = np.zeros([n_cls, n_bin])
-        n_sel = np.zeros(n_cls)
-        for set_idx, read_sel in enumerate(read_set):
-            prf[set_idx, :], n_sel[set_idx] = get_nreads_per_bin(read_sel[:, :4], bin_crd=bin_crd, min_n_frg=2)
-            nrm = pd.Series(prf[set_idx, :] * 1e2 / n_sel[set_idx]).rolling(5, center=True).mean().values
+        cls_prf = np.zeros([n_cls, n_bin], dtype=np.int)
+        cls_nrm = np.zeros([n_cls, n_bin], dtype=np.float)
+        n_sel = np.zeros(n_cls, dtype=np.int)
+        for ci, read_sel in enumerate(read_set):
+            cls_prf[ci, :], n_sel[ci] = get_nreads_per_bin(read_sel[:, :4], bin_crd=bin_crd, min_n_frg=2)
+            cls_nrm[ci, :] = pd.Series(cls_prf[ci, :] * 1e2 / n_sel[ci]).rolling(5, center=True).mean().values
 
-            plt_h[set_idx] = plt.plot(bin_cen, nrm)[0]
-        plt.legend(plt_h, ['Center', 'In Left', 'Out left', 'In right', 'Out right'])
+        # check if coverage is enough
+        if any(n_sel < 100):
+            continue
+        size_n_test[oi] += 1
 
-        # final
-        plt.show()
-        pass
+        # removing bin selection effect
+        cls_feat = cls_nrm.copy()
+        is_unk = hasOL([np.min(cls_crd[:, 1:]) - 5000, np.max(cls_crd[:, 1:]) + 5000], bin_crd[:, 1:])
+        cls_feat[:, is_unk] = 0
+        cls_feat[np.isnan(cls_feat)] = 0
 
-    # iterate over random selection
-    n_rnd = int(n_read * pos_ratio)
-    if n_rnd < 100:
-        print '[w] Only {:d} reads will be selected for positive set. Result might be unreliable.'.format(n_rnd)
-    print '[#bin, bin-width, #informative, #pos: {:5d}, {:5d}bp, {:8,d}]'.format(n_bin, bin_w[opt_idx], n_read, n_rnd),
-    # np.seterr(all='ignore')
-    for pi in range(n_perm):
-        showprogress(pi, n_perm)
+        # compute spr-correations
+        crr_mat = spearmanr(cls_feat.T, nan_policy='omit').correlation
+        bin_scr[0, bi] = np.mean(crr_mat[2, [1, 3]])
+        bin_scr[1, bi] = np.mean(crr_mat[2, [0, 4]])
 
-        # random selection
-        pos_ids = np.random.choice(reads_ids, n_rnd, replace=False)
+        # plotting features
+        # plt.figure(figsize=(20, 4))
+        # plt_h = [None] * n_cls
+        # for ci in range(n_cls):
+        # plt_h[ci] = plt.plot(bin_cen, cls_nrm[ci, :], color=cls_clr[ci])[0]
+        # plt_h[ci] = plt.plot(bin_cen, cls_feat[ci, :], color=cls_clr[ci])[0]
+        # plt.legend(plt_h, ['{:s} (n={:0.0f})'.format(cls_name[i], n_sel[i]) for i in range(n_cls)])
+        # plt.xlim(roi_crd[1:])
+        # plt.ylim([0, 10])
+        # plt.show()
+    print '\t{:d} bins are ignored due to lack of coverage (i.e. #read < 100).'.format(n_bin_lst[oi] - size_n_test[oi])
 
-        # define random annotations
-        rnd_cen = np.random.randint(roi_crd[1], roi_crd[2], size=[1000, 1])
-        ant_crd = np.hstack([np.repeat(configs['vp_cnum'], 1000).reshape(-1, 1),
-                             rnd_cen - int(bin_w[opt_idx] * 1.5),
-                             rnd_cen + int(bin_w[opt_idx] * 1.5)])
-        is_vp_adj = hasOL(vp_crd, ant_crd, offset=20e3)
-        ant_crd = ant_crd[~is_vp_adj, :]
-        assert ant_crd.shape > n_ant, 'Can not find non-overlaping SOIs'
-        ant_crd = ant_crd[:n_ant]
+    # merge scores
+    size_score[oi, :] = np.nanmean(bin_scr.T, axis=0)
 
-        # compute scores
-        ant_obs, soi_rnd, frg_pos = compute_mc_associations(reads, [], ant_crd[:, 1:3], n_perm=100, pos_ids=pos_ids)[:3]
-        ant_exp = np.mean(soi_rnd, axis=0)
-        ant_std = np.std(soi_rnd, axis=0, ddof=0)
-        ant_scr = np.divide(ant_obs - ant_exp, ant_std)
-
-        fp_freq[pi, opt_idx] = np.sum(np.abs(ant_scr) > 4)
-    # np.seterr(all=None)
-
-# plotting
-plt.figure(figsize=(7, 8))
-ax_fpr = plt.subplot2grid((1, 1), (0, 0), rowspan=1, colspan=1)
-plt_h = [None] * 1
-
-# plot correlations
-fp_avg = np.mean(fp_freq, axis=0)
-fp_std = np.std(fp_freq, axis=0)
-x_tick_idx = range(n_option)
-plt_h[0] = ax_fpr.plot(x_tick_idx, fp_avg, color='gray')[0]
-ax_fpr.fill_between(x_tick_idx, fp_avg - fp_std, fp_avg + fp_std, color='#ebebeb', linewidth=0.2)
-
-ax_fpr.set_xlim([-1, n_option])
-# ax_fpr.set_ylim([0, n_param])
-ax_fpr.set_xlabel('Default ROI')
-ax_fpr.set_ylabel('Trans / Adjusted ROI')
-ax_fpr.set_title('ROI coverage Spearman correlations')
-ax_fpr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
-
-x_tick_label = ['#{:d}\n{:d}bp'.format(bin_w[i], n_bin_lst[i]) for i in range(n_option)]
-plt.xticks(x_tick_idx, x_tick_label, rotation=0)
-plt.ylabel('Frequency of False Positives (% of tests)')
-# ax_fpr.legend(plt_h, [
-#     '>1c reads (n=)'.format(),
-#     '5al reads (n=)'.format(),
-# ])
-
-plt.title('{:s}\n'.format(run_id))
+# plotting the scores
+plt.figure(figsize=(7, 7))
+for oi in range(n_option):
+    plt.plot(size_score[oi, 1], size_score[oi, 0], '*')
+    plt.text(size_score[oi, 1], size_score[oi, 0], ' #{:d}'.format(n_bin_lst[oi]),
+             horizontalalignment='left', verticalalignment='center')
+plt.xlabel('Inter SOI correlation')
+plt.ylabel('Intra SOI correlation')
+plt.title('Coverage correlation Inter vs. Intera SOIs\n{:s}'.format(run_id))
 plt.savefig('./plots/plt_OptimalBinW_' + run_id + '.pdf', bbox_inches='tight')
 

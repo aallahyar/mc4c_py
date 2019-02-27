@@ -400,6 +400,8 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
     # Reads format: ReadID, Chr, StartCrd, EndCrd
     n_frg = reads.shape[0]
+    if n_frg == 0:
+        return np.empty([0, 4])
 
     is_val = np.ones(n_frg, dtype=np.bool)
     if vp_crd is not None:
