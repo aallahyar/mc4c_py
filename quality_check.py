@@ -580,8 +580,8 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     y_lim = [0, 10]
 
     # plot correlations
-    plt_h[0] = ax_crr.plot(def_prf * 1e2 / n_def, trs_prf * 1e2 / n_trs, 'x', color='#ffad14')[0]
-    plt_h[1] = ax_crr.plot(def_prf * 1e2 / n_def, adj_prf * 1e2 / n_adj, 'o', color='#2e2eff')[0]
+    plt_h[0] = ax_crr.plot(def_prf * 1e2 / n_def, trs_prf * 1e2 / n_trs, 'x', color='#ffad14', alpha=0.9)[0]
+    plt_h[1] = ax_crr.plot(def_prf * 1e2 / n_def, adj_prf * 1e2 / n_adj, 'o', color='#2e2eff', alpha=0.5, markeredgecolor='None')[0]
     ax_crr.set_xlim(y_lim)
     ax_crr.set_ylim(y_lim)
     ax_crr.set_xlabel('Default ROI')

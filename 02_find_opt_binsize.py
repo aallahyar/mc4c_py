@@ -9,21 +9,51 @@ from utilities import load_mc4c, limit_to_roi, hasOL, get_nreads_per_bin, load_c
 np.set_printoptions(linewidth=180, threshold=5000)
 # cnf_name = 'BMaj-test'
 cnf_name = 'LVR-BMaj-96x'
+# cnf_name = '3T3-BMaj-96x,3T3-HS5-96x,BRN-BMaj-96x,BRN-BMaj-96x2,BRN-HS2-96x,BRN-HS2-NP,BRN-HS5-96x,LVR-BMaj-96x,LVR-BMaj-NP,LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2,LVR-HS3-96x,LVR-HS3-NP,LVR-HS5-96x,LVR-HS5-NP'
 n_bin_lst = np.arange(50, 500, 50, dtype=np.int)
 n_option = len(n_bin_lst)
+cls_name = ['Out left', 'In Left', 'Center', 'In right', 'Out right']
+cls_clr = ['#ed0202', '#fe9f9f', '#02b66b', '#62f8fd', '#2202f2']
+n_cls = len(cls_name)
+show_plot = False
+max_n_read = 10000000
 
 # get configs
 config_lst = load_configs(cnf_name)
 configs = config_lst[0]
 roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
-roi_cen = np.mean([configs['vp_start'], configs['vp_end']], dtype=np.int)
 run_id = ','.join([config['run_id'] for config in config_lst])
 
 # load dataset
-mc4c_pd = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
 header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd']
-read_all = mc4c_pd[header_lst].values
-del mc4c_pd
+read_all = np.empty([0, 4], dtype=np.int)
+for cfg_idx, cfg in enumerate(config_lst):
+    if cfg_idx > 0:
+        assert cfg['vp_cnum'] == config_lst[0]['vp_cnum']
+        assert cfg['roi_start'] == config_lst[0]['roi_start']
+        assert cfg['roi_end'] == config_lst[0]['roi_end']
+
+    print 'Loading {:s}'.format(cfg['run_id'])
+    mc4c_prt = load_mc4c(cfg, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    read_prt = mc4c_prt[header_lst].values
+    del mc4c_prt
+
+    # limit fragments to roi
+    roi_cen = np.mean([cfg['vp_start'], cfg['vp_end']], dtype=np.int)
+    vp_crd = np.array([cfg['vp_cnum'], roi_cen - 5000, roi_cen + 5000])
+    read_roi = limit_to_roi(read_prt[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
+
+    # re-index reads
+    read_roi[:, 0] = np.unique(read_roi[:, 0], return_inverse=True)[1] + 1
+    n_read_prt = len(np.unique(read_roi[:, 0]))
+
+    # add run specific read ids
+    assert n_read_prt < max_n_read
+    read_roi[:, 0] = read_roi[:, 0] + (cfg_idx + 1) * max_n_read
+
+    # appending to total reads
+    read_all = np.vstack([read_all, read_roi.copy()])
+    del read_prt
 
 # loop over bin sets
 bin_w = np.zeros(n_option, dtype=np.int)
@@ -31,18 +61,17 @@ size_score = np.zeros([n_option, 2])
 size_n_test = np.zeros(n_option, dtype=np.int)
 for oi, n_bin in enumerate(n_bin_lst):
 
-    # define bins and vp area
+    # get untouched collection of reads
+    reads = read_all.copy()
+    reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
+    n_read = len(np.unique(reads[:, 0]))
+
+    # define bins
     edge_lst = np.linspace(roi_crd[1], roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
     bin_w[oi] = edge_lst[1, 0] - edge_lst[0, 0]
     bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_crd[:, 1:], axis=1, dtype=np.int)
-    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w[oi] * 1.5), roi_cen + int(bin_w[oi] * 1.5)])
     print 'Computing scores for #bin={:d}, bin-w={:0.0f}bp ...'.format(n_bin, bin_w[oi])
-
-    # get informative reads
-    reads = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=2)
-    reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
-    n_read = len(np.unique(reads[:, 0]))
 
     # convert fragments to bin-coverage
     cfb_lst = [list() for i in range(n_read + 1)]
@@ -62,18 +91,14 @@ for oi, n_bin in enumerate(n_bin_lst):
 
     # re-index reads
     reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
-    reads_ids = np.unique(reads[:, 0])
-    n_read = len(reads_ids)
+    n_read = len(np.unique(reads[:, 0]))
 
     # iterate over each bin
-    cls_name = ['Out left', 'In Left', 'Center', 'In right', 'Out right']
-    cls_clr = ['#ed0202', '#fe9f9f', '#02b66b', '#62f8fd', '#2202f2']
-    n_cls = len(cls_name)
-    bin_scr = np.zeros([2, n_bin])
+    bin_scr = np.full([2, n_bin], fill_value=np.nan)
     for bi in range(2, n_bin - 2):
 
         # select reads
-        cls_crd = bin_crd[[bi - 2, bi - 1, bi, bi + 1, bi + 2], :]
+        cls_crd = bin_crd[bi - 2:bi + 3, :]
         read_set = [None] * n_cls
         for ci in range(n_cls):
             is_in = hasOL(cls_crd[ci, :], reads[:, 1:4])
@@ -105,19 +130,21 @@ for oi, n_bin in enumerate(n_bin_lst):
         bin_scr[1, bi] = np.mean(crr_mat[2, [0, 4]])
 
         # plotting features
-        # plt.figure(figsize=(20, 4))
-        # plt_h = [None] * n_cls
-        # for ci in range(n_cls):
-        # plt_h[ci] = plt.plot(bin_cen, cls_nrm[ci, :], color=cls_clr[ci])[0]
-        # plt_h[ci] = plt.plot(bin_cen, cls_feat[ci, :], color=cls_clr[ci])[0]
-        # plt.legend(plt_h, ['{:s} (n={:0.0f})'.format(cls_name[i], n_sel[i]) for i in range(n_cls)])
-        # plt.xlim(roi_crd[1:])
-        # plt.ylim([0, 10])
-        # plt.show()
-    print '\t{:d} bins are ignored due to lack of coverage (i.e. #read < 100).'.format(n_bin_lst[oi] - size_n_test[oi])
+        if show_plot:
+            plt.figure(figsize=(20, 4))
+            plt_h = [None] * n_cls
+            for ci in range(n_cls):
+                # plt_h[ci] = plt.plot(bin_cen, cls_nrm[ci, :], color=cls_clr[ci])[0]
+                plt_h[ci] = plt.plot(bin_cen, cls_feat[ci, :], color=cls_clr[ci])[0]
+            plt.legend(plt_h, ['{:s} (n={:0.0f})'.format(cls_name[i], n_sel[i]) for i in range(n_cls)])
+            plt.xlim(roi_crd[1:])
+            plt.ylim([0, 10])
+            plt.show()
+    if n_bin_lst[oi] != size_n_test[oi]:
+        print '\t{:d} bins are ignored due to lack of coverage (i.e. #read < 100).'.format(n_bin_lst[oi] - size_n_test[oi])
 
     # merge scores
-    size_score[oi, :] = np.nanmean(bin_scr.T, axis=0)
+    size_score[oi, :] = np.nanmedian(bin_scr.T, axis=0)
 
 # plotting the scores
 plt.figure(figsize=(8, 7))
