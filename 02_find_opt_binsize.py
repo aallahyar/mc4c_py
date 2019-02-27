@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr
 from utilities import showprogress
@@ -9,8 +10,8 @@ from analysis import compute_mc_associations
 # initialization
 # cnf_name = 'BMaj-test'
 cnf_name = 'LVR-BMaj-96x'
-option_lst = np.arange(50, 500, 50, dtype=np.int)
-n_option = len(option_lst)
+n_bin_lst = np.arange(50, 500, 50, dtype=np.int)
+n_option = len(n_bin_lst)
 n_perm = 100
 pos_ratio = 0.1
 n_ant = 10
@@ -31,12 +32,13 @@ del mc4c_pd
 # loop over bin sets
 fp_freq = np.zeros([n_perm, n_option], dtype=np.int)
 bin_w = np.zeros(n_option, dtype=np.int)
-for opt_idx, n_bin in enumerate(option_lst):
+for opt_idx, n_bin in enumerate(n_bin_lst):
 
     # define bins and vp area
     edge_lst = np.linspace(roi_crd[1], roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
     bin_w[opt_idx] = edge_lst[1, 0] - edge_lst[0, 0]
-    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+    bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
+    bin_cen = np.mean(bin_crd[:, 1:], axis=1, dtype=np.int)
     vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w[opt_idx] * 1.5), roi_cen + int(bin_w[opt_idx] * 1.5)])
 
     # get informative reads
@@ -48,7 +50,7 @@ for opt_idx, n_bin in enumerate(option_lst):
     cfb_lst = [list() for i in range(n_read + 1)]
     n_frg = reads.shape[0]
     for fi in range(n_frg):
-        bin_idx = np.where(hasOL(reads[fi, 2:4], bin_bnd))[0]
+        bin_idx = np.where(hasOL(reads[fi, 1:4], bin_crd))[0]
         cfb_lst[reads[fi, 0]].append(bin_idx.tolist())
 
     # filter circles for (>1 bin cvg)
@@ -64,6 +66,40 @@ for opt_idx, n_bin in enumerate(option_lst):
     reads[:, 0] = np.unique(reads[:, 0], return_inverse=True)[1] + 1
     reads_ids = np.unique(reads[:, 0])
     n_read = len(reads_ids)
+
+    # iterate over each bin
+    n_cls = 5
+    for bi in range(2, n_bin - 2):
+
+        # define coordinate set
+        crd_set = np.array([bin_crd[bi, :],
+                            bin_crd[bi - 1, :],
+                            bin_crd[bi - 2, :],
+                            bin_crd[bi + 1, :],
+                            bin_crd[bi + 2, :]
+                            ])
+
+        # select reads
+        read_set = [None] * n_cls
+        for ci in range(n_cls):
+            is_in = hasOL(crd_set[ci, :], reads[:, 1:4])
+            read_set[ci] = reads[np.isin(reads[:, 0], reads[is_in, 0]), :].copy()
+
+        # compute coverage profile
+        plt.figure(figsize=(25, 5))
+        plt_h = [None] * n_cls
+        prf = np.zeros([n_cls, n_bin])
+        n_sel = np.zeros(n_cls)
+        for set_idx, read_sel in enumerate(read_set):
+            prf[set_idx, :], n_sel[set_idx] = get_nreads_per_bin(read_sel[:, :4], bin_crd=bin_crd, min_n_frg=2)
+            nrm = pd.Series(prf[set_idx, :] * 1e2 / n_sel[set_idx]).rolling(5, center=True).mean().values
+
+            plt_h[set_idx] = plt.plot(bin_cen, nrm)[0]
+        plt.legend(plt_h, ['Center', 'In Left', 'Out left', 'In right', 'Out right'])
+
+        # final
+        plt.show()
+        pass
 
     # iterate over random selection
     n_rnd = int(n_read * pos_ratio)
@@ -115,7 +151,7 @@ ax_fpr.set_ylabel('Trans / Adjusted ROI')
 ax_fpr.set_title('ROI coverage Spearman correlations')
 ax_fpr.legend(plt_h[:3], ['Default vs Trans profile', 'Default vs. Adjusted profile', '5MB'])
 
-x_tick_label = ['#{:d}\n{:d}bp'.format(bin_w[i], option_lst[i]) for i in range(n_option)]
+x_tick_label = ['#{:d}\n{:d}bp'.format(bin_w[i], n_bin_lst[i]) for i in range(n_option)]
 plt.xticks(x_tick_idx, x_tick_label, rotation=0)
 plt.ylabel('Frequency of False Positives (% of tests)')
 # ax_fpr.legend(plt_h, [

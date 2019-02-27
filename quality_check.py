@@ -469,7 +469,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = './plots/plt_FindROI_' + run_id + '.pdf'
+        configs['output_file'] = './plots/plt_FindROIbyCoverage_' + run_id + '.pdf'
     def_vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
     def_roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
     def_roi_cen = int(np.mean([configs['vp_start'], configs['vp_end']]))
@@ -536,8 +536,8 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     # compute coverage over chromosome
     def_cvg, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
     trs_cvg, n_trs = get_nreads_per_bin(trs_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
-    def_nrm = pd.Series(def_cvg * 1e2 / n_def).rolling(5).mean().values
-    trs_nrm = pd.Series(trs_cvg * 1e2 / n_trs).rolling(5).mean().values
+    def_nrm = pd.Series(def_cvg * 1e2 / n_def).rolling(5, center=True).mean().values
+    trs_nrm = pd.Series(trs_cvg * 1e2 / n_trs).rolling(5, center=True).mean().values
 
     # select highly covered region
     np.seterr(all='ignore')
@@ -561,7 +561,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
 
     # compute coverage over chromosome using adjusted region
     adj_cvg, n_adj = get_nreads_per_bin(adj_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
-    adj_nrm = pd.Series(adj_cvg * 1e2 / n_adj).rolling(5).mean().values
+    adj_nrm = pd.Series(adj_cvg * 1e2 / n_adj).rolling(5, center=True).mean().values
 
     # compute roi profiles
     def_edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
