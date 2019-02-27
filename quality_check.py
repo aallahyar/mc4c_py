@@ -486,6 +486,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
 
     # use raw reads and extract UMIs
+    print '[i] Extracting UMIs from each dataset ...'
     read_all = np.empty([0, 4], dtype=np.int)
     def_pcr = np.empty([0, 4], dtype=np.int)
     trs_pcr = np.empty([0, 4], dtype=np.int)
@@ -493,7 +494,8 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     for idx, cfg in enumerate(config_lst):
 
         # load raw data
-        mc4c_part = load_mc4c(cfg, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
+        print('Loading all reads from {:s} ...'.format(cfg['run_id']))
+        mc4c_part = load_mc4c(cfg, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=False)
         read_prt = mc4c_part[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
 
         # use default approach, use >1 roi-frg
@@ -503,6 +505,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
         has_uid = remove_duplicates_by_umi(def_umi_set)[0]
         def_pcr_prt = read_prt[np.isin(read_prt[:, 0], has_uid[:, 0]), :].copy()
         del has_inf, has_uid
+        print '\t{:,d} unique reads are added using [far-cis + trans] UMIs.'.format(len(np.unique(def_pcr_prt[:, 0])))
 
         # select >1 cis-frg
         trs_vp_crd = np.array([configs['vp_cnum'], def_roi_cen - 5000, def_roi_cen + 5000])
@@ -517,6 +520,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
         trs_umi_set = trs_read_m1c[trs_read_m1c[:, 1] != configs['vp_cnum'], :].copy()
         trs_uid = remove_duplicates_by_umi(trs_umi_set)[0]
         trs_pcr_prt = read_prt[np.isin(read_prt[:, 0], trs_uid[:, 0]), :].copy()
+        print '\t{:,d} unique reads are added using [trans only] UMIs.'.format(len(np.unique(trs_pcr_prt[:, 0])))
 
         # add data specific identifiers
         assert np.max(read_prt[:, 0]) < max_n_read
@@ -536,7 +540,9 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     trs_nrm = pd.Series(trs_cvg * 1e2 / n_trs).rolling(5).mean().values
 
     # select highly covered region
+    np.seterr(all='ignore')
     cvd_idx = np.where(trs_nrm > min_cvg)[0]
+    np.seterr(all=None)
     adj_roi_crd = np.array([configs['vp_cnum'], blk_crd[cvd_idx[0], 1], blk_crd[cvd_idx[-1], 2]])
     adj_roi_w = adj_roi_crd[2] - adj_roi_crd[1]
     adj_edge_lst = np.linspace(adj_roi_crd[1], adj_roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
@@ -596,7 +602,7 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     ax_prf.text(adj_roi_crd[2], y_lim[1] * 0.8, ' <{:,d}'.format(adj_roi_crd[2]), horizontalalignment='left', color='#52a8ff')
 
     plt_h[0] = ax_prf.plot(blk_cen, def_nrm, '--', color='#777777')[0]
-    plt_h[1] = ax_prf.plot(blk_cen, trs_nrm, ':',  color='#ffad14')[0]
+    plt_h[1] = ax_prf.plot(blk_cen, trs_nrm, ':o', color='#ffad14', alpha=0.8, markersize=4, markeredgecolor=None)[0]
     plt_h[2] = ax_prf.plot(blk_cen, adj_nrm, '-',  color='#2e2eff')[0]
 
     # add annotations
@@ -617,11 +623,11 @@ def find_optimal_roi(config_lst, min_cvg=2, min_mq=20):
     plt.xticks(x_ticks, x_tick_label, rotation=20)
     plt.ylabel('Frequency (% of reads)')
     ax_prf.legend(plt_h, [
-        'Default (n={:0.0f})'.format(n_def),
+        'Far-cis + trans (n={:0.0f})'.format(n_def),
         'Trans only (n={:0.0f})'.format(n_trs),
         'Adjusted (n={:0.0f})'.format(n_adj),
         'Coverage threshold ({:0.1f}%)'.format(min_cvg)
-    ])
+    ], loc='center left')
 
     plt.title('{:s}\n'.format(run_id) +
               '#block={:d}, block_w={:0.0f}k\n'.format(n_blk, blk_w / 1e3) +

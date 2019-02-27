@@ -385,7 +385,8 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
     out_pd = out_pd[header_lst]
 
     if reindex_reads:
-        print 'Reindexing reads ...'
+        if verbose:
+            print 'Reindexing reads ...'
         header_lst.append('ReadID_original')
         out_pd[header_lst[-1]] = out_pd['ReadID'].copy()
         out_pd['ReadID'] = np.unique(out_pd['ReadID'], return_inverse=True)[1] + 1

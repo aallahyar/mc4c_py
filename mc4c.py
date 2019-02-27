@@ -74,7 +74,7 @@ def perform_qc(args):
     elif args.report_type == 'overallProfile':
         quality_check.plot_overallProfile(config_lst[0], min_n_frg=2)
     elif args.report_type == 'findOptimalROI':
-        quality_check.find_optimal_roi(config_lst)
+        quality_check.find_optimal_roi(config_lst, min_cvg=args.min_cvg)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -223,6 +223,9 @@ def main():
                                   help='Limits the requested summary report to be generated from roi-fragments only.')
     parser_qc.add_argument('--uniq-only', action="store_true", default=False,
                                   help='Limits the requested summary report to unique (duplicate removed) reads.')
+    parser_qc.add_argument('--min-cvg', default=2, type=int,
+                           help='Minimum chromosome coverage (%) used for automatic detection of ' +
+                                'Region Of Interest (ROI). Default is 2.')
     parser_qc.set_defaults(func=perform_qc)
 
     # perform basic analysis
@@ -261,10 +264,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOD']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa11-96x,NPC-PCDHa4-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test,BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-WTC,WPL-KOC']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BRN-BMaj-96x,BRN-BMaj-96x2,LVR-BMaj-96x']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']

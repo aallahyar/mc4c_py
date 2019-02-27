@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def remove_duplicates_by_umi(umi_set):
+def remove_duplicates_by_umi(umi_set, verbose=False):
     from utilities import hasOL
 
     # make duplicate list of fragments
@@ -17,9 +17,10 @@ def remove_duplicates_by_umi(umi_set):
     # loop over trans fragments
     umi_idx = 0
     duplicate_info = []
-    print 'Scanning {:,d} UMIs for duplicates:'.format(n_umi)
+    if verbose:
+        print 'Scanning {:,d} UMIs for duplicates:'.format(n_umi)
     while umi_idx < n_umi:
-        if umi_idx % 1000 == 0:
+        if verbose and (umi_idx % 1000 == 0):
             print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
                   '{:,d} reads are still unique.'.format(len(np.unique(umi_set[:, 0])))
         has_ol = hasOL(frg_umi[umi_idx, :3], umi_set[:, 1:4], offset=0)
