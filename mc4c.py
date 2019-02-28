@@ -111,6 +111,8 @@ def perform_analysis(args):
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
             analysis.perform_vpsoi_analysis(config_lst[0].copy(), soi_name=ant_name, n_perm=args.n_perm)
+    elif args.analysis_type == 'atAcrossROI':
+        analysis.perform_at_across_roi(config_lst[0].copy(), min_n_frg=2, n_perm=args.n_perm)
     elif args.analysis_type == 'atMat':
         analysis.perform_atmat_analysis(list(config_lst), n_perm=args.n_perm)
     else:
@@ -230,7 +232,7 @@ def main():
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
-    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atMat'], type=str,
+    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atAcrossROI', 'atMat'], type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
@@ -263,11 +265,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOD']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-WTC,WPL-KOC']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BRN-BMaj-96x,BRN-BMaj-96x2,LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
@@ -275,6 +277,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

@@ -357,12 +357,12 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
         h5_fid = h5py.File(inp_fname, 'r')
         if np.isinf(max_rows):
-            data_np = h5_fid[target_field].value
+            data_np = h5_fid[target_field][()]
         else:
             print 'Selecting only top [{:d}] rows in the dataset'.format(max_rows)
             data_np = h5_fid[target_field][:max_rows]
 
-        header_lst = list(h5_fid[target_field + '_header_lst'].value)
+        header_lst = list(h5_fid[target_field + '_header_lst'][()])
         h5_fid.close()
         part_pd = pd.DataFrame(data_np, columns=header_lst)
 

@@ -11,7 +11,7 @@ np.set_printoptions(linewidth=180, threshold=5000)
 # cnf_name = 'LVR-BMaj-96x'
 # cnf_name = '3T3-BMaj-96x,3T3-HS5-96x,BRN-BMaj-96x,BRN-BMaj-96x2,BRN-HS2-96x,BRN-HS2-NP,BRN-HS5-96x,LVR-BMaj-96x,LVR-BMaj-NP,LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2,LVR-HS3-96x,LVR-HS3-NP,LVR-HS5-96x,LVR-HS5-NP'
 cnf_name = 'WPL-WTD,WPL-WTD2,WPL-KOD,WPL-KOD2,WPL-WTC,WPL-KOC'
-n_bin_lst = np.linspace(100, 500, 5, dtype=np.int)
+n_bin_lst = np.linspace(100, 1000, 7, dtype=np.int)
 n_option = len(n_bin_lst)
 cls_name = ['Out left', 'In Left', 'Center', 'In right', 'Out right']
 cls_clr = ['#ed0202', '#fe9f9f', '#02b66b', '#62f8fd', '#2202f2']
@@ -145,7 +145,7 @@ for oi, n_bin in enumerate(n_bin_lst):
     size_score[oi, :] = np.nanmedian(bin_scr.T, axis=0)
 
 # plotting the scores
-x_lim = [0.80, 1.00]
+x_lim = [0.00, 1.00]
 plt.figure(figsize=(8, 7))
 plt_h = [None] * n_option
 for oi in range(n_option):
@@ -155,7 +155,7 @@ for oi in range(n_option):
 plt.plot([x_lim[0], x_lim[1]], [x_lim[0], x_lim[1]], ':', color='#8c8c8c', alpha=0.5)
 plt.xlabel('Inter SOI correlation')
 plt.ylabel('Intra SOI correlation')
-# plt.xlim(x_lim)
+plt.xlim(x_lim)
 plt.ylim(x_lim)
 plt.legend(plt_h, ['#bin={:d}, bin-w={:d}, #test={:d}'.format(n_bin_lst[oi], bin_w[oi], size_n_test[oi])
                    for oi in range(n_option)], loc='lower right')

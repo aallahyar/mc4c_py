@@ -1,4 +1,5 @@
 import numpy as np
+from utilities import showprogress
 
 
 def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None, verbose=True):
@@ -496,5 +497,160 @@ def perform_atmat_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
+def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
+    import platform
+    import matplotlib
+    if platform.system() == 'Linux':
+        matplotlib.use('Agg')
+    from matplotlib import pyplot as plt, patches
+    from matplotlib.colors import LinearSegmentedColormap
+
+    from utilities import load_mc4c, load_annotation, hasOL, flatten, limit_to_roi
+
+    # initialization
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/plt_atAcrossROI_{:s}.pdf'.format(configs['run_id'])
+
+    # create bin list
+    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
+    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
+    bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
+    n_bin = bin_bnd.shape[0]
+
+    # make block list
+    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin / 3).reshape(-1, 1), edge_lst[:-3:3], edge_lst[3::3] - 1])
+    blk_w = blk_crd[0, 2] - blk_crd[0, 1]
+    n_blk = blk_crd.shape[0]
+
+    del edge_lst
+
+    # define areas
+    roi_cen = np.mean([np.min(configs['prm_start']), np.max(configs['prm_end'])], dtype=np.int)
+    vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w * 1.5), roi_cen + int(bin_w * 1.5)])
+    roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
+
+    # load MC-HC data
+    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    read_all = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    del frg_dp
+
+    # select >2 roi-fragments
+    read_inf = limit_to_roi(read_all[:, :4], vp_crd=vp_crd, roi_crd=roi_crd, min_n_frg=min_n_frg)
+    del read_all
+
+    # re-index reads
+    read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = len(np.unique(read_inf[:, 0]))
+
+    # convert fragments to bin-coverage
+    cfb_lst = [list() for i in range(n_read + 1)]
+    n_frg = read_inf.shape[0]
+    for fi in range(n_frg):
+        bin_idx = np.where(hasOL(read_inf[fi, 2:4], bin_bnd))[0]
+        cfb_lst[read_inf[fi, 0]].append(bin_idx.tolist())
+
+    # filter circles for (>1 bin cvg)
+    valid_lst = []
+    for rd_nid in range(1, n_read + 1):
+        fb_lst = cfb_lst[rd_nid]
+        bin_cvg = np.unique(flatten(fb_lst))
+        if len(bin_cvg) > 1:
+            valid_lst.append(rd_nid)
+    read_inf = read_inf[np.isin(read_inf[:, 0], valid_lst), :]
+
+    # reindexing reads
+    read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(read_inf[:, 0])
+
+    # get soi info
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+    ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
+
+    # compute score for annotations
+    print 'Computing expected profile for {:d} block:'.format(n_blk)
+    blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
+    x_tick_lbl = [' '] * n_blk
+    y_tick_lbl = [' '] * n_blk
+    for bi in range(n_blk):
+        showprogress(bi, n_blk)
+
+        if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
+            continue
+
+        blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:], n_perm=n_perm)[:3]
+        n_pos = len(np.unique(read_pos[:, 0]))
+
+        blk_exp = np.mean(blk_rnd, axis=0)
+        blk_std = np.std(blk_rnd, axis=0, ddof=0)
+        np.seterr(all='ignore')
+        blk_scr[:, bi] = np.divide(blk_obs - blk_exp, blk_std)
+        np.seterr(all=None)
+
+        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=blk_w))[0]
+        if len(ant_idx) > 0:
+            ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
+            x_tick_lbl[bi] = ('{:s}, #{:0.0f}'.format(ant_name, n_pos))
+            y_tick_lbl[bi] = ant_name
+        else:
+            x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
+
+    # set self scores to nan
+    np.fill_diagonal(blk_scr, val=np.nan)
+
+    # plotting the scores
+    plt.figure(figsize=(15, 13))
+    ax_scr = plt.subplot2grid((40, 40), (0, 0), rowspan=39, colspan=39)
+    ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
+
+    # set up color bar
+    c_lim = [-6, 6]
+    clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
+    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
+    clr_map.set_bad('gray', 0.2)
+    norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
+    cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
+    # cbar_h.ax.tick_params(labelsize=12)
+    cbar_h.ax.set_ylabel('z-score', rotation=90)
+    cbar_edge = np.round(cbar_h.cmap(norm(c_lim)), decimals=2)
+
+    # add score scatter matrix
+    x_lim = [0, n_blk]
+    img_h = ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
+                          vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='bottom')
+    ax_scr.set_xlim(x_lim)
+    ax_scr.set_ylim(x_lim)
+
+    # add vp patches
+    vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
+    ax_scr.add_patch(patches.Rectangle([0, vp_idx[0]], n_blk, vp_idx[-1] - vp_idx[0],
+                                          linewidth=0, edgecolor='None', facecolor='orange'))
+    ax_scr.add_patch(patches.Rectangle([vp_idx[0], 0], vp_idx[-1] - vp_idx[0], n_blk,
+                                          linewidth=0, edgecolor='None', facecolor='orange'))
+
+    # add score values to each box
+    # for bi in range(n_blk):
+    #     for bj in range(n_blk):
+    #         if np.isnan(blk_scr[bi, bj]):
+    #             continue
+    #         ant_clr = np.round(img_h.cmap(img_h.norm(blk_scr[bi, bj])), decimals=2)
+    #         if np.array_equal(ant_clr, cbar_edge[0]) or np.array_equal(ant_clr, cbar_edge[1]):
+    #             txt_clr = '#ffffff'
+    #         else:
+    #             txt_clr = '#000000'
+    #         ax_scr.text(bj + 0.5, bi + 0.5, '{:+0.1f}'.format(blk_scr[bi, bj]), color=txt_clr,
+    #                     horizontalalignment='center', verticalalignment='center', fontsize=12)
+
+    # final adjustments
+    ax_scr.set_xticks(np.arange(n_blk) + 0.5)
+    ax_scr.set_yticks(np.arange(n_blk) + 0.5)
+    ax_scr.set_xticklabels(x_tick_lbl, rotation=90)
+    ax_scr.set_yticklabels(y_tick_lbl)
+    ax_scr.set_xlabel('Selected SOIs')
+    ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
+                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
+                     'bin-w={:d}; #perm={:d}'.format(configs['bin_width'], n_perm)
+                     )
+    plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
