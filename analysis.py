@@ -24,7 +24,6 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None
         assert len(pos_crd) == 0
         is_pos = np.isin(frg_inf[:, 0], pos_ids)
     else:
-        assert pos_ids is None
         is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
     frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
@@ -522,7 +521,6 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin / 3).reshape(-1, 1), edge_lst[:-3:3], edge_lst[3::3] - 1])
     blk_w = blk_crd[0, 2] - blk_crd[0, 1]
     n_blk = blk_crd.shape[0]
-
     del edge_lst
 
     # define areas
@@ -544,6 +542,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     n_read = len(np.unique(read_inf[:, 0]))
 
     # convert fragments to bin-coverage
+    print 'Mapping reads to bins ...'
     cfb_lst = [list() for i in range(n_read + 1)]
     n_frg = read_inf.shape[0]
     for fi in range(n_frg):
@@ -551,6 +550,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
         cfb_lst[read_inf[fi, 0]].append(bin_idx.tolist())
 
     # filter circles for (>1 bin cvg)
+    'Selecting only reads with >1 bins covered'
     valid_lst = []
     for rd_nid in range(1, n_read + 1):
         fb_lst = cfb_lst[rd_nid]
@@ -562,6 +562,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     # reindexing reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(read_inf[:, 0])
+    print '{:,d} reads are left after bin-coverage filter.'.format(n_read)
 
     # get soi info
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
@@ -578,7 +579,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
         if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
             continue
 
-        blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:], n_perm=n_perm)[:3]
+        blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
+                                                             n_perm=n_perm, verbose=False)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
 
         blk_exp = np.mean(blk_rnd, axis=0)
@@ -587,7 +589,11 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
         blk_scr[:, bi] = np.divide(blk_obs - blk_exp, blk_std)
         np.seterr(all=None)
 
-        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=blk_w))[0]
+        # remove scores overlapping with positive set
+        is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
+        blk_scr[is_nei, bi] = np.nan
+
+        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
         if len(ant_idx) > 0:
             ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
             x_tick_lbl[bi] = ('{:s}, #{:0.0f}'.format(ant_name, n_pos))
@@ -596,7 +602,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
             x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
 
     # set self scores to nan
-    np.fill_diagonal(blk_scr, val=np.nan)
+    # np.fill_diagonal(blk_scr, val=np.nan)
 
     # plotting the scores
     plt.figure(figsize=(15, 13))
@@ -616,8 +622,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
 
     # add score scatter matrix
     x_lim = [0, n_blk]
-    img_h = ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
-                          vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='bottom')
+    ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
+                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='bottom')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
 
@@ -649,7 +655,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     ax_scr.set_xlabel('Selected SOIs')
     ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     'bin-w={:d}; #perm={:d}'.format(configs['bin_width'], n_perm)
+                     'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

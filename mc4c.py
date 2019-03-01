@@ -277,8 +277,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', 'LVR-BMaj-96x']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
