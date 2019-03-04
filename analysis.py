@@ -513,12 +513,13 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     n_bin = bin_bnd.shape[0]
 
     # make block list
-    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin / 3).reshape(-1, 1), edge_lst[:-3:3], edge_lst[3::3] - 1])
+    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64).reshape(-1, 1)
+    # blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin / 3).reshape(-1, 1), edge_lst[:-3:3], edge_lst[3::3] - 1])
+    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), bin_cen - int(bin_w * 1.5), bin_cen + int(bin_w * 1.5) - 1])
     blk_w = blk_crd[0, 2] - blk_crd[0, 1]
     n_blk = blk_crd.shape[0]
     del edge_lst
@@ -574,7 +575,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
     for bi in range(n_blk):
-        showprogress(bi, n_blk)
+        showprogress(bi, n_blk, n_step=20)
 
         if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
             continue
@@ -582,6 +583,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
         blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                              n_perm=n_perm, verbose=False)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
+        if n_pos < n_read * 0.02:
+            continue
 
         blk_exp = np.mean(blk_rnd, axis=0)
         blk_std = np.std(blk_rnd, axis=0, ddof=0)
@@ -604,6 +607,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     # set self scores to nan
     # np.fill_diagonal(blk_scr, val=np.nan)
 
+    # clean up tick labels
+
     # plotting the scores
     plt.figure(figsize=(15, 13))
     ax_scr = plt.subplot2grid((40, 40), (0, 0), rowspan=39, colspan=39)
@@ -613,7 +618,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     c_lim = [-6, 6]
     clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
-    clr_map.set_bad('gray', 0.2)
+    clr_map.set_bad('gray', 0.1)
     norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
