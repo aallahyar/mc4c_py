@@ -290,7 +290,7 @@ def load_configs(input_fname, max_n_configs=None):
                         continue
                     columns = line.rstrip('\n').split('\t')
                     assert len(columns) == 2
-                    fld_lst = columns[1].split(';')
+                    fld_lst = columns[1].split(',')
                     if len(fld_lst) == 1:
                         configs[columns[0]] = fld_lst[0]
                     else:
