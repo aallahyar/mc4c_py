@@ -3,15 +3,15 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.stats import spearmanr, pearsonr
 
-from utilities import load_mc4c, limit_to_roi, hasOL, get_nreads_per_bin, load_configs, flatten
+from utilities import load_mc4c, limit_to_roi, hasOL, get_nreads_per_bin, load_configs, flatten, load_annotation
 
 # initialization
 np.set_printoptions(linewidth=180, threshold=5000)
 # cnf_name = 'BMaj-test'
 # cnf_name = 'LVR-BMaj-96x'
-# cnf_name = '3T3-BMaj-96x,3T3-HS5-96x,BRN-BMaj-96x,BRN-BMaj-96x2,BRN-HS2-96x,BRN-HS2-NP,BRN-HS5-96x,LVR-BMaj-96x,LVR-BMaj-NP,LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2,LVR-HS3-96x,LVR-HS3-NP,LVR-HS5-96x,LVR-HS5-NP'
-cnf_name = 'WPL-WTD,WPL-WTD2,WPL-KOD,WPL-KOD2,WPL-WTC,WPL-KOC'
-n_bin_lst = np.linspace(100, 1000, 7, dtype=np.int)
+cnf_name = '3T3-BMaj-96x,3T3-HS5-96x,BRN-BMaj-96x,BRN-BMaj-96x2,BRN-HS2-96x,BRN-HS2-NP,BRN-HS5-96x,LVR-BMaj-96x,LVR-BMaj-NP,LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2,LVR-HS3-96x,LVR-HS3-NP,LVR-HS5-96x,LVR-HS5-NP'
+# cnf_name = 'WPL-WTD,WPL-WTD2,WPL-KOD,WPL-KOD2,WPL-WTC,WPL-KOC'
+n_bin_lst = np.linspace(50, 500, 7, dtype=np.int)
 n_option = len(n_bin_lst)
 cls_name = ['Out left', 'In Left', 'Center', 'In right', 'Out right']
 cls_clr = ['#ed0202', '#fe9f9f', '#02b66b', '#62f8fd', '#2202f2']
@@ -59,6 +59,11 @@ for cfg_idx, cfg in enumerate(config_lst):
     del read_prt
 print 'Got [{:,d}] reads in total.'.format(len(np.unique(read_all[:, 0])))
 
+# get annotation info
+ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
+ant_pos = ant_pd['ant_pos'].values
+n_ant = ant_pd.shape[0]
+
 # loop over bin sets
 bin_w = np.zeros(n_option, dtype=np.int)
 size_score = np.zeros([n_option, 2])
@@ -80,13 +85,22 @@ for oi, n_bin in enumerate(n_bin_lst):
     n_roll = int(np.ceil(1000.0 / bin_w[oi])) + 1
     print 'Computing scores for #bin={:d}, bin-w={:0.0f}bp, #nrm={:d} ...'.format(n_bin, bin_w[oi], n_roll)
 
-    # iterate over each bin
-    bin_scr = np.full([2, n_bin], fill_value=np.nan)
+    # iterate over annotations
+    bin_scr = np.full([2, n_ant], fill_value=np.nan)
     prf_roi = np.empty([0, n_bin])
-    for bi in range(2, n_bin - 2):
+    for ai in range(n_ant):
+
+        # find annotation boundary
+        ant_bnd = np.array([
+            ant_pos[ai] - int(bin_w[oi] * 0.5),
+            ant_pos[ai] + int(bin_w[oi] * 0.5)
+        ])
+        cls_crd = np.hstack([
+            np.repeat(ant_pd.loc[ai, 'ant_cnum'], 5).reshape(-1, 1),
+            np.array([ant_bnd + bin_w[oi] * i for i in range(-2, 3)])
+        ])
 
         # select reads
-        cls_crd = bin_crd[bi - 2:bi + 3, :]
         read_set = [None] * n_cls
         for ci in range(n_cls):
             is_in = hasOL(cls_crd[ci, :], reads[:, 1:4])
@@ -116,8 +130,8 @@ for oi, n_bin in enumerate(n_bin_lst):
         # compute spr-correations
         crr_mat = spearmanr(cls_feat.T, nan_policy='omit').correlation
         # crr_mat = pd.DataFrame(cls_feat.T).corr().values
-        bin_scr[0, bi] = np.mean(crr_mat[2, [1, 3]])
-        bin_scr[1, bi] = np.mean(crr_mat[2, [0, 4]])
+        bin_scr[0, ai] = np.mean(crr_mat[2, [1, 3]])
+        bin_scr[1, ai] = np.mean(crr_mat[2, [0, 4]])
 
         # plotting features
         if show_plot:
@@ -130,33 +144,34 @@ for oi, n_bin in enumerate(n_bin_lst):
             plt.xlim(roi_crd[1:])
             plt.ylim([0, 10])
             plt.show(block=True)
-    if n_bin_lst[oi] != size_n_test[oi]:
-        print '\t{:d} bins are ignored due to lack of coverage (i.e. #read < 100).'.format(n_bin_lst[oi] - size_n_test[oi])
+    if n_ant != size_n_test[oi]:
+        print '\t{:d} annotations are ignored due to lack of coverage (i.e. #read < 100).'.format(n_ant - size_n_test[oi])
 
     # compute expected correlation
     exp_mat = spearmanr(prf_roi.T, nan_policy='omit').correlation
     for di in range(n_roll):
         np.fill_diagonal(exp_mat[di:, :], np.nan)
         np.fill_diagonal(exp_mat[:, di:], np.nan)
-    crr_exp[oi] = np.nanmean(exp_mat)
+    crr_exp[oi] = np.nanmedian(exp_mat)
     crr_std[oi] = np.nanstd(exp_mat)
 
     # merge scores
     size_score[oi, :] = np.nanmedian(bin_scr.T, axis=0)
 
 # plotting the scores
-x_lim = [0.00, 1.00]
 plt.figure(figsize=(8, 7))
 plt_h = [None] * n_option
 for oi in range(n_option):
     plt_h[oi] = plt.plot(size_score[oi, 1], size_score[oi, 0], '*')[0]
     plt.text(size_score[oi, 1], size_score[oi, 0], ' #{:d}'.format(n_bin_lst[oi]),
              horizontalalignment='left', verticalalignment='center')
-plt.plot([x_lim[0], x_lim[1]], [x_lim[0], x_lim[1]], ':', color='#8c8c8c', alpha=0.5)
+x_lim = plt.xlim()
+y_lim = plt.ylim()
+plt.plot([0, 1], [0, 1], ':', color='#8c8c8c', alpha=0.5)
+plt.xlim(x_lim)
+plt.ylim(y_lim)
 plt.xlabel('Inter SOI correlation')
 plt.ylabel('Intra SOI correlation')
-plt.xlim(x_lim)
-plt.ylim(x_lim)
 plt.legend(plt_h, ['#bin={:d}, bin-w={:d}, #test={:d}'.format(n_bin_lst[oi], bin_w[oi], size_n_test[oi])
                    for oi in range(n_option)], loc='lower right')
 plt.title('Coverage correlation Inter vs. Intera SOIs\n{:s}'.format(run_id))
