@@ -1,4 +1,5 @@
 import numpy as np
+from os import path, makedirs
 
 
 def remove_duplicates_by_umi(umi_set, verbose=False):
@@ -68,7 +69,6 @@ def processMC4C(args):
 
 def setReadIds(args):
     import gzip
-    from os import path, makedirs
 
     from utilities import load_configs
     print '%% Assigning traceable identifiers to reads ...'
@@ -118,7 +118,6 @@ def setReadIds(args):
 def splitReads(args):
     import re
     import gzip
-    from os import path, makedirs
 
     from utilities import load_configs, get_re_info
 
@@ -169,7 +168,6 @@ def splitReads(args):
 
 
 def mapFragments(args):
-    from os import path, makedirs
 
     from utilities import load_configs
     if not args.return_command:
@@ -214,7 +212,6 @@ def processMappedFragments(args):
     from pandas import read_csv
     import pysam
     import gzip
-    from os import path, makedirs
 
     from utilities import load_configs, get_chr_info, hasOL
 
@@ -427,6 +424,193 @@ def processMappedFragments(args):
     print('Removing temporary file: {:s}'.format(tmp_fname))
     remove(tmp_fname)
     print '[i] MC4C dataset is created successfully.'
+
+
+def find_optimal_roi(args):
+    import pandas as pd
+    from matplotlib import pyplot as plt
+    from scipy.stats import spearmanr
+
+    from utilities import load_mc4c, limit_to_roi, get_chr_info, hasOL, get_nreads_per_bin, load_annotation, load_configs
+
+    print '%% Finding optimal ROI by analysing local coverage ...'
+    config_lst = load_configs(args.config_file)
+
+    # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
+    if args.output_file is None:
+        args.output_file = './plots/plt_selectROI-ByCoverage_' + run_id + '.pdf'
+    if not path.isdir(path.dirname(args.output_file)):
+        makedirs(path.dirname(args.output_file))
+
+    def_vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
+    def_roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    def_roi_cen = int(np.mean([configs['vp_start'], configs['vp_end']]))
+    def_roi_w = configs['roi_end'] - configs['roi_start']
+    blk_w = 30000
+    n_bin = 200
+
+    # split vp chromosome into blocks
+    chr_size = get_chr_info(genome_str=configs['genome_build'], property='chr_size')
+    blk_lst = np.arange(0, chr_size[configs['vp_cnum'] - 1], blk_w, dtype=np.int64).reshape(-1, 1)
+    blk_lst[-1] = chr_size[configs['vp_cnum'] - 1]
+    n_blk = len(blk_lst) - 1
+    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_blk).reshape(-1, 1), blk_lst[:-1], blk_lst[1:] - 1])
+    blk_cen = np.mean(blk_crd[:, 1:3], axis=1)
+
+    # use raw reads and extract UMIs
+    print 'Extracting UMIs from given dataset(s) ...'
+    read_all = np.empty([0, 4], dtype=np.int)
+    def_pcr = np.empty([0, 4], dtype=np.int)
+    trs_pcr = np.empty([0, 4], dtype=np.int)
+    max_n_read = 10000000
+    for idx, cfg in enumerate(config_lst):
+
+        # load raw data
+        print('Loading all reads from {:s} ...'.format(cfg['run_id']))
+        mc4c_part = load_mc4c(cfg, unique_only=False, valid_only=True, min_mq=args.min_mq, reindex_reads=True, verbose=False)
+        read_prt = mc4c_part[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+
+        # use default approach, use >1 roi-frg
+        has_inf = limit_to_roi(read_prt[:, :4], vp_crd=def_vp_crd, roi_crd=def_roi_crd, min_n_frg=2)
+        def_read_inf = read_prt[np.isin(read_prt[:, 0], has_inf[:, 0]), :].copy()
+        def_umi_set = def_read_inf[def_read_inf[:, 1] != configs['vp_cnum'], :].copy()
+        has_uid = remove_duplicates_by_umi(def_umi_set)[0]
+        def_pcr_prt = read_prt[np.isin(read_prt[:, 0], has_uid[:, 0]), :].copy()
+        del has_inf, has_uid
+        print '\t{:,d} unique reads are added using [far-cis + trans] UMIs.'.format(len(np.unique(def_pcr_prt[:, 0])))
+
+        # select >1 cis-frg
+        trs_vp_crd = np.array([configs['vp_cnum'], def_roi_cen - 5000, def_roi_cen + 5000])
+        is_cis = read_prt[:, 1] == configs['vp_cnum']
+        is_vp = hasOL(trs_vp_crd, read_prt[:, 1:4])
+        trs_read_m1c = read_prt[~is_vp & is_cis, :].copy()
+        read_size = np.bincount(trs_read_m1c[:, 0], minlength=np.max(trs_read_m1c[:, 0]) + 1)[trs_read_m1c[:, 0]]
+        trs_read_m1c = read_prt[np.isin(read_prt[:, 0], trs_read_m1c[read_size >= 2, 0]), :].copy()
+        del read_size
+
+        # select and process UMIs
+        trs_umi_set = trs_read_m1c[trs_read_m1c[:, 1] != configs['vp_cnum'], :].copy()
+        trs_uid = remove_duplicates_by_umi(trs_umi_set)[0]
+        trs_pcr_prt = read_prt[np.isin(read_prt[:, 0], trs_uid[:, 0]), :].copy()
+        print '\t{:,d} unique reads are added using [trans only] UMIs.'.format(len(np.unique(trs_pcr_prt[:, 0])))
+
+        # add data specific identifiers
+        assert np.max(read_prt[:, 0]) < max_n_read
+        def_pcr_prt[:, 0] = def_pcr_prt[:, 0] + (idx + 1) * max_n_read
+        trs_pcr_prt[:, 0] = trs_pcr_prt[:, 0] + (idx + 1) * max_n_read
+        read_prt[:, 0] = read_prt[:, 0] + (idx + 1) * max_n_read
+
+        # appending
+        read_all = np.vstack([read_all, read_prt])
+        def_pcr = np.vstack([def_pcr, def_pcr_prt])
+        trs_pcr = np.vstack([trs_pcr, trs_pcr_prt])
+
+    # compute coverage over chromosome
+    def_cvg, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    trs_cvg, n_trs = get_nreads_per_bin(trs_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    def_nrm = pd.Series(def_cvg * 1e2 / n_def).rolling(5, center=True).mean().values
+    trs_nrm = pd.Series(trs_cvg * 1e2 / n_trs).rolling(5, center=True).mean().values
+
+    # select highly covered region
+    np.seterr(all='ignore')
+    cvd_idx = np.where(trs_nrm > args.min_cvg)[0]
+    np.seterr(all=None)
+    adj_roi_crd = np.array([configs['vp_cnum'], blk_crd[cvd_idx[0], 1], blk_crd[cvd_idx[-1], 2]])
+    adj_roi_w = adj_roi_crd[2] - adj_roi_crd[1]
+    adj_edge_lst = np.linspace(adj_roi_crd[1], adj_roi_crd[2], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
+    adj_bin_w = adj_edge_lst[1, 0] - adj_edge_lst[0, 0]
+    adj_vp_crd = np.array([configs['vp_cnum'], def_roi_cen - int(adj_bin_w * 1.5), def_roi_cen + int(adj_bin_w * 1.5)])
+    print 'Sufficient (>{:0.1f}%) coverage is found between -> '.format(args.min_cvg) + \
+          '{:s}:{:,d}-{:,d}'.format(configs['vp_chr'], adj_roi_crd[1], adj_roi_crd[2])
+
+    # select informative reads
+    has_inf = limit_to_roi(read_all[:, :4], vp_crd=adj_vp_crd, roi_crd=adj_roi_crd, min_n_frg=2)
+    adj_read_inf = read_all[np.isin(read_all[:, 0], has_inf[:, 0]), :].copy()
+    adj_lcl_crd = [adj_roi_crd[0], adj_roi_crd[1] - adj_roi_w, adj_roi_crd[2] + adj_roi_w]
+    is_lcl = hasOL(adj_lcl_crd, adj_read_inf[:, 1:4], offset=0)
+    adj_umi = adj_read_inf[~is_lcl, :].copy()
+    adj_uid = remove_duplicates_by_umi(adj_umi)[0]
+    is_adj = np.isin(adj_read_inf[:, 0], adj_uid[:, 0])
+    adj_pcr = adj_read_inf[is_adj, :].copy()
+
+    # compute coverage over chromosome using adjusted region
+    adj_cvg, n_adj = get_nreads_per_bin(adj_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    adj_nrm = pd.Series(adj_cvg * 1e2 / n_adj).rolling(5, center=True).mean().values
+
+    # compute roi profiles
+    def_edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=n_bin + 1, dtype=np.int64).reshape(-1, 1)
+    def_bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), def_edge_lst[:-1], def_edge_lst[1:] - 1])
+    def_bin_w = def_bin_crd[0, 2] - def_bin_crd[0, 1]
+    def_prf, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=def_bin_crd, min_n_frg=2)
+    trs_prf, n_trs = get_nreads_per_bin(trs_pcr[:, :4], bin_crd=def_bin_crd, min_n_frg=2)
+    adj_prf, n_adj = get_nreads_per_bin(adj_pcr[:, :4], bin_crd=def_bin_crd, min_n_frg=2)
+
+    # plotting
+    plt.figure(figsize=(25, 5))
+    ax_crr = plt.subplot2grid((1, 4), (0, 0), rowspan=1, colspan=1)
+    ax_prf = plt.subplot2grid((1, 4), (0, 1), rowspan=1, colspan=3)
+    plt_h = [None] * 4
+    x_lim = [configs['roi_start'] - def_roi_w * 2, configs['roi_end'] + def_roi_w * 2]
+    y_lim = [0, 10]
+
+    # plot correlations
+    plt_h[0] = ax_crr.plot(def_prf * 1e2 / n_def, trs_prf * 1e2 / n_trs, 'x', color='#ffad14', alpha=0.9)[0]
+    plt_h[1] = ax_crr.plot(def_prf * 1e2 / n_def, adj_prf * 1e2 / n_adj, 'o', color='#2e2eff', alpha=0.5, markeredgecolor='None')[0]
+    ax_crr.set_xlim(y_lim)
+    ax_crr.set_ylim(y_lim)
+    ax_crr.set_xlabel('Default ROI')
+    ax_crr.set_ylabel('Trans / Adjusted ROI')
+    ax_crr.set_title('ROI coverage Spearman correlations\n' +
+                     'def-UMI vs. trs-UMI: {:0.5f}\n'.format(spearmanr(def_prf, trs_prf).correlation) +
+                     'def-UMI vs. adj-UMI: {:0.5f}'.format(spearmanr(def_prf, adj_prf).correlation))
+    ax_crr.legend(plt_h[:2], ['Default vs Trans profile', 'Default vs. Adjusted profile'])
+
+    # plot roi profiles
+    ax_prf.plot([def_roi_crd[1], def_roi_crd[1]], y_lim, color='#bcbcbc')
+    ax_prf.plot([def_roi_crd[2], def_roi_crd[2]], y_lim, color='#bcbcbc')
+    ax_prf.plot([adj_roi_crd[1], adj_roi_crd[1]], y_lim, color='#a3d1ff')
+    ax_prf.plot([adj_roi_crd[2], adj_roi_crd[2]], y_lim, color='#a3d1ff')
+    ax_prf.text(def_roi_crd[1], y_lim[1] * 0.9, '{:,d}> '.format(def_roi_crd[1]), horizontalalignment='right', color='#9c9c9c')
+    ax_prf.text(def_roi_crd[2], y_lim[1] * 0.9, ' <{:,d}'.format(def_roi_crd[2]), horizontalalignment='left', color='#9c9c9c')
+    ax_prf.text(adj_roi_crd[1], y_lim[1] * 0.8, '{:,d}> '.format(adj_roi_crd[1]), horizontalalignment='right', color='#52a8ff')
+    ax_prf.text(adj_roi_crd[2], y_lim[1] * 0.8, ' <{:,d}'.format(adj_roi_crd[2]), horizontalalignment='left', color='#52a8ff')
+
+    plt_h[0] = ax_prf.plot(blk_cen, def_nrm, '--', color='#777777')[0]
+    plt_h[1] = ax_prf.plot(blk_cen, trs_nrm, ':o', color='#ffad14', alpha=0.8, markersize=4, markeredgecolor=None)[0]
+    plt_h[2] = ax_prf.plot(blk_cen, adj_nrm, '-',  color='#2e2eff')[0]
+
+    # add annotations
+    ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum']] + x_lim)
+    for ai in range(ant_pd.shape[0]):
+        ant_pos = ant_pd.loc[ai, 'ant_pos']
+        if (ai == 0) or (np.abs(ant_pd.loc[ai - 1, 'ant_pos'] - ant_pos) > def_roi_w / 50.0):
+            ax_prf.text(ant_pos, y_lim[0], ' ' + ant_pd.loc[ai, 'ant_name'],
+                        horizontalalignment='center', verticalalignment='bottom', rotation=90, fontsize=6)
+        ax_prf.plot([ant_pos, ant_pos], [y_lim[0] + y_lim[1] * 0.05, y_lim[1]],
+                    ':', color='#bfbfbf', linewidth=1, alpha=0.3)
+    plt_h[3] = ax_prf.plot([x_lim[0], x_lim[1]], [args.min_cvg, args.min_cvg], '--', color='#ff8f8f')[0]
+
+    ax_prf.set_xlim(x_lim)
+    ax_prf.set_ylim(y_lim)
+    x_ticks = np.linspace(x_lim[0], x_lim[1], 25, dtype=np.int64)
+    x_tick_label = ['{:0.3f}m'.format(x / 1e6) for x in x_ticks]
+    plt.xticks(x_ticks, x_tick_label, rotation=20)
+    plt.ylabel('Frequency (% of reads)')
+    ax_prf.legend(plt_h, [
+        'Far-cis + trans (n={:0.0f})'.format(n_def),
+        'Trans only (n={:0.0f})'.format(n_trs),
+        'Adjusted (n={:0.0f})'.format(n_adj),
+        'Coverage threshold ({:0.1f}%)'.format(args.min_cvg)
+    ], loc='center left')
+
+    plt.title('{:s}\n'.format(run_id) +
+              '#block={:d}, block_w={:0.0f}k\n'.format(n_blk, blk_w / 1e3) +
+              'bin-w (def, adjusted): {:0,.0f}bp; {:0,.0f}bp'.format(def_bin_w, adj_bin_w) + '\n' +
+              'roi-w (def, adjusted): {:0,.0f}bp; {:0,.0f}bp'.format(def_roi_w, adj_roi_w))
+    plt.savefig(args.output_file, bbox_inches='tight')
+    print 'Coverage profiles are plotted in: {:s}'.format(args.output_file)
 
 
 def removeDuplicates(args):

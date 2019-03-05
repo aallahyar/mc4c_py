@@ -73,8 +73,6 @@ def perform_qc(args):
         quality_check.plot_cirSizeDistribution(config_lst[0], roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
         quality_check.plot_overallProfile(config_lst[0], min_n_frg=2)
-    elif args.report_type == 'findOptimalROI':
-        quality_check.find_optimal_roi(config_lst, min_cvg=args.min_cvg)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -195,6 +193,20 @@ def main():
                                   help='Output file (in HDF5 format) containing processed fragments')
     parser_mkDataset.set_defaults(func=pre_process.processMappedFragments)
 
+    # select ROI
+    parser_selectROI = subparsers.add_parser('selectROI',
+                                             description='Identify a Region Of Interest (ROI) for a given ' +
+                                                         'MC-4C dataset')
+    parser_selectROI.add_argument('config_file', metavar='config-file', type=str,
+                                  help='Configuration file containing experiment specific details')
+    parser_selectROI.add_argument('--min-cvg', default=2, type=np.float,
+                                  help='Minimum coverage to be used in ROI selection procedure.')
+    parser_selectROI.add_argument('--min-mq', default=20, type=int,
+                                  help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
+    parser_selectROI.add_argument('--output-file', default=None, type=str,
+                                  help='Output file (in PDF format) containing result of the analysis.')
+    parser_selectROI.set_defaults(func=pre_process.find_optimal_roi)
+
     # Remove PCR duplicated
     parser_remDup = subparsers.add_parser('removeDuplicates',
                                           description='Remove PCR duplicates from a given MC-4C dataset')
@@ -213,7 +225,7 @@ def main():
                                             description='Generate various summary reports about an MC-4C dataset.')
     parser_qc.add_argument('report_type', type=str,
                                  choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile',
-                                          'findOptimalROI'],
+                                          'selectROI'],
                                  help='Type of summary report that needs to be generated')
     parser_qc.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
@@ -258,20 +270,23 @@ def main():
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x-Adj']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD']
+        sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-KOC']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTC']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x-Adj']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-WTD']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'NPC-PCDHaC1-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-KOC']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'WPL-WTC']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'findOptimalROI', 'BMaj-test']
+
+
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'vpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
@@ -279,6 +294,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atMat', '--n-perm=1000', 'asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'WPL-KOD,WPL-KOD2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
 
     args = parser.parse_args(sys.argv[1:])
