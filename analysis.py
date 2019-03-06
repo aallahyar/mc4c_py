@@ -352,7 +352,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_atmat_analysis(config_lst, min_n_frg=2, n_perm=1000):
+def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -496,7 +496,7 @@ def perform_atmat_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
+def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -507,8 +507,10 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     from utilities import load_mc4c, load_annotation, hasOL, flatten, limit_to_roi
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_atAcrossROI_{:s}.pdf'.format(configs['run_id'])
+        configs['output_file'] = configs['output_dir'] + '/plt_atAcrossROI_{:s}.pdf'.format(run_id)
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -530,7 +532,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     read_all = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -541,6 +543,7 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     # re-index reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
     n_read = len(np.unique(read_inf[:, 0]))
+    min_n_pos = int(n_read * 0.02)
 
     # convert fragments to bin-coverage
     print 'Mapping reads to bins ...'
@@ -570,10 +573,11 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
     # compute score for annotations
-    print 'Computing expected profile for {:d} block:'.format(n_blk)
+    print 'Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, min_n_pos)
     blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
     x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
+    n_ignored = 0
     for bi in range(n_blk):
         showprogress(bi, n_blk, n_step=20)
 
@@ -583,7 +587,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
         blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                              n_perm=n_perm, verbose=False)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
-        if n_pos < n_read * 0.02:
+        if n_pos < min_n_pos:
+            n_ignored += 1
             continue
 
         blk_exp = np.mean(blk_rnd, axis=0)
@@ -603,6 +608,8 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
             y_tick_lbl[bi] = ant_name
         else:
             x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
+    if n_ignored != 0:
+        print '[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk)
 
     # set self scores to nan
     # np.fill_diagonal(blk_scr, val=np.nan)
@@ -652,10 +659,21 @@ def perform_at_across_roi(configs, min_n_frg=2, n_perm=1000):
     #         ax_scr.text(bj + 0.5, bi + 0.5, '{:+0.1f}'.format(blk_scr[bi, bj]), color=txt_clr,
     #                     horizontalalignment='center', verticalalignment='center', fontsize=12)
 
+    # adjust ticks
+    for lbl in np.unique(y_tick_lbl):
+        if lbl == ' ':
+            continue
+        idx_lst = np.where(np.isin(y_tick_lbl, lbl))[0]
+        if len(idx_lst) > 1:
+            kpt_idx = np.mean(idx_lst, dtype=np.int)
+            for idx in idx_lst:
+                y_tick_lbl[idx] = 'l'
+            y_tick_lbl[kpt_idx] = lbl + ' '
+
     # final adjustments
     ax_scr.set_xticks(np.arange(n_blk) + 0.5)
     ax_scr.set_yticks(np.arange(n_blk) + 0.5)
-    ax_scr.set_xticklabels(x_tick_lbl, rotation=90)
+    ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
     ax_scr.set_yticklabels(y_tick_lbl)
     ax_scr.set_xlabel('Selected SOIs')
     ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +

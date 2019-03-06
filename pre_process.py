@@ -508,8 +508,8 @@ def find_optimal_roi(args):
         trs_pcr = np.vstack([trs_pcr, trs_pcr_prt])
 
     # compute coverage over chromosome
-    def_cvg, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
-    trs_cvg, n_trs = get_nreads_per_bin(trs_pcr[:, :4], bin_crd=blk_crd, min_n_frg=2)
+    def_cvg, n_def = get_nreads_per_bin(def_pcr[:, :4], bin_crd=blk_crd, min_n_frg=0)
+    trs_cvg, n_trs = get_nreads_per_bin(trs_pcr[:, :4], bin_crd=blk_crd, min_n_frg=0)
     def_nrm = pd.Series(def_cvg * 1e2 / n_def).rolling(5, center=True).mean().values
     trs_nrm = pd.Series(trs_cvg * 1e2 / n_trs).rolling(5, center=True).mean().values
 
