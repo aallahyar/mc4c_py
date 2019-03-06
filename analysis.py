@@ -543,7 +543,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     # re-index reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
     n_read = len(np.unique(read_inf[:, 0]))
-    min_n_pos = int(n_read * 0.02)
+    min_n_pos = 100  # int(n_read * 0.02)
 
     # convert fragments to bin-coverage
     print 'Mapping reads to bins ...'
@@ -562,6 +562,10 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
         if len(bin_cvg) > 1:
             valid_lst.append(rd_nid)
     read_inf = read_inf[np.isin(read_inf[:, 0], valid_lst), :]
+
+    # subsample reads
+    # rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), 6870, replace=False)
+    # read_inf = read_inf[np.isin(read_inf[:, 0], rnd_ids), :]
 
     # reindexing reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
