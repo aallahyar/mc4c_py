@@ -484,7 +484,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     n_all = np.max(ids_all)
 
     # link all reads to unique reads
-    print 'Linking all sequenced reads to unique reads ...'
+    print 'Linking sequenced reads to unique reads ...'
     all2unq = np.zeros(n_all, np.int64)
     for ui in range(n_unq):
         unq_id = dup_info[ui][0]
@@ -493,22 +493,29 @@ def plot_sequencing_saturation(configs, n_perm=100):
         # assert np.array_equal(dup_ids, all2unq[dup_ids - 1, 0])
 
     # create downsampling steps
-    # ds_lim = [5000, 100000]
-    ds_lim = [50, 4000]
-    ds_step_lst = np.linspace(ds_lim[0], ds_lim[1], num=20, dtype=np.int64)
-    ds_step_lst = ds_step_lst[ds_step_lst <= ds_lim[1]]
+    ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
+    ds_step_lst = np.arange(10000, 100001, 10000, dtype=np.int64)
+    ds_step_lst = ds_step_lst[ds_step_lst <= n_all]
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
     print 'Downsampling from total of {:,d} reads ...'.format(n_all)
     ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
+    idx_be = 0
     for si in range(n_step):
-        print '\t Downsampling to {:,d} reads, {:,d} times ...'.format(ds_step_lst[si], n_perm)
-        np.random.shuffle(all2unq)
+        if idx_be == 0:
+            print 'Shuffeling read ids ...'
+            np.random.shuffle(all2unq)
+        print '\tDownsampling {:d} reads to {:,d} reads, {:,d} times ...'.format(n_all, ds_step_lst[si], n_perm)
         for pi in range(n_perm):
-            seq_set = all2unq[pi * ds_step_lst[si]:(pi + 1) * ds_step_lst[si]]
+            seq_set = all2unq[idx_be:idx_be + ds_step_lst[si]]
             dup_set = seq_set[seq_set > 0]
             ds_n_unq[si, pi] = len(np.unique(dup_set))
+            idx_be += ds_step_lst[si]
+            if idx_be + ds_step_lst[si] > n_all:
+                print 'Used all shuffled ids, reshuffeling ...'
+                np.random.shuffle(all2unq)
+                idx_be = 0
 
     # compute cluster size
     cls_mem = np.unique(all2unq[all2unq > 0], return_inverse=True)[1]
@@ -520,14 +527,16 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
 
     # draw saturations
-    clr_map = [cm.Purples(x) for x in np.linspace(0.2, 1.0, n_step)]
+    clr_map = [cm.YlGn(x) for x in np.linspace(0.0, 0.6, n_step)]
     for si in range(n_step):
         box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si],
                                showfliers=False, widths=0.8, patch_artist=True)
         box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
-    ax_sat.set_xlim([-1, n_step + 1])
-    # ax_sat.set_ylim([0, 10000])
+        for element in ['whiskers', 'fliers', 'caps']:
+            plt.setp(box_h[element], color=np.array(clr_map[si]) * 0.7)
+
+    ax_sat.set_xlim([-1, n_step])
     ax_sat.set_xticks(range(n_step))
     ax_sat.set_xticklabels(ds_step_lst)
     ax_sat.set_xlabel('#reads sequenced')
@@ -538,11 +547,15 @@ def plot_sequencing_saturation(configs, n_perm=100):
     # draw cluster sizes
     n_top = np.min([len(cls_size), 1000])
     clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
-    ax_cls.plot(range(n_top), cls_size[:n_top], '--o', color='blue')
+    ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue')
     # for ti in range(n_top):
     #     ax_cls.plot(ti + 1, cls_size[ti], 'o', color=clr_map[ti], markeredgecolor='None')
 
-    ax_cls.set_xlim([0, n_top + 1])
+    ax_cls.set_xlim([-1, n_top + 2])
+    x_tick_idx = np.linspace(1, n_top, 10, dtype=np.int)
+    x_tick_lbl = ['{:,d}'.format(x) for x in x_tick_idx]
+    ax_cls.set_xticks(x_tick_idx)
+    ax_cls.set_xticklabels(x_tick_lbl)
     # ax_cls.set_ylim(x_lim)
     # ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
     # ax_scr.set_yticklabels(y_tick_lbl)
