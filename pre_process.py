@@ -28,7 +28,7 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
         n_ovl = len(np.unique(umi_set[has_ol, 0]))
         if n_ovl > 1:
             # select duplicates
-            dup_set = umi_set[has_ol, :]
+            dup_set = umi_set[has_ol, :].copy()
 
             # keep largest read according to #roi fragments
             keep_rid = dup_set[np.argmax(dup_set[:, -1]), 0]
@@ -38,13 +38,13 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
             umi_set = umi_set[~ np.isin(umi_set[:, 0], dup_set[:, 0]), :]
         elif n_ovl == 1:
             keep_rid = umi_set[has_ol, 0][0]
-            dup_set = umi_set[has_ol, :]
+            dup_set = umi_set[has_ol, :].copy()
         else:
             keep_rid = -1
             dup_set = np.empty([0, 5])
 
         # save information
-        duplicate_info.append((keep_rid, dup_set[:, 0], frg_umi[umi_idx, :]))
+        duplicate_info.append((keep_rid, dup_set[:, 0].copy, frg_umi[umi_idx, :].copy()))
         umi_idx = umi_idx + 1
 
     return umi_set, duplicate_info
@@ -635,10 +635,10 @@ def removeDuplicates(args):
     # load mc4c data
     h5_fid = h5py.File(args.input_file, 'r')
     target_field = 'frg_np'
-    data_np = h5_fid[target_field].value
-    header_lst = list(h5_fid[target_field + '_header_lst'].value)
+    data_np = h5_fid[target_field][()]
+    header_lst = list(h5_fid[target_field + '_header_lst'][()])
     mc4c_pd = pd.DataFrame(data_np, columns=header_lst)
-    chr_lst = list(h5_fid['chr_lst'].value)
+    chr_lst = list(h5_fid['chr_lst'][()])
     h5_fid.close()
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
     print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
@@ -671,7 +671,7 @@ def removeDuplicates(args):
     print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0])))
 
     # remove duplicates
-    unq_set, duplicate_info = remove_duplicates_by_umi(umi_set)
+    unq_set, duplicate_info = remove_duplicates_by_umi(umi_set, verbose=True)
     print 'Result statistics (before --> after filtering):'
     print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(unq_set[:, 0])))
     print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], unq_set.shape[0])
