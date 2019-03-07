@@ -470,20 +470,22 @@ def plot_sequencing_saturation(configs, n_perm=100):
     h5_fid = h5py.File(raw_fname, 'r')
     dup_info = h5_fid['duplicate_info'][()]
     h5_fid.close()
-    n_unq = len(dup_info)
+    n_info = len(dup_info)
 
     # extract all read identifiers
     print 'Extracting read identifiers ...'
     ids_all = []
-    for ui in range(n_unq):
-        ids_all.append(dup_info[ui][0])
+    ids_unq = []
+    for ui in range(n_info):
+        ids_unq.append(dup_info[ui][0])
         ids_all.extend(dup_info[ui][1])
-    n_all = np.max(ids_all)
+    n_unq = len(np.unique(ids_unq))
+    n_all = np.max(ids_all + ids_unq)
 
     # link all reads to unique reads
     print 'Linking sequenced reads to unique reads ...'
     all2unq = np.zeros(n_all, np.int64)
-    for ui in range(n_unq):
+    for ui in range(n_info):
         unq_id = dup_info[ui][0]
         dup_ids = dup_info[ui][1]
         all2unq[dup_ids - 1] = unq_id
@@ -534,7 +536,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     ax_sat.set_xlim([-1, n_step])
     ax_sat.set_xticks(range(n_step))
-    ax_sat.set_xticklabels(ds_step_lst)
+    x_tick_lbl = ['{:0,.0f}k'.format(x / 1e3) for x in ds_step_lst]
+    ax_sat.set_xticklabels(x_tick_lbl)
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#reads unique')
     ax_sat.set_title('Sequencing depth efficiency\n'
@@ -549,13 +552,13 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     ax_cls.set_xlim([-1, n_top + 2])
     x_tick_idx = np.linspace(1, n_top, 10, dtype=np.int)
-    x_tick_lbl = ['{:0,.0}k'.format(x / 1e3) for x in x_tick_idx]
+    x_tick_lbl = ['{:,d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
     ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
     ax_cls.set_ylabel('#reads in cluster')
     ax_cls.set_title('Duplicate cluster size\n'
-                     '#cluster={:,d}'.format(n_unq))
+                     '#cluster={:,d}'.format(n_info))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
