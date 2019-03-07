@@ -458,10 +458,7 @@ def plot_overallProfile(configs, min_n_frg=2):
 
 def plot_sequencing_saturation(configs, n_perm=100):
     import h5py
-    from matplotlib import pyplot as plt, patches, cm
-    from matplotlib.colors import LinearSegmentedColormap
-
-    from utilities import showprogress
+    from matplotlib import pyplot as plt, cm
 
     # initialization
     if configs['output_file'] is None:
@@ -490,10 +487,9 @@ def plot_sequencing_saturation(configs, n_perm=100):
         unq_id = dup_info[ui][0]
         dup_ids = dup_info[ui][1]
         all2unq[dup_ids - 1] = unq_id
-        # assert np.array_equal(dup_ids, all2unq[dup_ids - 1, 0])
 
     # create downsampling steps
-    ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
+    # ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
     ds_step_lst = np.arange(10000, 100001, 10000, dtype=np.int64)
     ds_step_lst = ds_step_lst[ds_step_lst <= n_all]
     n_step = len(ds_step_lst)
@@ -531,23 +527,23 @@ def plot_sequencing_saturation(configs, n_perm=100):
     for si in range(n_step):
         box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si],
                                showfliers=False, widths=0.8, patch_artist=True)
-        box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
-        for element in ['whiskers', 'fliers', 'caps']:
+        for element in ['boxes', 'whiskers', 'fliers', 'caps']:
             plt.setp(box_h[element], color=np.array(clr_map[si]) * 0.7)
+        box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
     ax_sat.set_xlim([-1, n_step])
     ax_sat.set_xticks(range(n_step))
     ax_sat.set_xticklabels(ds_step_lst)
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#reads unique')
-    ax_sat.set_title('Sequencing saturation (#raw vs. #unique)\n'
-                     '#reads [all, unique]= {:,d}, {:,d}'.format(n_all, n_unq))
+    ax_sat.set_title('Sequencing depth efficiency\n'
+                     '#reads [all; unique]= {:,d}; {:,d}'.format(n_all, n_unq))
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 1000])
-    clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue')
+    # clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
     # for ti in range(n_top):
     #     ax_cls.plot(ti + 1, cls_size[ti], 'o', color=clr_map[ti], markeredgecolor='None')
 
@@ -556,14 +552,12 @@ def plot_sequencing_saturation(configs, n_perm=100):
     x_tick_lbl = ['{:,d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
-    # ax_cls.set_ylim(x_lim)
-    # ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
-    # ax_scr.set_yticklabels(y_tick_lbl)
     ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
     ax_cls.set_ylabel('#reads in cluster')
     ax_cls.set_title('Duplicate cluster size\n'
                      '#cluster={:,d}'.format(n_unq))
 
+    plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
