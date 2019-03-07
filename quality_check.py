@@ -456,9 +456,10 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_sequencing_saturation(configs, n_perm=100):
+def plot_sequencing_saturation(configs, n_perm=1000):
     import h5py
     from matplotlib import pyplot as plt, cm
+    from matplotlib.colors import LinearSegmentedColormap
 
     from utilities import showprogress
 
@@ -470,17 +471,17 @@ def plot_sequencing_saturation(configs, n_perm=100):
     raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
     print('Loading duplication info from: {:s} ...'.format(raw_fname))
     h5_fid = h5py.File(raw_fname, 'r')
-    dup_info = h5_fid['duplicate_info'][()]
+    umi_info = h5_fid['duplicate_info'][()]
     h5_fid.close()
-    n_info = len(dup_info)
+    n_umi = len(umi_info)
 
     # extract all read identifiers
     print 'Extracting read identifiers ...'
     ids_unq = []
     ids_dup = []
-    for ui in range(n_info):
-        ids_unq.append(dup_info[ui][0])
-        ids_dup.extend(dup_info[ui][1])
+    for ui in range(n_umi):
+        ids_unq.append(umi_info[ui][0])
+        ids_dup.extend(umi_info[ui][1])
     n_unq = len(np.unique(ids_unq))
     n_dup = np.max(ids_unq + ids_dup)
     del ids_unq, ids_dup
@@ -488,15 +489,14 @@ def plot_sequencing_saturation(configs, n_perm=100):
     # link all reads to unique reads
     print 'Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_dup, n_unq)
     all2unq = np.zeros(n_dup, np.int64)
-    for ui in range(n_info):
-        unq_id = dup_info[ui][0]
-        dup_ids = dup_info[ui][1]
+    for ui in range(n_umi):
+        unq_id = umi_info[ui][0]
+        dup_ids = umi_info[ui][1]
         all2unq[dup_ids - 1] = unq_id
-    del dup_info
+    del umi_info
 
     # create downsampling steps
-    # ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
-    ds_step_lst = np.linspace(50000, 500000, 10, dtype=np.int64)  ###
+    ds_step_lst = np.linspace(50000, 1000000, 20, dtype=np.int64)
     ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
     n_step = len(ds_step_lst)
 
@@ -516,35 +516,41 @@ def plot_sequencing_saturation(configs, n_perm=100):
     cls_size = - np.sort(- np.bincount(cls_mem))
 
     # plotting the scores
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(18, 5))
     ax_sat = plt.subplot2grid((1, 2), (0, 0), rowspan=1, colspan=1)
     ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
 
     # draw saturations
-    clr_map = [cm.YlGn(x) for x in np.linspace(0.0, 0.6, n_step)]
+    clr_lst = ['#ff9061', '#d2bb56', '#00cc07']
+    clr_obj = LinearSegmentedColormap.from_list('test', clr_lst, N=n_step)
+    clr_map = [clr_obj(i) for i in np.linspace(0.0, 1.0, n_step)]
     for si in range(n_step):
         box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si], showfliers=False, widths=0.8, patch_artist=True)
 
-        for element in ['boxes', 'whiskers', 'fliers', 'caps', 'median', 'mean']:
-            plt.setp(box_h[element], color=np.array(clr_map[si]) * 0.7)
+        for element in ['boxes', 'fliers', 'medians', 'means', 'whiskers', 'caps']:
+            plt.setp(box_h[element], color=np.array(clr_map[si]) * 1.0, linewidth=1.0, alpha=1.0)
         box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
-    x_tick_lbl = ['{:0,.0f}k'.format(x / 1e3) for x in ds_step_lst]
-    ax_sat.set_xticks(range(n_step))
+        if si > 0:
+            ax_sat.plot([si - 1, si], np.mean(ds_n_unq[si-1:si+1, :], axis=1), ':', color=clr_map[si])
+    ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green')
+    ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
+                verticalalignment='bottom', horizontalalignment='left')
+
+    x_tick_idx = range(n_step)
+    x_tick_lbl = ['{:0,.0f}k'.format(ds_step_lst[i] / 1e3) if i % 2 else '' for i in x_tick_idx]
+    ax_sat.set_xticks(x_tick_idx)
     ax_sat.set_xticklabels(x_tick_lbl)
     ax_sat.set_xlabel('#reads sequenced')
-    ax_sat.set_ylabel('#reads unique')
+    ax_sat.set_ylabel('#unique reads collected')
     ax_sat.set_xlim([-1, n_step])
-    ax_sat.set_ylim([0, n_unq])
+    ax_sat.set_ylim([0, n_unq * 1.1])
     ax_sat.set_title('Sequencing depth efficiency\n'
                      '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 500])
-    ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue')
-    # clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
-    # for ti in range(n_top):
-    #     ax_cls.plot(ti + 1, cls_size[ti], 'o', color=clr_map[ti], markeredgecolor='None')
+    ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue', markersize=2, linewidth=0.5)
 
     ax_cls.set_xlim([-5, n_top + 2 + 5])
     x_tick_idx = np.linspace(1, n_top, 11, dtype=np.int)
@@ -553,8 +559,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_cls.set_xticklabels(x_tick_lbl)
     # ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
     ax_cls.set_ylabel('#reads in cluster')
-    ax_cls.set_title('Top {:d} largest duplicate clusters\n'.format(n_top) +
-                     '#cluster={:,d}'.format(n_info))
+    ax_cls.set_title('Top {:d} largest duplicate UMIs\n'.format(n_top) +
+                     '#UMI={:,d}, #UMI (rep>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')

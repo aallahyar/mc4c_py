@@ -44,7 +44,7 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
             dup_set = np.empty([0, 5])
 
         # save information
-        duplicate_info.append((keep_rid, dup_set[:, 0].copy, frg_umi[umi_idx, :].copy()))
+        duplicate_info.append((keep_rid, dup_set[:, 0].copy(), frg_umi[umi_idx, :].copy()))
         umi_idx = umi_idx + 1
 
     return umi_set, duplicate_info

@@ -447,7 +447,7 @@ def get_nreads_per_bin(reads, bin_crd=None, n_bin=None, boundary=None, min_n_frg
     return bin_cvg, n_read
 
 
-def showprogress(iter, n_iter, n_step=10, output_format='{:1.0f}%, '):
+def showprogress(iter, n_iter, n_step=10, output_format='{:1.0f}%,'):
     iter = iter + 1
     if ((iter % (n_iter / float(n_step))) - ((iter - 1) % (n_iter / float(n_step))) < 0) or (n_iter / float(n_step) <= 1):
         print(output_format.format(iter * 100 / n_iter)),
