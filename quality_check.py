@@ -456,12 +456,12 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_sequencing_saturation(configs, n_perm=1000):
+def plot_sequencing_saturation(configs, n_perm=100):
     import h5py
-    from matplotlib import pyplot as plt, cm
+    from matplotlib import pyplot as plt
     from matplotlib.colors import LinearSegmentedColormap
 
-    from utilities import showprogress
+    # from utilities import showprogress
 
     # initialization
     if configs['output_file'] is None:
@@ -469,11 +469,12 @@ def plot_sequencing_saturation(configs, n_perm=1000):
 
     # load duplication info
     raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
-    print('Loading duplication info from: {:s} ...'.format(raw_fname))
+    print('Loading UMI details from: {:s} ...'.format(raw_fname))
     h5_fid = h5py.File(raw_fname, 'r')
     umi_info = h5_fid['duplicate_info'][()]
     h5_fid.close()
     n_umi = len(umi_info)
+    assert umi_info[0][1].ndim == 1, 'The dataset is prepared using old version of the pipeline.'
 
     # extract all read identifiers
     print 'Extracting read identifiers ...'
@@ -497,16 +498,18 @@ def plot_sequencing_saturation(configs, n_perm=1000):
 
     # create downsampling steps
     ds_step_lst = np.linspace(50000, 1000000, 20, dtype=np.int64)
-    ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
+    # ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
     print 'Downsampling {:,d} reads ...'.format(n_dup)
-    ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
+    ds_n_unq = np.full([n_step, n_perm], fill_value=np.nan)
     for si in range(n_step):
-        print '\tRandom sampling of {:7,d} reads, {:d} times:'.format(ds_step_lst[si], n_perm),
+        if ds_step_lst[si] > n_dup:
+            break
+        print '\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm),
         for pi in range(n_perm):
-            showprogress(pi, n_perm)
+            # showprogress(pi, n_perm)
             seq_set = np.random.choice(all2unq, size=ds_step_lst[si], replace=False)
             dup_set = seq_set[seq_set > 0]
             ds_n_unq[si, pi] = len(np.unique(dup_set))
@@ -516,7 +519,7 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     cls_size = - np.sort(- np.bincount(cls_mem))
 
     # plotting the scores
-    plt.figure(figsize=(18, 5))
+    plt.figure(figsize=(15, 5))
     ax_sat = plt.subplot2grid((1, 2), (0, 0), rowspan=1, colspan=1)
     ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
 
@@ -525,8 +528,10 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     clr_obj = LinearSegmentedColormap.from_list('test', clr_lst, N=n_step)
     clr_map = [clr_obj(i) for i in np.linspace(0.0, 1.0, n_step)]
     for si in range(n_step):
-        box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si], showfliers=False, widths=0.8, patch_artist=True)
+        if np.isnan(ds_n_unq[si, 0]):
+            continue
 
+        box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si], showfliers=False, widths=0.8, patch_artist=True)
         for element in ['boxes', 'fliers', 'medians', 'means', 'whiskers', 'caps']:
             plt.setp(box_h[element], color=np.array(clr_map[si]) * 1.0, linewidth=1.0, alpha=1.0)
         box_h['boxes'][0].set_facecolor(color=clr_map[si])
