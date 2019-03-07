@@ -456,9 +456,11 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_sequencing_saturation(configs, n_perm=1000):
+def plot_sequencing_saturation(configs, n_perm=100):
     import h5py
     from matplotlib import pyplot as plt, cm
+
+    from utilities import showprogress
 
     # initialization
     if configs['output_file'] is None:
@@ -494,28 +496,20 @@ def plot_sequencing_saturation(configs, n_perm=1000):
 
     # create downsampling steps
     # ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
-    ds_step_lst = np.arange(10000, 100001, 10000, dtype=np.int64)
+    ds_step_lst = np.linspace(50000, 500000, 10, dtype=np.int64)  ###
     ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
     print 'Downsampling {:,d} reads ...'.format(n_dup)
     ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
-    idx_be = 0
     for si in range(n_step):
-        if idx_be == 0:
-            print 'Shuffeling read ids ...'
-            np.random.shuffle(all2unq)
-        print '\tRandom sampling of {:,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm)
+        print '\tRandom sampling of {:7,d} reads, {:d} times:'.format(ds_step_lst[si], n_perm),
         for pi in range(n_perm):
-            seq_set = all2unq[idx_be:idx_be + ds_step_lst[si]]
+            showprogress(pi, n_perm)
+            seq_set = np.random.choice(all2unq, size=ds_step_lst[si], replace=False)
             dup_set = seq_set[seq_set > 0]
             ds_n_unq[si, pi] = len(np.unique(dup_set))
-            idx_be += ds_step_lst[si]
-            if idx_be + ds_step_lst[si] >= n_dup:
-                print 'Used all shuffled ids, reshuffeling ...'
-                np.random.shuffle(all2unq)
-                idx_be = 0
 
     # compute cluster size
     cls_mem = np.unique(all2unq[all2unq > 0], return_inverse=True)[1]
@@ -531,7 +525,7 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     for si in range(n_step):
         box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si], showfliers=False, widths=0.8, patch_artist=True)
 
-        for element in ['boxes', 'whiskers', 'fliers', 'caps']:
+        for element in ['boxes', 'whiskers', 'fliers', 'caps', 'median', 'mean']:
             plt.setp(box_h[element], color=np.array(clr_map[si]) * 0.7)
         box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
@@ -541,6 +535,7 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#reads unique')
     ax_sat.set_xlim([-1, n_step])
+    ax_sat.set_ylim([0, n_unq])
     ax_sat.set_title('Sequencing depth efficiency\n'
                      '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 

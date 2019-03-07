@@ -270,6 +270,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'selectROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
@@ -289,7 +290,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BRN-BMaj-96x,BRN-BMaj-96x2']
 
-        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
 
     args = parser.parse_args(sys.argv[1:])
