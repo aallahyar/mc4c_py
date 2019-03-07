@@ -507,7 +507,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     for si in range(n_step):
         if ds_step_lst[si] > n_dup:
             break
-        print '\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm),
+        print '\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm)
         for pi in range(n_perm):
             # showprogress(pi, n_perm)
             seq_set = np.random.choice(all2unq, size=ds_step_lst[si], replace=False)
@@ -519,7 +519,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     cls_size = - np.sort(- np.bincount(cls_mem))
 
     # plotting the scores
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(15, 4))
     ax_sat = plt.subplot2grid((1, 2), (0, 0), rowspan=1, colspan=1)
     ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
 
@@ -538,9 +538,9 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
         if si > 0:
             ax_sat.plot([si - 1, si], np.mean(ds_n_unq[si-1:si+1, :], axis=1), ':', color=clr_map[si])
-    ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green')
+    ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green', alpha=0.7)
     ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
-                verticalalignment='bottom', horizontalalignment='left')
+                verticalalignment='bottom', horizontalalignment='left', color='green')
 
     x_tick_idx = range(n_step)
     x_tick_lbl = ['{:0,.0f}k'.format(ds_step_lst[i] / 1e3) if i % 2 else '' for i in x_tick_idx]
@@ -554,7 +554,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
                      '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 
     # draw cluster sizes
-    n_top = np.min([len(cls_size), 500])
+    n_top = np.min([len(cls_size), 100])
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue', markersize=2, linewidth=0.5)
 
     ax_cls.set_xlim([-5, n_top + 2 + 5])
@@ -562,9 +562,9 @@ def plot_sequencing_saturation(configs, n_perm=100):
     x_tick_lbl = ['{:d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
-    # ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
-    ax_cls.set_ylabel('#reads in cluster')
-    ax_cls.set_title('Top {:d} largest duplicate UMIs\n'.format(n_top) +
+    ax_cls.set_xlabel('Top largest UMIs'.format(n_top))
+    ax_cls.set_ylabel('#reads with identical UMI')
+    ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
                      '#UMI={:,d}, #UMI (rep>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
