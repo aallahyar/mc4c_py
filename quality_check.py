@@ -499,20 +499,20 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
-    print 'Downsampling from total of {:,d} reads ...'.format(n_dup)
+    print 'Downsampling {:,d} reads ...'.format(n_dup)
     ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
     idx_be = 0
     for si in range(n_step):
         if idx_be == 0:
             print 'Shuffeling read ids ...'
             np.random.shuffle(all2unq)
-        print '\tDownsampling {:d} reads to {:,d} reads, {:,d} times ...'.format(n_dup, ds_step_lst[si], n_perm)
+        print '\tRandom sampling of {:,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm)
         for pi in range(n_perm):
             seq_set = all2unq[idx_be:idx_be + ds_step_lst[si]]
             dup_set = seq_set[seq_set > 0]
             ds_n_unq[si, pi] = len(np.unique(dup_set))
             idx_be += ds_step_lst[si]
-            if idx_be + ds_step_lst[si] > n_dup:
+            if idx_be + ds_step_lst[si] >= n_dup:
                 print 'Used all shuffled ids, reshuffeling ...'
                 np.random.shuffle(all2unq)
                 idx_be = 0
@@ -529,37 +529,36 @@ def plot_sequencing_saturation(configs, n_perm=1000):
     # draw saturations
     clr_map = [cm.YlGn(x) for x in np.linspace(0.0, 0.6, n_step)]
     for si in range(n_step):
-        box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si],
-                               showfliers=False, widths=0.8, patch_artist=True)
+        box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si], showfliers=False, widths=0.8, patch_artist=True)
 
         for element in ['boxes', 'whiskers', 'fliers', 'caps']:
             plt.setp(box_h[element], color=np.array(clr_map[si]) * 0.7)
         box_h['boxes'][0].set_facecolor(color=clr_map[si])
 
-    ax_sat.set_xlim([-1, n_step])
-    ax_sat.set_xticks(range(n_step))
     x_tick_lbl = ['{:0,.0f}k'.format(x / 1e3) for x in ds_step_lst]
+    ax_sat.set_xticks(range(n_step))
     ax_sat.set_xticklabels(x_tick_lbl)
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#reads unique')
+    ax_sat.set_xlim([-1, n_step])
     ax_sat.set_title('Sequencing depth efficiency\n'
                      '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 
     # draw cluster sizes
-    n_top = np.min([len(cls_size), 1000])
+    n_top = np.min([len(cls_size), 500])
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue')
     # clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
     # for ti in range(n_top):
     #     ax_cls.plot(ti + 1, cls_size[ti], 'o', color=clr_map[ti], markeredgecolor='None')
 
-    ax_cls.set_xlim([-1, n_top + 2])
-    x_tick_idx = np.linspace(1, n_top, 10, dtype=np.int)
-    x_tick_lbl = ['{:,d}'.format(x) for x in x_tick_idx]
+    ax_cls.set_xlim([-5, n_top + 2 + 5])
+    x_tick_idx = np.linspace(1, n_top, 11, dtype=np.int)
+    x_tick_lbl = ['{:d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
-    ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
+    # ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
     ax_cls.set_ylabel('#reads in cluster')
-    ax_cls.set_title('Duplicate cluster size\n'
+    ax_cls.set_title('Top {:d} largest duplicate clusters\n'.format(n_top) +
                      '#cluster={:,d}'.format(n_info))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
