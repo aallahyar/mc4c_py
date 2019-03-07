@@ -9,7 +9,7 @@ def plot_readSizeDistribution(configs):
     if configs['input_file'] is None:
         configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/QC_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8000
     edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1
@@ -70,7 +70,7 @@ def plot_frg_size_distribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_frgSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/QC_frgSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
@@ -206,7 +206,7 @@ def plot_chrCvg(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_chrCoverage_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/QC_chrCoverage_' + configs['run_id'] + '.pdf'
 
     # get chr info
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
@@ -359,7 +359,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     ])
 
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_CirSizeDistribution_' + configs['run_id']
+        configs['output_file'] = configs['output_dir'] + '/QC_CirSizeDistribution_' + configs['run_id']
         if roi_only or uniq_only:
              configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
         else:
@@ -374,7 +374,7 @@ def plot_overallProfile(configs, min_n_frg=2):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_OverallProfile_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/QC_OverallProfile_' + configs['run_id'] + '.pdf'
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -454,6 +454,105 @@ def plot_overallProfile(configs, min_n_frg=2):
     ])
     plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')
+
+
+def plot_sequencing_saturation(configs, n_perm=100):
+    import h5py
+    from matplotlib import pyplot as plt, patches, cm
+    from matplotlib.colors import LinearSegmentedColormap
+
+    from utilities import showprogress
+
+    # initialization
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/QC_seqSaturation_{:s}.pdf'.format(configs['run_id'])
+
+    # load duplication info
+    raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+    print('Loading duplication info from: {:s} ...'.format(raw_fname))
+    h5_fid = h5py.File(raw_fname, 'r')
+    dup_info = h5_fid['duplicate_info'][()]
+    h5_fid.close()
+    n_unq = len(dup_info)
+
+    # extract all read identifiers
+    print 'Extracting read identifiers ...'
+    ids_all = []
+    for ui in range(n_unq):
+        ids_all.append(dup_info[ui][0])
+        ids_all.extend(dup_info[ui][1])
+    n_all = np.max(ids_all)
+
+    # link all reads to unique reads
+    print 'Linking all sequenced reads to unique reads ...'
+    all2unq = np.zeros(n_all, np.int64)
+    for ui in range(n_unq):
+        unq_id = dup_info[ui][0]
+        dup_ids = dup_info[ui][1]
+        all2unq[dup_ids - 1] = unq_id
+        # assert np.array_equal(dup_ids, all2unq[dup_ids - 1, 0])
+
+    # create downsampling steps
+    # ds_lim = [5000, 100000]
+    ds_lim = [50, 4000]
+    ds_step_lst = np.linspace(ds_lim[0], ds_lim[1], num=20, dtype=np.int64)
+    ds_step_lst = ds_step_lst[ds_step_lst <= ds_lim[1]]
+    n_step = len(ds_step_lst)
+
+    # loop over down sampling steps
+    print 'Downsampling from total of {:,d} reads ...'.format(n_all)
+    ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
+    for si in range(n_step):
+        print '\t Downsampling to {:,d} reads, {:,d} times ...'.format(ds_step_lst[si], n_perm)
+        np.random.shuffle(all2unq)
+        for pi in range(n_perm):
+            seq_set = all2unq[pi * ds_step_lst[si]:(pi + 1) * ds_step_lst[si]]
+            dup_set = seq_set[seq_set > 0]
+            ds_n_unq[si, pi] = len(np.unique(dup_set))
+
+    # compute cluster size
+    cls_mem = np.unique(all2unq[all2unq > 0], return_inverse=True)[1]
+    cls_size = - np.sort(- np.bincount(cls_mem))
+
+    # plotting the scores
+    plt.figure(figsize=(15, 5))
+    ax_sat = plt.subplot2grid((1, 2), (0, 0), rowspan=1, colspan=1)
+    ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
+
+    # draw saturations
+    clr_map = [cm.Purples(x) for x in np.linspace(0.2, 1.0, n_step)]
+    for si in range(n_step):
+        box_h = ax_sat.boxplot(ds_n_unq[si, :], positions=[si],
+                               showfliers=False, widths=0.8, patch_artist=True)
+        box_h['boxes'][0].set_facecolor(color=clr_map[si])
+
+    ax_sat.set_xlim([-1, n_step + 1])
+    # ax_sat.set_ylim([0, 10000])
+    ax_sat.set_xticks(range(n_step))
+    ax_sat.set_xticklabels(ds_step_lst)
+    ax_sat.set_xlabel('#reads sequenced')
+    ax_sat.set_ylabel('#reads unique')
+    ax_sat.set_title('Sequencing saturation (#raw vs. #unique)\n'
+                     '#reads [all, unique]= {:,d}, {:,d}'.format(n_all, n_unq))
+
+    # draw cluster sizes
+    n_top = np.min([len(cls_size), 1000])
+    clr_map = [cm.autumn(x) for x in np.linspace(0.2, 1.0, n_top)]
+    ax_cls.plot(range(n_top), cls_size[:n_top], '--o', color='blue')
+    # for ti in range(n_top):
+    #     ax_cls.plot(ti + 1, cls_size[ti], 'o', color=clr_map[ti], markeredgecolor='None')
+
+    ax_cls.set_xlim([0, n_top + 1])
+    # ax_cls.set_ylim(x_lim)
+    # ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
+    # ax_scr.set_yticklabels(y_tick_lbl)
+    ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
+    ax_cls.set_ylabel('#reads in cluster')
+    ax_cls.set_title('Duplicate cluster size\n'
+                     '#cluster={:,d}'.format(n_unq))
+
+    plt.savefig(configs['output_file'], bbox_inches='tight')
+
 
 
 
