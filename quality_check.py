@@ -549,7 +549,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     ax_cls.set_xlim([-1, n_top + 2])
     x_tick_idx = np.linspace(1, n_top, 10, dtype=np.int)
-    x_tick_lbl = ['{:,d}'.format(x) for x in x_tick_idx]
+    x_tick_lbl = ['{:0,.0}k'.format(x / 1e3) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
     ax_cls.set_xlabel('Top {:d} duplicate clusters'.format(n_top))
