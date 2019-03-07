@@ -193,20 +193,6 @@ def main():
                                   help='Output file (in HDF5 format) containing processed fragments')
     parser_mkDataset.set_defaults(func=pre_process.processMappedFragments)
 
-    # select ROI
-    parser_selectROI = subparsers.add_parser('selectROI',
-                                             description='Identify a Region Of Interest (ROI) for a given ' +
-                                                         'MC-4C dataset')
-    parser_selectROI.add_argument('config_file', metavar='config-file', type=str,
-                                  help='Configuration file containing experiment specific details')
-    parser_selectROI.add_argument('--min-cvg', default=2, type=np.float,
-                                  help='Minimum coverage to be used in ROI selection procedure.')
-    parser_selectROI.add_argument('--min-mq', default=20, type=int,
-                                  help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
-    parser_selectROI.add_argument('--output-file', default=None, type=str,
-                                  help='Output file (in PDF format) containing result of the analysis.')
-    parser_selectROI.set_defaults(func=pre_process.find_optimal_roi)
-
     # Remove PCR duplicated
     parser_remDup = subparsers.add_parser('removeDuplicates',
                                           description='Remove PCR duplicates from a given MC-4C dataset')
