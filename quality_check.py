@@ -456,7 +456,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_sequencing_saturation(configs, n_perm=100):
+def plot_sequencing_saturation(configs, n_perm=1000):
     import h5py
     from matplotlib import pyplot as plt, cm
 
@@ -474,43 +474,45 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     # extract all read identifiers
     print 'Extracting read identifiers ...'
-    ids_all = []
     ids_unq = []
+    ids_dup = []
     for ui in range(n_info):
         ids_unq.append(dup_info[ui][0])
-        ids_all.extend(dup_info[ui][1])
+        ids_dup.extend(dup_info[ui][1])
     n_unq = len(np.unique(ids_unq))
-    n_all = np.max(ids_all + ids_unq)
+    n_dup = np.max(ids_unq + ids_dup)
+    del ids_unq, ids_dup
 
     # link all reads to unique reads
-    print 'Linking sequenced reads to unique reads ...'
-    all2unq = np.zeros(n_all, np.int64)
+    print 'Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_dup, n_unq)
+    all2unq = np.zeros(n_dup, np.int64)
     for ui in range(n_info):
         unq_id = dup_info[ui][0]
         dup_ids = dup_info[ui][1]
         all2unq[dup_ids - 1] = unq_id
+    del dup_info
 
     # create downsampling steps
     # ds_step_lst = np.arange(500, 10001, 1000, dtype=np.int64)
     ds_step_lst = np.arange(10000, 100001, 10000, dtype=np.int64)
-    ds_step_lst = ds_step_lst[ds_step_lst <= n_all]
+    ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
-    print 'Downsampling from total of {:,d} reads ...'.format(n_all)
+    print 'Downsampling from total of {:,d} reads ...'.format(n_dup)
     ds_n_unq = np.zeros([n_step, n_perm], dtype=np.int)
     idx_be = 0
     for si in range(n_step):
         if idx_be == 0:
             print 'Shuffeling read ids ...'
             np.random.shuffle(all2unq)
-        print '\tDownsampling {:d} reads to {:,d} reads, {:,d} times ...'.format(n_all, ds_step_lst[si], n_perm)
+        print '\tDownsampling {:d} reads to {:,d} reads, {:,d} times ...'.format(n_dup, ds_step_lst[si], n_perm)
         for pi in range(n_perm):
             seq_set = all2unq[idx_be:idx_be + ds_step_lst[si]]
             dup_set = seq_set[seq_set > 0]
             ds_n_unq[si, pi] = len(np.unique(dup_set))
             idx_be += ds_step_lst[si]
-            if idx_be + ds_step_lst[si] > n_all:
+            if idx_be + ds_step_lst[si] > n_dup:
                 print 'Used all shuffled ids, reshuffeling ...'
                 np.random.shuffle(all2unq)
                 idx_be = 0
@@ -541,7 +543,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#reads unique')
     ax_sat.set_title('Sequencing depth efficiency\n'
-                     '#reads [all; unique]= {:,d}; {:,d}'.format(n_all, n_unq))
+                     '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 1000])
