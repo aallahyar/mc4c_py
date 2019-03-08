@@ -485,12 +485,13 @@ def plot_sequencing_saturation(configs, n_perm=100):
         ids_unq.append(umi_info[ui][0])
         ids_dup.extend(umi_info[ui][1])
     n_unq = len(np.unique(ids_unq))
-    n_dup = np.max(ids_unq + ids_dup)
+    n_inf = len(np.unique(ids_unq + ids_dup))
+    n_seq = np.max(ids_unq + ids_dup)
     del ids_unq, ids_dup
 
     # link all reads to unique reads
-    print 'Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_dup, n_unq)
-    all2unq = np.zeros(n_dup, np.int64)
+    print 'Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_seq, n_unq)
+    all2unq = np.zeros(n_seq, np.int64)
     for ui in range(n_umi):
         unq_id = umi_info[ui][0]
         dup_ids = umi_info[ui][1]
@@ -503,10 +504,10 @@ def plot_sequencing_saturation(configs, n_perm=100):
     n_step = len(ds_step_lst)
 
     # loop over down sampling steps
-    print 'Downsampling {:,d} reads ...'.format(n_dup)
+    print 'Downsampling {:,d} reads ...'.format(n_seq)
     ds_n_unq = np.full([n_step, n_perm], fill_value=np.nan)
     for si in range(n_step):
-        if ds_step_lst[si] > n_dup:
+        if ds_step_lst[si] > n_seq:
             break
         print '\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm)
         for pi in range(n_perm):
@@ -553,12 +554,14 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_sat.set_xlim([-1, n_step])
     ax_sat.set_ylim([0, unq_max_ylim])
     ax_sat.set_title('Sequencing depth efficiency\n'
-                     '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
+                     '#reads [all; informative; unique]= {:,d}; {:,d}; {:,d}'.format(n_seq, n_inf, n_unq))
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 100])
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue', markersize=2, linewidth=0.5)
-    ax_cls.text(100, 98, 'Maximum UMI duplicity={:d}'.format(np.max(cls_size)),
+    ax_cls.text(100, 98,
+                'Maximum UMI duplicity={:d}'.format(np.max(cls_size)) + '\n' +
+                'Duplicity ratio (#top UMIs / #informative) = {:0.1f}'.format(np.mean(cls_size[:n_top]) * 1e4 / n_inf),
                 verticalalignment='top', horizontalalignment='right')
 
     ax_cls.set_xlim([0, n_top + 2])
@@ -570,7 +573,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_cls.set_ylabel('#reads with identical UMI')
     ax_cls.set_ylim([0, 100])
     ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
-                     '#UMI={:,d}, #UMI (rep>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
+                     '#UMI={:,d}, #UMI (dup>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
     plt.savefig(configs['output_file'], bbox_inches='tight')

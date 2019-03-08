@@ -1,6 +1,6 @@
 #!/bin/bash
 # run: ./mc4c_cluster.sh $cfg_name $n_thread
-# run all: for fn in ./configs/*.cfg; do cfg=`basename $fn`; ./mc4c_cluster.sh ${cfg:4:-4} 6; done
+# run all: for fn in ./configs/*.cfg; do cfg=`basename $fn`; echo ./mc4c_cluster.sh ${cfg:4:-4} 6; done
 
 #set -x
 pid=$$

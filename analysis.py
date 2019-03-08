@@ -196,7 +196,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_vpsoi_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
+        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -365,7 +365,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     # initialization
     run_id = ','.join([config['run_id'] for config in config_lst])
     if config_lst[0]['output_file'] is None:
-        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/analysis_atmat_{:s}.pdf'.format(run_id)
+        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/analysis_atSOI-SOI_{:s}.pdf'.format(run_id)
     edge_lst = np.linspace(config_lst[0]['roi_start'], config_lst[0]['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
