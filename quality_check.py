@@ -466,6 +466,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     # initialization
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/QC_seqSaturation_{:s}.pdf'.format(configs['run_id'])
+    unq_max_ylim = 10000
 
     # load duplication info
     raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
@@ -520,8 +521,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     # plotting the scores
     plt.figure(figsize=(15, 4))
-    ax_sat = plt.subplot2grid((1, 2), (0, 0), rowspan=1, colspan=1)
-    ax_cls = plt.subplot2grid((1, 2), (0, 1), rowspan=1, colspan=1)
+    ax_sat = plt.subplot2grid((50, 100), (3,  0), rowspan=50, colspan=40)
+    ax_cls = plt.subplot2grid((50, 100), (3, 50), rowspan=50, colspan=40)
 
     # draw saturations
     clr_lst = ['#ff9061', '#d2bb56', '#00cc07']
@@ -538,9 +539,10 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
         if si > 0:
             ax_sat.plot([si - 1, si], np.mean(ds_n_unq[si-1:si+1, :], axis=1), ':', color=clr_map[si])
-    ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green', alpha=0.7)
-    ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
-                verticalalignment='bottom', horizontalalignment='left', color='green')
+    if n_unq * 1.05 < unq_max_ylim:
+        ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green', alpha=0.7)
+        ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
+                    verticalalignment='bottom', horizontalalignment='left', color='green')
 
     x_tick_idx = range(n_step)
     x_tick_lbl = ['{:0,.0f}k'.format(ds_step_lst[i] / 1e3) if i % 2 else '' for i in x_tick_idx]
@@ -549,21 +551,24 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#unique reads collected')
     ax_sat.set_xlim([-1, n_step])
-    ax_sat.set_ylim([0, n_unq * 1.1])
+    ax_sat.set_ylim([0, unq_max_ylim])
     ax_sat.set_title('Sequencing depth efficiency\n'
                      '#reads [all; unique]= {:,d}; {:,d}'.format(n_dup, n_unq))
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 100])
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue', markersize=2, linewidth=0.5)
+    ax_cls.text(100, 98, 'Maximum UMI duplicity={:d}'.format(np.max(cls_size)),
+                verticalalignment='top', horizontalalignment='right')
 
-    ax_cls.set_xlim([-5, n_top + 2 + 5])
+    ax_cls.set_xlim([0, n_top + 2])
     x_tick_idx = np.linspace(1, n_top, 11, dtype=np.int)
     x_tick_lbl = ['{:d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
     ax_cls.set_xlabel('Top largest UMIs'.format(n_top))
     ax_cls.set_ylabel('#reads with identical UMI')
+    ax_cls.set_ylim([0, 100])
     ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
                      '#UMI={:,d}, #UMI (rep>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
