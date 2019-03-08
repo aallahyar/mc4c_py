@@ -233,7 +233,7 @@ def main():
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
-    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atAcrossROI', 'atMat'], type=str,
+    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atSOISOI', 'atAcrossROI'], type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
@@ -286,14 +286,14 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'WPL-WTD,WPL-WTD2']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=500', 'WPL-KOD,WPL-KOD2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BRN-BMaj-96x,BRN-BMaj-96x2']
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_A']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_A']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

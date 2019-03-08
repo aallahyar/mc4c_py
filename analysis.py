@@ -65,7 +65,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_mcTest_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/analysis_mcTest_' + configs['run_id'] + '.pdf'
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     n_bin = bin_bnd.shape[0]
@@ -196,7 +196,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_vpsoi_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
+        configs['output_file'] = configs['output_dir'] + '/analysis_vpsoi_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -365,7 +365,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     # initialization
     run_id = ','.join([config['run_id'] for config in config_lst])
     if config_lst[0]['output_file'] is None:
-        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/plt_atmat_{:s}.pdf'.format(run_id)
+        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/analysis_atmat_{:s}.pdf'.format(run_id)
     edge_lst = np.linspace(config_lst[0]['roi_start'], config_lst[0]['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -510,7 +510,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/plt_atAcrossROI_{:s}.pdf'.format(run_id)
+        configs['output_file'] = configs['output_dir'] + '/analysis_atAcrossROI_{:s}.pdf'.format(run_id)
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -579,15 +579,26 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     # compute score for annotations
     print 'Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, min_n_pos)
     blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
-    x_tick_lbl = [' '] * n_blk
+    # x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
     n_ignored = 0
     for bi in range(n_blk):
         showprogress(bi, n_blk, n_step=20)
 
+        # add axes labels
+        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
+        if len(ant_idx) > 0:
+            ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
+            # x_tick_lbl[bi] = ('{:s}, #{:0.0f}'.format(ant_name, n_pos))
+            y_tick_lbl[bi] = ant_name
+        # else:
+            # x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
+
+        # ignore if vp
         if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
             continue
 
+        # compute the observe and background
         blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                              n_perm=n_perm, verbose=False)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
@@ -595,6 +606,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
             n_ignored += 1
             continue
 
+        # compute the scores
         blk_exp = np.mean(blk_rnd, axis=0)
         blk_std = np.std(blk_rnd, axis=0, ddof=0)
         np.seterr(all='ignore')
@@ -605,13 +617,6 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
         is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
         blk_scr[is_nei, bi] = np.nan
 
-        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
-        if len(ant_idx) > 0:
-            ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
-            x_tick_lbl[bi] = ('{:s}, #{:0.0f}'.format(ant_name, n_pos))
-            y_tick_lbl[bi] = ant_name
-        else:
-            x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
     if n_ignored != 0:
         print '[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk)
 

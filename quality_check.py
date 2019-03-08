@@ -9,7 +9,7 @@ def plot_readSizeDistribution(configs):
     if configs['input_file'] is None:
         configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 8000
     edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1
@@ -70,7 +70,7 @@ def plot_frg_size_distribution(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_frgSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_frgSizeDistribution_' + configs['run_id'] + '.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
@@ -206,7 +206,7 @@ def plot_chrCvg(configs):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_chrCoverage_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_chrCoverage_' + configs['run_id'] + '.pdf'
 
     # get chr info
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
@@ -359,7 +359,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     ])
 
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_CirSizeDistribution_' + configs['run_id']
+        configs['output_file'] = configs['output_dir'] + '/qc_CirSizeDistribution_' + configs['run_id']
         if roi_only or uniq_only:
              configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
         else:
@@ -374,7 +374,7 @@ def plot_overallProfile(configs, min_n_frg=2):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_OverallProfile_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_OverallProfile_' + configs['run_id'] + '.pdf'
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -465,7 +465,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/QC_seqSaturation_{:s}.pdf'.format(configs['run_id'])
+        configs['output_file'] = configs['output_dir'] + '/qc_seqSaturation_{:s}.pdf'.format(configs['run_id'])
     unq_max_ylim = 10000
 
     # load duplication info
