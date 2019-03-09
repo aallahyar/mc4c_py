@@ -599,13 +599,14 @@ def plot_reads_per_category(config_lst):
         cmd_str = 'zgrep ">" ' + seq_fname + ' | wc -l'
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
-        assert std_err == ''
+        assert std_err == '', 'Reading fastq file failed.'
         n_seq += int(std_out.strip())
 
     # load raw reads
     frg_dp = load_mc4c(config_lst, unique_only=False, valid_only=False, min_mq=0, reindex_reads=True)
     reads_raw = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
-    n_raw = len(np.unique(reads_raw[:, 0]))
+    n_map = len(np.unique(reads_raw[:, 0]))
+    del frg_dp
 
     # remove VP fragments
     vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
@@ -638,10 +639,10 @@ def plot_reads_per_category(config_lst):
     clr_map = ['#fd8181', '#fda981', '#fcc631', '#b8c903', '#38c903', '#04f1ba', '#0472f1']
     plt.figure(figsize=(8, 5))
     plt_h = [None] * n_bar
-    for cls_idx, n_read in enumerate([n_seq, n_raw, n_nvp, n_roi, n_inf, n_pcr]):
+    for cls_idx, n_read in enumerate([n_seq, n_map, n_nvp, n_roi, n_inf, n_pcr]):
         plt_h[cls_idx] = plt.bar(cls_idx, n_read, width=0.8, color=clr_map[cls_idx])[0]
 
-        txt_h = plt.text(cls_idx, n_read,
+        plt.text(cls_idx, n_read,
                  '{:0.0f}%\n'.format(n_read * 1e2 / n_seq) +
                  '#{:,d}'.format(n_read),
                  verticalalignment='bottom', horizontalalignment='center')
@@ -650,7 +651,7 @@ def plot_reads_per_category(config_lst):
     y_ticks = plt.yticks()[0]
     y_tick_lbl = ['{:0.0f}k'.format(y / 1e3) for y in y_ticks]
     plt.yticks(y_ticks, y_tick_lbl)
-    # plt.xlabel('Read size (#fragment)')
+    # plt.xlabel('Categories')
     plt.ylabel('#reads')
     plt.xlim([-1, n_bar])
     plt.ylim([0, n_seq * 1.12])
