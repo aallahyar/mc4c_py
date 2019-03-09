@@ -376,7 +376,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         # Adjust Read IDs
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
         part_pd['ReadID'] = part_pd['ReadID'] + (cfg_idx + 1) * MAX_N_CIR
-        if verbose:
+        if verbose and (len(config_lst) > 1):
             print '\tGot [{:,d}] reads and [{:,d}] fragments.'.format(
                 len(np.unique(part_pd['ReadID'])), part_pd.shape[0])
 

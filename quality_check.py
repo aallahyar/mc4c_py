@@ -633,7 +633,7 @@ def plot_reads_per_category(config_lst):
     del frg_dp
 
     # plotting the bar
-    name_lst = ['#Sequenced', '#Mapped>1', 'Only non-VP\nfragments', '#ROI>1', '#ROI>2', '#Unique']
+    name_lst = ['#Sequenced', '#Mapped>0', 'Only non-VP\nfragments', '#ROI>0', '#ROI>1', '#Unique']
     n_bar = len(name_lst)
     clr_map = ['#fd8181', '#fda981', '#fcc631', '#b8c903', '#38c903', '#04f1ba', '#0472f1']
     plt.figure(figsize=(8, 5))
@@ -641,7 +641,7 @@ def plot_reads_per_category(config_lst):
     for cls_idx, n_read in enumerate([n_seq, n_raw, n_nvp, n_roi, n_inf, n_pcr]):
         plt_h[cls_idx] = plt.bar(cls_idx, n_read, width=0.8, color=clr_map[cls_idx])[0]
 
-        plt.text(cls_idx, n_read,
+        txt_h = plt.text(cls_idx, n_read,
                  '{:0.0f}%\n'.format(n_read * 1e2 / n_seq) +
                  '#{:,d}'.format(n_read),
                  verticalalignment='bottom', horizontalalignment='center')
@@ -651,8 +651,9 @@ def plot_reads_per_category(config_lst):
     y_tick_lbl = ['{:0.0f}k'.format(y / 1e3) for y in y_ticks]
     plt.yticks(y_ticks, y_tick_lbl)
     # plt.xlabel('Read size (#fragment)')
-    plt.ylabel('Frequency (%, n vs. #seq)')
+    plt.ylabel('#reads')
     plt.xlim([-1, n_bar])
+    plt.ylim([0, n_seq * 1.12])
     plt.title(configs['run_id'])
     # plt.legend(plt_h, [])
 

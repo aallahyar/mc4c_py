@@ -299,8 +299,8 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
-        sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']
+        sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']
 
 
     args = parser.parse_args(sys.argv[1:])
