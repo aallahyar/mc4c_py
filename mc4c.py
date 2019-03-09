@@ -295,9 +295,10 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_A']
+        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD']
 
-        sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']

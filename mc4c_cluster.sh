@@ -1,6 +1,6 @@
 #!/bin/bash
 # run: ./mc4c_cluster.sh $cfg_name $n_thread
-# run all: for fn in ./configs/*.cfg; do cfg=`basename $fn`; echo ./mc4c_cluster.sh ${cfg:4:-4} 6; done
+# run all: for fn in ./configs/*.cfg; do fname=`basename $fn`; cfg_name=${fname:4:-4}; echo ./mc4c_cluster.sh ${cfg_name} 6; done
 
 #set -x
 pid=$$
@@ -38,11 +38,12 @@ echo "submitting jobs for plotting statistics"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_08-ChrCvg    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC chrCvg ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_09-CirSDistA -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_10-CirSDistR -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name} --roi-only --uniq-only"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_11-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC overallProfile ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_12-SeqSatur  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-VpSoi     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis vpSoi ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-SOISOI    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-CrossROI  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_11-CatReads  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC categorizeReads ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_12-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC overallProfile ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-SeqSatur  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis vpSoi ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-SOISOI    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI ${cfg_name}"
 fi
 
 #set +x

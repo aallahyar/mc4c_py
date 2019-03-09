@@ -558,10 +558,10 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     # draw cluster sizes
     n_top = np.min([len(cls_size), 100])
-    ax_cls.plot(range(1, n_top + 1), cls_size[:n_top], '--o', color='blue', markersize=2, linewidth=0.5)
-    ax_cls.text(100, 98,
+    ax_cls.plot(range(1, n_top + 1), cls_size[:n_top] * 1e4 / n_inf, '--o', color='blue', markersize=2, linewidth=0.5)
+    ax_cls.text(100, 48,
                 'Maximum UMI duplicity={:d}'.format(np.max(cls_size)) + '\n' +
-                'Duplicity ratio (#top UMIs / #informative) = {:0.1f}'.format(np.mean(cls_size[:n_top]) * 1e4 / n_inf),
+                'Duplicity ratio (avg #top UMIs / #informative) = {:0.1f}'.format(np.mean(cls_size[:n_top]) * 1e4 / n_inf),
                 verticalalignment='top', horizontalalignment='right')
 
     ax_cls.set_xlim([0, n_top + 2])
@@ -570,8 +570,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
     ax_cls.set_xlabel('Top largest UMIs'.format(n_top))
-    ax_cls.set_ylabel('#reads with identical UMI')
-    ax_cls.set_ylim([0, 100])
+    ax_cls.set_ylabel('#reads with identical UMI / #informative')
+    ax_cls.set_ylim([0, 50])
     ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
                      '#UMI={:,d}, #UMI (dup>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
