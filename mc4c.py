@@ -76,6 +76,8 @@ def perform_qc(args):
     elif args.report_type == 'seqSaturation':
         assert len(config_lst) == 1, '[error] Only one dataset can be tested for saturation!'
         quality_check.plot_sequencing_saturation(config_lst[0])
+    elif args.report_type == 'categorizeReads':
+        quality_check.plot_reads_per_category(config_lst)
     else:
         raise Exception()
     print '[i] {:s} plot is produced successfully.'.format(args.report_type)
@@ -112,10 +114,10 @@ def perform_analysis(args):
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
             analysis.perform_vpsoi_analysis(config_lst[0].copy(), soi_name=ant_name, n_perm=args.n_perm)
-    elif args.analysis_type == 'atAcrossROI':
-        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm)
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
+    elif args.analysis_type == 'atAcrossROI':
+        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -214,7 +216,7 @@ def main():
                                             description='Generate various summary reports about an MC-4C dataset.')
     parser_qc.add_argument('report_type', type=str,
                                  choices=['readSizeDist', 'frgSizeDist', 'chrCvg', 'cirSizeDist', 'overallProfile',
-                                          'seqSaturation'],
+                                          'seqSaturation', 'categorizeReads'],
                                  help='Type of summary report that needs to be generated')
     parser_qc.add_argument('config_file', metavar='config-file', type=str,
                                  help='Configuration file containing experiment specific details')
@@ -292,8 +294,14 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BRN-BMaj-96x,BRN-BMaj-96x2']
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_A']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
+
+        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']
+        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
+        sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']
+
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

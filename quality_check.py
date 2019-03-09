@@ -579,6 +579,85 @@ def plot_sequencing_saturation(configs, n_perm=100):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
+def plot_reads_per_category(config_lst):
+    import subprocess
+    from matplotlib import pyplot as plt
+    from utilities import load_mc4c, hasOL
+
+    # initialization
+    configs = config_lst[0]
+    if configs['output_file'] is None:
+        configs['output_file'] = configs['output_dir'] + '/qc_readCategories_' + configs['run_id'] + '.pdf'
+
+    # load number of sequenced reads
+    n_seq = 0
+    print 'Loading number of sequenced reads from fastq files ...'
+    for configs in config_lst:
+        seq_fname = './reads/rd_' + configs['run_id'] + '.fasta.gz'
+        print '\tscanning {:s}'.format(seq_fname)
+
+        cmd_str = 'zgrep ">" ' + seq_fname + ' | wc -l'
+        map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        std_out, std_err = map_prs.communicate()
+        assert std_err == ''
+        n_seq += int(std_out.strip())
+
+    # load raw reads
+    frg_dp = load_mc4c(config_lst, unique_only=False, valid_only=False, min_mq=0, reindex_reads=True)
+    reads_raw = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
+    n_raw = len(np.unique(reads_raw[:, 0]))
+
+    # remove VP fragments
+    vp_crd = np.array([configs['vp_cnum'], configs['vp_start'], configs['vp_end']])
+    is_vp = hasOL(vp_crd, reads_raw[:, 1:4], offset=0)
+    reads_nvp = reads_raw[~is_vp, :]
+    n_nvp = len(np.unique(reads_nvp[:, 0]))
+
+    # select ROI reads
+    roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
+    is_roi = hasOL(roi_crd, reads_nvp[:, 1:4], offset=0)
+    reads_roi = reads_nvp[is_roi, :]
+    n_roi = len(np.unique(reads_roi[:, 0]))
+
+    # select informative reads (#frg > 1)
+    MAX_ReadID = np.max(reads_roi[:, 0])
+    read_n_roi = np.bincount(reads_roi[:, 0], minlength=MAX_ReadID + 1)
+    is_inf = np.isin(reads_raw[:, 0], reads_roi[read_n_roi[reads_roi[:, 0]] > 1, 0])
+    reads_inf = reads_raw[is_inf, :]
+    n_inf = len(np.unique(reads_inf[:, 0]))
+
+    # load unique reads
+    frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True)
+    reads_pcr = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ']].values
+    n_pcr = len(np.unique(reads_pcr[:, 0]))
+    del frg_dp
+
+    # plotting the bar
+    name_lst = ['#Sequenced', '#Mapped>1', 'Only non-VP\nfragments', '#ROI>1', '#ROI>2', '#Unique']
+    n_bar = len(name_lst)
+    clr_map = ['#fd8181', '#fda981', '#fcc631', '#b8c903', '#38c903', '#04f1ba', '#0472f1']
+    plt.figure(figsize=(8, 5))
+    plt_h = [None] * n_bar
+    for cls_idx, n_read in enumerate([n_seq, n_raw, n_nvp, n_roi, n_inf, n_pcr]):
+        plt_h[cls_idx] = plt.bar(cls_idx, n_read, width=0.8, color=clr_map[cls_idx])[0]
+
+        plt.text(cls_idx, n_read,
+                 '{:0.0f}%\n'.format(n_read * 1e2 / n_seq) +
+                 '#{:,d}'.format(n_read),
+                 verticalalignment='bottom', horizontalalignment='center')
+
+    plt.xticks(range(n_bar), name_lst)
+    y_ticks = plt.yticks()[0]
+    y_tick_lbl = ['{:0.0f}k'.format(y / 1e3) for y in y_ticks]
+    plt.yticks(y_ticks, y_tick_lbl)
+    # plt.xlabel('Read size (#fragment)')
+    plt.ylabel('Frequency (%, n vs. #seq)')
+    plt.xlim([-1, n_bar])
+    plt.title(configs['run_id'])
+    # plt.legend(plt_h, [])
+
+    plt.savefig(configs['output_file'], bbox_inches='tight')
+
 
 
 
