@@ -101,7 +101,7 @@ def perform_analysis(args):
     if args.analysis_type == 'mcTest':
         assert len(config_lst) == 1
         analysis.perform_mc_analysis(config_lst[0])
-    elif args.analysis_type == 'vpSoi':
+    elif args.analysis_type == 'atVpSoi':
         assert len(config_lst) == 1
         if args.ant_name is None:
             from utilities import load_annotation
@@ -235,7 +235,7 @@ def main():
 
     # perform basic analysis
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
-    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'vpSoi', 'atSOISOI', 'atAcrossROI'], type=str,
+    parser_analysis.add_argument('analysis_type', choices=['mcTest', 'atVpSoi', 'atSOISOI', 'atAcrossROI'], type=str,
                                   help='Type of analysis that needs to be performed')
     parser_analysis.add_argument('config_file', metavar='config-file', type=str,
                                   help='Configuration file containing experiment specific details')
@@ -295,8 +295,9 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_A']
-        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD']
+        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD2']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'K562-WplD-10x']
 
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']

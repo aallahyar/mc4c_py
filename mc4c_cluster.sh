@@ -41,7 +41,7 @@ echo "submitting jobs for plotting statistics"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_11-CatReads  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC categorizeReads ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_12-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC overallProfile ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-SeqSatur  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis vpSoi ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-SOISOI    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI ${cfg_name}"
 fi

@@ -331,6 +331,9 @@ def load_configs(input_fname, max_n_configs=None):
             configs['vp_start'] = roi_cen - int(configs['bin_width'] * 1.5)
             configs['vp_end'] = roi_cen + int(configs['bin_width'] * 1.5)
 
+        assert (configs['roi_end'] - configs['roi_start'] < 2e6), '[e] ROI can not be defined to be larger than 2mb!'
+        assert (configs['roi_end'] - configs['roi_start'] > 1.2e5), '[e] ROI can not be defined to be smaller than 120kb!'
+
         # add to list of configs
         config_lst.append(configs.copy())
     return config_lst

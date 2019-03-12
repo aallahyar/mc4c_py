@@ -1,6 +1,8 @@
 import numpy as np
 from utilities import showprogress
 
+MIN_N_POS = 100
+
 
 def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None, verbose=True):
     from utilities import hasOL, flatten
@@ -260,6 +262,12 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     print '{:,d} reads are found to cover '.format(n_pos) + \
           '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2])
 
+    # check enough #pos
+    if n_pos < MIN_N_POS:
+        print '[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS)
+        print 'Analysis is ignored ...'
+        return
+
     # compute scores
     nrm_rnd = prf_rnd * 100.0 / n_pos
     prf_exp = np.mean(nrm_rnd, axis=0)
@@ -384,7 +392,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     frg_roi = frg_np[~is_vp & is_roi, :]
     del frg_np
 
-    # filter small circles (>1 roi-frg, ex.)
+    # filter small read (>1 roi-frg, ex.)
     cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
     frg_inf = frg_roi[cir_size >= min_n_frg, :]
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
@@ -397,7 +405,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
         cfb_lst[frg_inf[fi, 0]].append(bin_idx.tolist())
 
-    # filter circles for (>1 bin cvg)
+    # filter reads for (>1 bin cvg)
     valid_lst = []
     for rd_nid in range(1, n_read + 1):
         fb_lst = cfb_lst[rd_nid]
@@ -434,6 +442,12 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
         x_tick_lbl.append('{:s}\n#{:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
         del frg_pos
+
+        # check number of positive reads
+        if n_pos[ai] < MIN_N_POS:
+            print '[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS)
+            print 'This analysis is ignored ...'
+            continue
 
         # calculate expected profile
         ant_exp = np.mean(soi_rnd, axis=0)
@@ -543,7 +557,6 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     # re-index reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
     n_read = len(np.unique(read_inf[:, 0]))
-    min_n_pos = 100  # int(n_read * 0.02)
 
     # convert fragments to bin-coverage
     print 'Mapping reads to bins ...'
@@ -577,7 +590,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
     # compute score for annotations
-    print 'Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, min_n_pos)
+    print 'Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS)
     blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
     # x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
@@ -602,7 +615,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
         blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                              n_perm=n_perm, verbose=False)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
-        if n_pos < min_n_pos:
+        if n_pos < MIN_N_POS:
             n_ignored += 1
             continue
 

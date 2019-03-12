@@ -466,7 +466,6 @@ def plot_sequencing_saturation(configs, n_perm=100):
     # initialization
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/qc_seqSaturation_{:s}.pdf'.format(configs['run_id'])
-    unq_max_ylim = 10000
 
     # load duplication info
     raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
@@ -499,9 +498,10 @@ def plot_sequencing_saturation(configs, n_perm=100):
     del umi_info
 
     # create downsampling steps
-    ds_step_lst = np.linspace(50000, 1000000, 20, dtype=np.int64)
+    ds_step_lst = np.arange(50000, n_seq, 50000, dtype=np.int64)
     # ds_step_lst = ds_step_lst[ds_step_lst <= n_dup]
     n_step = len(ds_step_lst)
+    assert n_step > 1, 'Too few (n={:d}) sequenced reads are found.'.format(n_seq)
 
     # loop over down sampling steps
     print 'Downsampling {:,d} reads ...'.format(n_seq)
@@ -540,19 +540,20 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
         if si > 0:
             ax_sat.plot([si - 1, si], np.mean(ds_n_unq[si-1:si+1, :], axis=1), ':', color=clr_map[si])
-    if n_unq * 1.05 < unq_max_ylim:
-        ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green', alpha=0.7)
-        ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
-                    verticalalignment='bottom', horizontalalignment='left', color='green')
 
-    x_tick_idx = range(n_step)
-    x_tick_lbl = ['{:0,.0f}k'.format(ds_step_lst[i] / 1e3) if i % 2 else '' for i in x_tick_idx]
+    # add a line to indicate total #unique reads
+    ax_sat.plot([-1, n_step], [n_unq, n_unq], color='green', alpha=0.7)
+    ax_sat.text(0, n_unq, 'Total #unique reads (n={:,d})'.format(n_unq),
+                verticalalignment='bottom', horizontalalignment='left', color='green')
+
+    ax_sat.set_xlim([-1, n_step])
+    ax_sat.set_ylim([0, n_unq * 1.1])
+    x_tick_idx = np.arange(0, n_step, np.ceil(n_seq / 4e5), dtype=np.int)
+    x_tick_lbl = ['{:0,.0f}k'.format(ds_step_lst[i] / 1e3) for i in x_tick_idx]
     ax_sat.set_xticks(x_tick_idx)
     ax_sat.set_xticklabels(x_tick_lbl)
     ax_sat.set_xlabel('#reads sequenced')
     ax_sat.set_ylabel('#unique reads collected')
-    ax_sat.set_xlim([-1, n_step])
-    ax_sat.set_ylim([0, unq_max_ylim])
     ax_sat.set_title('Sequencing depth efficiency\n'
                      '#reads [all; informative; unique]= {:,d}; {:,d}; {:,d}'.format(n_seq, n_inf, n_unq))
 
@@ -560,8 +561,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
     n_top = np.min([len(cls_size), 100])
     ax_cls.plot(range(1, n_top + 1), cls_size[:n_top] * 1e4 / n_inf, '--o', color='blue', markersize=2, linewidth=0.5)
     ax_cls.text(100, 48,
-                'Maximum UMI duplicity={:d}'.format(np.max(cls_size)) + '\n' +
-                'Duplicity ratio (avg #top UMIs / #informative) = {:0.1f}'.format(np.mean(cls_size[:n_top]) * 1e4 / n_inf),
+                'Frequncy of top UMI={:d}'.format(np.max(cls_size)) + '\n' +
+                'Average UMI duplicity score = {:0.1f}'.format(np.mean(cls_size[:n_top]) * 1e4 / n_inf),
                 verticalalignment='top', horizontalalignment='right')
 
     ax_cls.set_xlim([0, n_top + 2])
@@ -569,8 +570,8 @@ def plot_sequencing_saturation(configs, n_perm=100):
     x_tick_lbl = ['{:d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
-    ax_cls.set_xlabel('Top largest UMIs'.format(n_top))
-    ax_cls.set_ylabel('#reads with identical UMI / #informative')
+    ax_cls.set_xlabel('Top {:d} largest UMIs'.format(n_top))
+    ax_cls.set_ylabel('UMI duplicity score')
     ax_cls.set_ylim([0, 50])
     ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
                      '#UMI={:,d}, #UMI (dup>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))

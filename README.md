@@ -67,18 +67,22 @@ Extras:
 If a line in the configuration file starts by “#”, that line will be considered as comments and ignored.
 
 # Global configuration file:
-Parameters that are often constant across experiments (e.g. “bwa_path”)can be defined in a “global” configuration file under the name of ‘./mc4c.cfg’. Once a module is called, the MC-4C pipeline initially loads every parameters defined in this global configuration file, and then proceeds to load parameters in the given (experiment specific, local) configuration file. If needed, the global parameters can still be overwritten by redefining the parameters of interest in the given “local” configuration file.
+Parameters that are constant across experiments (e.g. “bwa_path”) can be defined in a “global” configuration (./mc4c.cfg). Once a module is called, the MC-4C pipeline initially loads the parameters defined in this global configuration file, and then proceeds to load parameters in the experiment specific (local) configuration file. Global parameters are ignored when also entered in the local configuration file.
 Extras:
-- If MC-4C pipeline is used across multiple reference genomes (e.g. mm10 and hg19), the “bwa_index_path” and “ref_genome_file” parameters may include a “%REF%” placeholder, which will be replaced by the appropriate  genome (i.e. genome_build) in the (global or local) configuration file. For example, the following row in the configuration file:
-    ```
-    ref_genome_file <tab> ~/genome/%REF%/chrAll.fa
-    ```
+If the MC-4C pipeline is used across multiple reference genomes (e.g. mm10 and hg19), the “bwa_index_path” and “ref_genome_file” parameters may include a “%REF%” placeholder, which will be replaced by the appropriate genome (i.e. genome_build) in the (global or local) configuration file. For example, the following row in the configuration file:
 
-    will be translated to:
-    ```
-    ref_genome_file <tab> ~/genome/mm9/chrAll.fa
-    ```
+```
+reference_fasta <tab> ~/genome/%REF%/chrAll.fa
+```
+
+will be translated to:
+
+```
+reference_fasta <tab> ~/genome/mm9/chrAll.fa
+```
+
 if the “genome_build” parameter is set to “mm9”. The user can utilize this functionality to define global configuration paths for running many different MC-4C experiments. An example setting of these global configurations can be found in the ‘./mc4c.cfg’ file.
+
 
 # Modules:
 The entire process of MC-4C pipeline is partitioned into modules. Each module is responsible to perform a specific task such as mapping reads to reference genome. 
@@ -93,12 +97,14 @@ Table.2. Modules defined in MC-4C.
 
 | Module name | Function
 | --- | ---
-| setReadIds | Defines a new identifier for each sequenced reads.
+| setReadIds | Defines an identifier for each sequenced read.
 | splitReads | Splits each read into fragments according to restriction enzyme recognition sequence.
 | mapFragments | Maps the fragments to reference genome.
 | makeDataset | Creates a dataset (in HDF5 format) containing mapped fragments.
-| removeDuplicates | Removes duplicate reads from a MC-4C dataset.
-| getSumRep | Generate various summary report plots for a MC-4C dataset.
+| removeDuplicates | Removes duplicate reads from an MC-4C dataset.
+| QC | Generates various summary report plots for an MC-4C dataset.
+| analysis | Performs multi-contact analysis including VP-SOI (a single SOI vs. all SOIs), SOI-SOI (every pair of SOIs) or Cross-ROI (taking every 3-bins as a SOI) analysis.
+
 
 The corresponding configuration file for an experiment can be provided as follows:
 
@@ -121,8 +127,9 @@ $ mc4c.py mapFragments ./expr1.cfg --input_file ./inp.fastq.gz --output_file ./o
 
 maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, and then saves the results in “./out.bam” file.
 Extras:
-- Module “setReadIds” supports multiple input files. This is useful if a single library is sequenced multiple times. To this end, separate file names by “;”. E.g. ./inp1.fastq.gz;./inp2.fastq.gz.
-- Module “splitReads” supports regular expressions for restriction enzyme recognition sequence (i.e. re_seq parameter in config file). This feature is useful if particular restriction enzymes are used to prepare a MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
+The `setReadIds` module supports multiple input files. This is useful if a single library is sequenced multiple times. To this end, separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
+
+The `splitReads` module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
 
 # Default directory and files:
 To further reduce verbosity, MC-4C pipeline supports default paths and file names. These default paths and file names will be used if the corresponding argument is not (fully) given at the time of running a particular module. For example, in the previous example, the user can choose to provide name of the experiment instead of the full path to its configuration file when calling “mapFragments” module. This can be done as follows:
