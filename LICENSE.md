@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2019, Hubrecht Institute, UMC Utrecht 
+
 Authors: Amin Allahyar and Roy Straver
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
