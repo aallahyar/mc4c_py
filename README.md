@@ -20,7 +20,7 @@ toolbox are compared with a data-intrinsic background model which discerns wheth
 two regulatory sequences are mutually exclusive or, conversely, simultaneously happening at a single allele 
 resolution.
 
-
+---
 ## Pipeline requirements:
 The MC-4C pipeline requires the following tools:
 - A Unix like shell (e.g. Bash v3.2+)
@@ -34,6 +34,7 @@ The MC-4C pipeline requires the following tools:
     - matplotlib v2.1.2+ (only for producing summary statistics)
 
 
+----
 ## General remarks:
 
 ### Nomenclature: 
@@ -50,7 +51,7 @@ $ mc4c.py
 Runs MC-4C pipeline in a shell.
 
 
-## Configuration files:
+### Configuration files:
 Experiment specific parameters for each MC-4C dataset are organized in a “configuration” file. Each configuration file 
 is simply a tab-delimited text file with two columns, as follows:
 
@@ -81,7 +82,7 @@ experiment. Required parameters are denoted by (*).
 | vp_chr* | chr7 | Viewpoint chromosome; the chromosome for which the viewpoint primers are designed.
 | prm_start* | 110977147,110977000 | Start coordinate of primers used. Coordinates are separated by “,”.
 | prm_end* | 110977171,110977000 | End coordinate of primers used. Coordinates are separated by “,”.
-| prm_seq* | GATTTGTGAGCTCAGGGTTTAC,GCAGTAGTGATTCTATTCAATTTTTGGG | Sequence of primers used. Separated by “,”.
+| prm_seq* | GATTT...,GCAGT... | Sequence of primers used. Separated by “,”.
 | re_name | DpnII,HindIII | Restriction enzyme name used to prepare the MC-4C library.
 | re_seq* | GATC,AAGCTT | Restriction enzyme sequence used to prepare the MC-4C library.
 | bwa* | /bin/bwa | Path to BWA aligner.
@@ -90,294 +91,260 @@ experiment. Required parameters are denoted by (*).
 | roi_start | 110933500 | Start position of Region Of Interest (ROI). ROI for example will be used to define ‘far-cis’ fragments in PCR duplicate filter. This parameter will be set to 1Mb up stream of the smallest primer coordinate if not given.
 | roi_end | 111066500 | End position of Region Of Interest (ROI). This parameter will be set to 1Mb downstream of the largest primer coordinate if not given.
 
-Notes:
-If a line in the configuration file starts by “#”, that line will be considered as a comment and ignored.
+>Notes:
+> - If a line in the configuration file starts by “#”, that line will be considered as a comment and ignored.
+> - The “bwa_index” and “reference_fasta” parameters may include a “%REF%” placeholder, 
+ which will be replaced by the appropriate genome (i.e. according to genome_build parameter) in the configuration file. 
+ This is useful for example if the MC-4C pipeline is used to process experiments using multiple reference genomes 
+ (e.g. mm10 and hg19). Due this functionality, assuming that the genome is defined to be mm9 (i.e. genome_build = mm9), 
+ the following row in the configuration file:
+>    ```
+>    reference_fasta <tab> ~/genome/%REF%/chrAll.fa
+>    ```
+    
+>    will be translated to:
+    
+>    ```
+>    reference_fasta <tab> ~/genome/mm9/chrAll.fa
+>    ```
 
-# Global configuration file:
-Parameters that are constant across experiments (e.g. “bwa_path”) can be defined in a “global” configuration (./mc4c.cfg). Once a module is called, the MC-4C pipeline initially loads the parameters defined in this global configuration file, and then proceeds to load parameters in the experiment specific (local) configuration file. Global parameters are ignored when also entered in the local configuration file.
-Extras:
-If the MC-4C pipeline is used across multiple reference genomes (e.g. mm10 and hg19), the “bwa_index_path” and “ref_genome_file” parameters may include a “%REF%” placeholder, which will be replaced by the appropriate genome (i.e. genome_build) in the (global or local) configuration file. For example, the following row in the configuration file:
+### Global configuration file:
+Parameters that are constant across experiments (e.g. “bwa_path”) can be defined in a “global” configuration 
+(./mc4c.cfg). Once a module is called, the MC-4C pipeline initially loads the parameters defined in this global 
+configuration file, and then proceeds to load parameters in the experiment specific (i.e. local) configuration file. 
 
+> Notes:
+> - Global parameters are ignored when also entered in the local configuration file.
+
+### Parameter definition
+The most important parameter in the MC-4C pipeline which requires user attention is ROI coordiantes 
+(i.e. `roi_start` and `roi_start`). Selection of a Region of Interest (ROI) requires careful consideration because 
+ROI width has an important role in several parts of the MC-4C data processing pipeline. Initially, 
+the ROI discerns far-cis fragments that can be used as UMIs for duplication removal procedure. 
+Additionally, it identifies “informative” reads (i.e reads with more than one fragments in the ROI) 
+that can be used in multi-contact analysis. Finally, the multi-contact analysis is performed by splitting the 
+ROI into 200 non-overlapping and equally-spaced bins. 
+
+The user is strongly advised to consider the following suggestions when determining the coordinates for ROI:
+ - The viewpoint should always be included in the ROI. This is important as exclusion of viewpoint can change the 
+ expected distribution of fragments in the ROI which in turn results in unreliable z-scores calculated in the 
+ multi-contact analysis.
+ - If an experiment is expected to investigate interactions within a given TAD, the ROI should encompass the 
+ TAD boundaries and a few dozen kilobases of flanking sequences, as done in the [MC-4C paper](https://www.nature.com/articles/s41588-018-0161-5). 
+ - The ROI size should not be smaller than 120Kb when MC-4C library is prepared using DpnII restriction enzyme 
+ as the first cutter. Smaller ROIs will result in a bin width less than 600bp (i.e. 120Kb / 200) 
+ which is close to expected minimum resolution of such MC-4C experiment (for human or mouse genomes).
+ - The ROI can be larger if interactions between TAD boundaries are investigated as done in the 
+ [MC-4C paper](https://www.nature.com/articles/s41588-018-0161-5). However, considering the expected coverage of a 
+ (4bp cutter) MC-4C experiment, the ROI should not be larger than 2Mb as sufficient coverage is required for a 
+ reliable multi-contact analysis and further interpretation of results (further discussed below).
+
+### Annotations:
+Several quality control or analysis in the MC-4C pipeline use or require annotations. For example, 
+in the SOI-SOI analysis, each SOI should have coordinates assigned to it to be used in the association 
+test and plotting. For each analysis, only annotations within the ROI are considered. These annotations can be 
+stored in a tab-delimited file which is named according to the genome build of interest (e.g. mm9 or h19). 
+For example, SOIs in the mm9 genome should be stored in an annotation file named:
+
+```bash
+./annotations/ant_mm9.tsv
 ```
-reference_fasta <tab> ~/genome/%REF%/chrAll.fa
+
+which follows the format below for coordinates:
+```text
+Hbb-bh1 <tab> chr7 <tab> 110990974
+HS1 <tab> chr7 <tab> 111007686
+HS2 <tab> chr7 <tab> 111009600
 ```
 
-will be translated to:
+---
+## Modules:
+The MC-4C pipeline is partitioned into modules. Each module performs a specific task such as mapping fragments 
+to the reference genome or removing PCR duplicates from a given MC-4C dataset. List of available modules in the MC-4C pipeline is given in **Table.2**.
 
-```
-reference_fasta <tab> ~/genome/mm9/chrAll.fa
-```
-
-if the “genome_build” parameter is set to “mm9”. The user can utilize this functionality to define global configuration paths for running many different MC-4C experiments. An example setting of these global configurations can be found in the ‘./mc4c.cfg’ file.
-
-
-# Modules:
-The entire process of MC-4C pipeline is partitioned into modules. Each module is responsible to perform a specific task such as mapping reads to reference genome. 
-Generally, each module in MC-4C receives one or more inputs (e.g. a configuration file and a FASTQ file as input), then performs the corresponding operation (e.g. mapping to reference genome) and finally produces an output file (e.g. a BAM file containing mapped fragments). These modules can be called by their name in MC-4C pipeline. For example:
-
-```
-$ mc4c.py mapFragments
-```
-Calls a module named “mapFragments” in the MC-4C pipeline. In this protocol, we denote the modules in boldface letters. The implemented modules in MC-4C are mentioned in Table.2.
-
-Table.2. Modules defined in MC-4C.
+**Table.2.** Modules defined in MC-4C.
 
 | Module name | Function
 | --- | ---
-| setReadIds | Defines an identifier for each sequenced read.
-| splitReads | Splits each read into fragments according to restriction enzyme recognition sequence.
-| mapFragments | Maps the fragments to reference genome.
-| makeDataset | Creates a dataset (in HDF5 format) containing mapped fragments.
-| removeDuplicates | Removes duplicate reads from an MC-4C dataset.
-| QC | Generates various summary report plots for an MC-4C dataset.
-| analysis | Performs multi-contact analysis including VP-SOI (a single SOI vs. all SOIs), SOI-SOI (every pair of SOIs) or Cross-ROI (taking every 3-bins as a SOI) analysis.
+| **_setReadIds_** | Defines an identifier for each sequenced read.
+| **_splitReads_** | Splits each read into fragments according to restriction enzyme recognition sequence.
+| **_mapFragments_** | Maps the fragments to the reference genome.
+| **_makeDataset_** | Creates a dataset (in HDF5 format) containing mapped fragments.
+| **_removeDuplicates_** | Removes duplicate reads from an MC-4C dataset.
+| **_QC_** | Generates various summary report plots for an MC-4C dataset.
+| **_analysis_** | Performs multi-contact analysis including VP-SOI (a single SOI vs. all SOIs), SOI-SOI (every pair of SOIs) or Cross-ROI (taking every 3-bins as a SOI) analysis.
 
+
+Generally, each module in the MC-4C pipeline receives one or more inputs (e.g. a configuration file and a FASTQ file), 
+then performs the corresponding operation (e.g. mapping to reference genome) and finally produces an output 
+file (e.g. a BAM file containing mapped fragments). These modules can be called by their name in MC-4C pipeline. 
+For example:
+
+<pre>
+$ mc4c.py <b>mapFragments</b>
+</pre>
+
+Calls **_mapFragments_** module in the MC-4C pipeline.
 
 The corresponding configuration file for an experiment can be provided as follows:
 
-```
-$ mc4c.py mapFragments <config_file>
-```
- The <config_file> is simply a path to configuration file. For example:
-```
-$ mc4c.py mapFragments ./expr1.cfg
-```
+<pre>
+$ mc4c.py <b>mapFragments</b> &lt;config_file&gt;
+</pre>
+
+The <config_file> is simply a path to configuration file. For example:
+<pre>
+$ mc4c.py <b>mapFragments</b> ./expr1.cfg
+</pre>
+
 As mentioned before, each module also receives input and output file names. They can be defined as follows:
-```
-$ mc4c.py mapFragments <config_file> --input_file <input file> --output_file <output file>
-```
+<pre>
+$ mc4c.py <b>mapFragments</b> &lt;config_file&gt; --input_file &lt;input file&gt; --output_file &lt;output file&gt;
+</pre>
 
 For example:
-```
-$ mc4c.py mapFragments ./expr1.cfg --input_file ./inp.fastq.gz --output_file ./out.bam
-```
+<pre>
+$ mc4c.py <b>mapFragments</b> ./expr1.cfg --input_file ./inp.fastq.gz --output_file ./out.bam
+</pre>
+maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, 
+and then saves the results in “./out.bam” file.
 
-maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, and then saves the results in “./out.bam” file.
-Extras:
-The `setReadIds` module supports multiple input files. This is useful if a single library is sequenced multiple times. To this end, separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
+> Notes:
+> - The **_setReadIds_** module supports multiple input files. This is useful if a single library is sequenced 
+ multiple times and the data is needed to be processed at the same time (to remove PCR duplicates for example). 
+ To achive this, the user can separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
+> - The **_splitReads_** module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
 
-The `splitReads` module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
+### Default directory and files:
+To further reduce verbosity, MC-4C pipeline supports default paths and file names. These default paths and file names 
+will be used if the corresponding argument is not (fully) given at the time of running a particular module. Instead,
+the user can choose to provide name of the experiment instead of the full path to its configuration file as follows:
+<pre>
+$ mc4c.py <b>mapFragments</b> &lt;name&gt;
+</pre>
 
-# Default directory and files:
-To further reduce verbosity, MC-4C pipeline supports default paths and file names. These default paths and file names will be used if the corresponding argument is not (fully) given at the time of running a particular module. For example, in the previous example, the user can choose to provide name of the experiment instead of the full path to its configuration file when calling “mapFragments” module. This can be done as follows:
-```
-$ mc4c.py mapFragments <name>
-```
-In this case, MC-4C pipeline will look for a configuration file named “cfg_<name>.cfg” in “./configs/” folder. The input file is set by default to “./fragments/frg_<name>.fasta.gz” and the output file is set by default to “./bams/bam_<name>.bam”. List of default paths and files for each module is denoted in Table.3. Accordingly, calling MC-4C pipeline by:
-```
-$ mc4c.py mapFragments BMaj
-```
+Using the command above, MC-4C pipeline will look for a configuration file named “cfg_<name>.cfg” in “./configs/” folder. 
+The input file is set by default to “./fragments/frg_<name>.fasta.gz” and the output file is set by default 
+to “./bams/bam_<name>.bam”. If the user call the following command:
+
+<pre>
+$ mc4c.py <b>mapFragments</b> BMaj
+</pre>
+
 is equivalent to:
-```
-$ mc4c.py mapFragments ./configs/cfg_BMaj.cfg --input_file ./fragments/frg_BMaj.fasta.gz --output_file ./bams/bam_BMaj.bam
-```
-Note: If the given config file name ends with “.cfg”, MC-4C pipeline assumes that the user is referring to a configuration file, not a run name.
 
+<pre>
+$ mc4c.py <b>mapFragments</b> ./configs/cfg_BMaj.cfg --input_file ./fragments/frg_BMaj.fasta.gz --output_file ./bams/bam_BMaj.bam
+</pre> 
 
-Table.3. Default folder and file names for each module.
+List of default paths and input/output files for each module is denoted in **Table.3**.
+
+**Table.3**. Default folder and file names for each module.
 
 | Module name | Input folder and file | Output folder and file
 | --- | --- | ---
-| setReadIds | ./fastqs/raw_<name>.fastq.gz | ./read_files/rd_<name>.fasta.gz
-| splitReads | ./reads/rd_<name>.fasta.gz | ./fragments/frg_<name>.fasta.gz
-| mapFragments | ./fragments/frg_<name>.fasta.gz | ./bams/bam_<name>.bam
-| makeDataset | ./bams/bam_<name>.bam | ./datasets/mc4c_<name>_all.hdf5
-| removeDuplicates | ./datasets/mc4c_<name>_all.hdf5 | ./datasets/mc4c_<name>_uniq.hdf5
+| **_setReadIds_** | ./fastqs/raw_&lt;name&gt;.fastq.gz | ./read_files/rd_&lt;name&gt;.fasta.gz
+| **_splitReads_** | ./reads/rd_&lt;name&gt;.fasta.gz | ./fragments/frg_&lt;name&gt;.fasta.gz
+| **_mapFragments_** | ./fragments/frg_&lt;name&gt;.fasta.gz | ./bams/bam_&lt;name&gt;.bam
+| **_makeDataset_** | ./bams/bam_&lt;name&gt;.bam | ./datasets/mc4c_&lt;name&gt;_all.hdf5
+| **_removeDuplicates_** | ./datasets/mc4c_&lt;name&gt;_all.hdf5 | ./datasets/mc4c_&lt;name&gt;_uniq.hdf5
 
 
+> Note: 
+> - If the given config file name ends with “.cfg”, MC-4C pipeline assumes that the user is referring to a 
+configuration file, not a run name.
 
-## Requirements
+## Walkthrough of MC-4C pipeline (estimated run time: 15 minutes):
+    
+   In this section, we provide a step by step description of how the MC-4C pipeline can be used to process sequenced reads in an MC-4C experiment. In this walkthrough, we assume that the user is using Linux operating system. Minor modifications might be required in the commands used to follow this walkthrough using Mac OSX. 
+    For demonstration and testing purposes, we prepared a test MC-4C dataset. This dataset consists of a small sequencing file (i.e. raw_BMaj-test.fastq.gz) and a corresponding configuration file (cfg_BMaj-test.cfg) that holds experiment specific details of this experiment. These two files can be downloaded from here.
 
-### External Tools:
-To run the whole pipeline several tools from third parties are required. The following tools are what we suggest to use, including the version numbers we tested our pipeline with.
-- bwa (v0.7.17-r1188)
-- bowtie2 (v2.3.4.3)
+   #### Setting up the pipeline
+1) confirm that the required Python packages for MC-4C pipeline are installed by:
+    ```
+    $ pip install h5py numpy pandas pysam matplotlib
+    ```
 
-### External Data:
-- A reference genome
+2) Download the latest version of MC-4C pipeline from its git repository using:
+    ```
+    $ wget https://github.com/aallahyar/mc4c_py/archive/master.zip
+    $ unzip master.zip
+    $ cd ./mc4c_py-master
+    ```
+
+3) Make an index for the reference genome of interest (mm9 in this example) using bwa by:
+    ```
+    $ bwa index ~/references/mm9.fa
+    ```
+
+   #### Prepare input data:
+4) After downloading the aforementioned example data, create a folder named “fastqs” and move the obtained sequencing file (i.e. raw_BMaj-test.fastq.gz) to this folder:
+    ```
+    $ mkdir -p ./fastqs
+    $ mv ~/Downloads/raw_BMaj-test.fastq.gz ./fastqs/
+    ```
+
+5) Create a folder named “configs” and move the obtained configuration file (i.e. cfg_BMaj-test.cfg) to this folder:
+    ```
+    $ mkdir -p ./configs
+    $ mv ~/Downloads/cfg_BMaj-test.cfg ./configs/
+    ```
+
+6) Define the paths for the reference genome, bwa and the reference index (made in step 3) of the walkthrough) in the corresponding configuration file (i.e. cfg_BMaj-test.cfg). Once done, confirm that these paths are correctly defined by:
+    ```
+    $ grep ’bwa|bwa_index|reference_fasta’ ./configs/cfg_BMaj-test.cfg
+    ```
+
+    For example, in our system these paths are defined as follows:
+    ```
+    bwa /bin/bwa
+    bwa_index /bwa_index/mm9.fa
+    reference_fasta /reference_genomes/mm9.fa
+    ```
+
+    #### Assign read identifiers to sequenced reads (setReadIds):
+    In the MC-4C pipeline, aiming to facilitate tracking of reads and fragments that originate from these reads, a unique identifier is assigned to each sequenced read. This is the first step in processing reads produced in an MC-4C library.
+
+7) Assign a unique identifier to each sequenced read using setReadIds module by:
+    <pre>
+    $ python ./mc4c.py <b>setReadIds</b> BMaj-test
+    </pre>
+
+    #### Split reads into fragments (splitReads)
+    Each sequenced read in an MC-4C experiment consists of multiple interacting fragments. To assist the aligner in recognizing and mapping these fragments to the reference genome, we opted to pre-split sequenced reads into fragments based on the restriction enzyme recognition sequence. 
+
+9) Apply the splitReads module by executing the following command:
+    <pre>
+    $ python ./mc4c.py <b>splitReads</b> BMaj-test
+    </pre>
+
+    #### Map fragments to the reference genome (mapFragments)
+10) map the produced fragments to the reference genome using the mapFragments module:
+    <pre>
+    $ python ./mc4c.py <b>mapFragments</b> BMaj-test
+    </pre>
+
+    #### Making an MC-4C dataset from mapped fragments (makeDataset):
+    Mapped fragments are computationally extended to the nearest restriction site in the reference genome and adjacent fragments within a read that also map adjacently (<20bp) in the genome are merged.
+
+11) apply the **_makeDataset_** module:
+    <pre>
+    $ python ./mc4c.py <b>makeDataset</b> BMaj-test
+    </pre>
+
+    #### Remove read duplicates (removeDuplicates)
+    Multi-contact data uniquely allows the removal of PCR duplicates based on the collection of ligated fragments. However due to the (currently) limited sequencing quality of third generation sequencers, fragments that are identified in one PCR duplicate may not be identified in another copy.  Therefore we opted to use trans-ligations (and far-cis fragments) as genomic UMI’s, arguing that the chance of a viewpoint-concatemer randomly ligating to the same trans (or far-cis) fragment multiple times independently is extremely small. 
+
+12. To remove PCR duplicate reads in an MC-4C dataset, the removeDuplicates module can be called using:
+    <pre>
+    $ python ./mc4c.py <b>removeDuplicates</b> BMaj-test
+    </pre>
+
+This is the final pre-processing stage in the MC-4C pipeline. 
 
 
-## Preparing
+## Citaiton:
+Allahyar, A., Vermeulen, C., et al. (2018). Enhancer hubs and loop collisions identified from single-allele topologies. Nature genetics, 50(8), 1151. 
 
-### Base calling (depricated)
-The base calling of raw (Squiggle) data is nowadays is automatically done by Nanopore sequencing software.
-In any case, if you have received Squiggle data, please refer to the 
-[wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert the raw 
-signals to FAST5 files which contain the reads.
-
-### Config file
-Each MC-4C run has certain properties (e.g. view point position, primers sequence used, preferred reference genome, etc.) that need to be 
-provided to the pipeline to properly process the data. These (run specific) "configurations" should be placed in a 
-".cnf" file. Each row in this file represents a property of the run. The property name is separated from its value by 
-a tab (i.e. tab-delimited format). For example, the view point position can be defined in this file in three rows as:
-
-```
-vp_chr  7
-vp_start    100001000
-vp_end  100002000
-```
-
-
-Note: If multiple values need to be given for a property, semicolon (";") can be used between these values. e.g.
-```
-prm_start value1;value2
-```
-
-### Index reference
-Ensure the reference genome, `reference.fa`, is prepared for the mapper you apply later on. 
-In the examples given here, that means it is indexed for BWA.
-```
-bwa index reference.fa
-```
-
-### Create primer fasta (4C Data)
-Sometimes molecules attach to each other, creating a single molecule that originates from multiple, unrelated, circles. 
-To split these, reads are split where primer sequences map on the read. 
-To enable mapping primers to other data, the primers need to be in fasta format, as created in this step.
-
-```
-python mc4c.py makeprimerfa \
-	settings.ini \
-	primers.fa
-```
-
-### Find restriction sites
-The export function, described later, uses the restriction sites identified in the reference genome to define regions. 
-This enables determining the amount of circles that overlapped such regions.
-This step obtains the genomic positions where restriction sites are found and stores them for later use.
-
-```
-python mc4c.py refrestr \
-	settings.ini \
-	reference.fa \
-	refstr.npz
-```
-
-
-## Running
-
-### Rename reads / Combine and split data
-Renames reads and splits data for HPC processing.
-
-First define the data files from the samples to work with. 
-
-```
-export FILE_FASTQ=`ls path/to/*.fq`  
-```
-
-Next define where the output files are to be put. The specified path is extended with `_#.block.fa` and `_#.block.fq`, for output fasta and fastq formats respectively, where # is replaced by the index of the datablock.
-
-```
-export FILE_OUT="path/to/basename"  
-```
-
-The last variable specifies the amount of reads per file. If you desire a single file, fill in a huge number (> number of reads in total). This is what causes the datablock numbering in the file name for the previous variable definition.
-
-```
-export LINESPERFILE="20000"  
-```
-
-Now the 3 variables used are specified, run the bash script containing the actual awk code:
-
-```
-./sge_scripts/splitfq.sh  
-```
-
-### Map primers to reads (4C Data)
-Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. 
-Therefore, reads should be cut at the restriction sites they were most likely cut at originally. 
-
-Map the primers (made in the preparation using makeprimerfa) to the reads.
-
-First index the reads from the samples as if they are the reference data.
-
-```
-bowtie2-build \
-	-f sample_#.block.fa \
-	sample_#.block
-```
-
-Next map the primers to this 'reference'.
-
-```
-bowtie2 \
-	--local \
-	-D 20 \
-	-R 3 \
-	-N 0 \
-	-L 15 \
-	-i S,1,0.50 \
-	--rdg 2,1 \
-	--rfg 2,1 \
-	--mp 3,2 \
-	--ma 2 -a -p 2 -f \
-	-x sample_#.block \
-	-U primers.fa \
-	-S sample_#.block.sam
-```
-
-### Split reads by primers (4C Data)
-As the primers are mapped to the reads the reads can be cut into what were likely the original circles.
-
-```
-python mc4c.py cleavereads \
-	settings.ini \
-	sample_#.block.sam \
-	sample_#.block.fq \
-	sample_#.splitpr.fq
-```
-
-### Split reads by restriction sites
-This step cuts the reads into pieces that together tell what regions were close at the time the experiment was run.
-
-> Note: The data used for input here depends on whether or not reads were previously split by mapped primers.
-
-```
-SOURCE=block # Data not split by primers
-```
-```
-SOURCE=splitpr # Data split by primers (4C)
-```
-
-Either by defining the variable `SOURCE` as one of the above examples or by replacing the command here, split the reads by restriction sites using the `splitreads` tool:
-
-```
-python mc4c.py splitreads \
-	settings.ini \
-	sample_#.$SOURCE.fq \
-	sample_#.splitre.fq
-```
-
-### Merge data
-In case data was split previously, combine the data into a single gzipped fq file.
-> Note: While not necessary if using a single file, you may want to gzip your data anyway.
-
-```
-cat *.splitre.fq | gzip > sample.splitre.fq.gz
-```
-
-### Map data to reference genome
-Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, BWA works well for this purpose.
-
-```
-bwa bwasw \
-	-b 5 \
-	-q 2 \
-	-r 1 \
-	-z 10 \
-	-T 15 \
-	-t 12 \
- 	-f sample.bwa.sam \
-	reference.fa \
-	sample.splitre.fq.gz
-```
-
-### Export results for plot tools
-The mapped data now contains the region any sub-sequence mapped to, while the circles it originated from is described in the read name. Some additional filtering is done and the data is prepared for plotting using the `export` function.
-
-```
-python mc4c.py export \
-	sample.bwa.sam \
-	refstr.npz \
-	sample.np
-```
+## Contact
+For any inquiry please contact Amin Allahyar at a.allahyar@hubrecht.eu
