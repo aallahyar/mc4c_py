@@ -1,8 +1,28 @@
 # MC-4C processing pipeline
-A python based approach to process MC4C data
+A python based approach to process MC4C data. Please refer to the 
+[corresponding paper](https://www.nature.com/articles/s41588-018-0161-5) for details on the method.
 
-# Requirements:
-This pipeline requires the following tools:
+##Abstract:
+Chromatin folding contributes to the regulation of genomic processes such as gene activity. Of note, detailed 
+topological studies and genetic evidence have further indicated that individual enhancers can contact and control 
+the expression of multiple genes. Conversely, single genes are often influenced by multiple enhancers.
+Chromosome conformation capture (3C) methodologies aim to capture these interactions within the nucleus of the cells. 
+However, due to size limitation in Illumina sequencing, conventional 3C methods split 3C (i.e. proximity ligation) 
+products into smaller DNA concatemers. Therefore, sequencing such a concatemers often result in capturing pairwise 
+contacts and captured multi-contact relationships in 3C products are lost. 
+In contrast, MC-4C is designed to preserve and collect large concatemers of proximity ligated fragments 
+for long molecule sequencing on Oxford Nanopore or Pacific Biosciences platforms, thus allowing study of 
+multi-way chromatin interactions. 
+
+The current pipeline delivers a full processing functionality for MC-4C data and includes a tailored 
+statistical analysis toolbox to prob the captured interactions. The observed interactions in this statistical
+toolbox are compared with a data-intrinsic background model which discerns whether contacts between more than 
+two regulatory sequences are mutually exclusive or, conversely, simultaneously happening at a single allele 
+resolution.
+
+
+## Pipeline requirements:
+The MC-4C pipeline requires the following tools:
 - A Unix like shell (e.g. Bash v3.2+)
 - Samtools v1.9+
 - Bwa v0.7.17+
@@ -13,10 +33,13 @@ This pipeline requires the following tools:
     - pysam v0.15.1+
     - matplotlib v2.1.2+ (only for producing summary statistics)
 
-Conventions:
-In the following text, we will be using the following conventions. Files and folders are _italicized_ and place holders 
+
+## General remarks:
+
+### Nomenclature: 
+We will be using the following conventions. Files and folders are _italicized_ and place holders 
 (i.e. variables, arguments) are enclosed by angle brackets (i.e. <config_file> represents a place holder named 
-“config_file” that needs to be replaced by appropriate input from user). Unix shell commands (such as bash, zsh or sh) 
+“config_file” that needs to be replaced by appropriate input from the user). Unix shell commands (such as bash, zsh or sh) 
 are indicated  with “$” sign and script names (and their command line arguments) are printed in Courier New font 
 (e.g. mc4c.py). Taken together, the following command:
 
@@ -27,44 +50,48 @@ $ mc4c.py
 Runs MC-4C pipeline in a shell.
 
 
-# Configuration files:
-Several parameters need to be defined for each MC-4C data analysis in a “configuration” file. Each configuration file 
+## Configuration files:
+Experiment specific parameters for each MC-4C dataset are organized in a “configuration” file. Each configuration file 
 is simply a tab-delimited text file with two columns, as follows:
 
 ```
 param_name1 <tab> param_value1
 param_name2 <tab> param_value2
-...
 ```
 
-For example, content of a configuration file can be:
+Multiple values for a parameter are separated by a “,” sign. For example, the following configuration file specifies 
+that the viewpoint lies on chromosome 7, fragments should be mapped to the mm9 mouse reference genome and 
+finally GATC and AAGCTT are used as first and second restriction enzymes to prepare the library:
 
 ```
 vp_chr <tab> chr7
 genome_build <tab> mm9
-...
+re_seq <tab> GATC,AAGCTT
 ```
-that defines the viewpoint chromosome to be on “chr7” on the “mm9” build of the mouse reference genome. Table.1 
-represent list of parameters that can be defined for each experiment. 
 
-Table.1. Description of parameters that can be defined in configuration file of an MC-4C experiment. Required parameters are denoted by (*).
+List of parameters that are recognized in the MC-4C pipeline and can be stored in a configuration file are shown 
+in **Table.1**.
+
+**Table.1.** Description of parameters that can be defined in a configuration file to be used for processing an MC-4C 
+experiment. Required parameters are denoted by (*).
 
 | Name | Value example | Description
 | :--- | :--- | :--- |
-| genome_build* | hg19 | Reference genome of interest |
-| vp_chr* | chr7 | View point chromosome; the chromosome for which primers are designed | 
-| prm_start* | 110977147;110977593 | Start coordinate of primers used. Coordinates are separated by “;”. |
-| prm_end* | 110977171;110977623 | End coordinate of primers used. Coordinates are separated by “;”.
-| prm_seq* | CCAGATTTGCAGGTAC; GCAGTAGTCTGGGATC | Sequence of primers used. Separated by “;”.
-| re_seq* | GATC;AAGCTT | Restriction enzyme used to prepare MC-4C library
-| bwa_path* | ~/bin/bwa-0.7.17/bwa | Path to BWA aligner.
-| bwa_index_path* | ~/bwa_indices/mm9/chrAll | Path to corresponding bwa index of reference genome.
-| ref_genome_file* | ~/genome/mm9/chrAll.fa | Path to the corresponding reference genome (in fasta format).
-| roi_start | 110933500 | Start position of Region Of Interest (ROI) that will be used to define far-cis fragments in PCR duplicate filter. This parameter will be set to 1Mb before the smallest primer coordinate if not given.
-| roi_end | 111066500 | End position of Region Of Interest (ROI) that will be used to define far-cis fragments in PCR duplicate filter. This parameter will be set to 1Mb after the largest primer coordinate if not given.
+| genome_build* | hg19 | Reference genome of interest.
+| vp_chr* | chr7 | Viewpoint chromosome; the chromosome for which the viewpoint primers are designed.
+| prm_start* | 110977147,110977000 | Start coordinate of primers used. Coordinates are separated by “,”.
+| prm_end* | 110977171,110977000 | End coordinate of primers used. Coordinates are separated by “,”.
+| prm_seq* | GATTTGTGAGCTCAGGGTTTAC,GCAGTAGTGATTCTATTCAATTTTTGGG | Sequence of primers used. Separated by “,”.
+| re_name | DpnII,HindIII | Restriction enzyme name used to prepare the MC-4C library.
+| re_seq* | GATC,AAGCTT | Restriction enzyme sequence used to prepare the MC-4C library.
+| bwa* | /bin/bwa | Path to BWA aligner.
+| bwa_index* | /bwa_indices/mm9 | Path to corresponding bwa index of reference genome.
+| reference_fasta* | /genomes/mm9.fa | Path to the corresponding reference genome (in fasta format).
+| roi_start | 110933500 | Start position of Region Of Interest (ROI). ROI for example will be used to define ‘far-cis’ fragments in PCR duplicate filter. This parameter will be set to 1Mb up stream of the smallest primer coordinate if not given.
+| roi_end | 111066500 | End position of Region Of Interest (ROI). This parameter will be set to 1Mb downstream of the largest primer coordinate if not given.
 
-Extras:
-If a line in the configuration file starts by “#”, that line will be considered as comments and ignored.
+Notes:
+If a line in the configuration file starts by “#”, that line will be considered as a comment and ignored.
 
 # Global configuration file:
 Parameters that are constant across experiments (e.g. “bwa_path”) can be defined in a “global” configuration (./mc4c.cfg). Once a module is called, the MC-4C pipeline initially loads the parameters defined in this global configuration file, and then proceeds to load parameters in the experiment specific (local) configuration file. Global parameters are ignored when also entered in the local configuration file.
