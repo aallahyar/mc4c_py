@@ -20,7 +20,6 @@ toolbox are compared with a data-intrinsic background model which discerns wheth
 two regulatory sequences are mutually exclusive or, conversely, simultaneously happening at a single allele 
 resolution.
 
----
 ## Pipeline requirements:
 The MC-4C pipeline requires the following tools:
 - A Unix like shell (e.g. Bash v3.2+)
@@ -33,11 +32,9 @@ The MC-4C pipeline requires the following tools:
     - pysam v0.15.1+
     - matplotlib v2.1.2+ (only for producing summary statistics)
 
-
-----
 ## General remarks:
 
-### Nomenclature: 
+#### Nomenclature: 
 We will be using the following conventions. Files and folders are _italicized_ and place holders 
 (i.e. variables, arguments) are enclosed by angle brackets (i.e. <config_file> represents a place holder named 
 “config_file” that needs to be replaced by appropriate input from the user). Unix shell commands (such as bash, zsh or sh) 
@@ -51,7 +48,7 @@ $ mc4c.py
 Runs MC-4C pipeline in a shell.
 
 
-### Configuration files:
+#### Configuration files:
 Experiment specific parameters for each MC-4C dataset are organized in a “configuration” file. Each configuration file 
 is simply a tab-delimited text file with two columns, as follows:
 
@@ -108,7 +105,7 @@ experiment. Required parameters are denoted by (*).
 >    reference_fasta <tab> ~/genome/mm9/chrAll.fa
 >    ```
 
-### Global configuration file:
+#### Global configuration file:
 Parameters that are constant across experiments (e.g. “bwa_path”) can be defined in a “global” configuration 
 (./mc4c.cfg). Once a module is called, the MC-4C pipeline initially loads the parameters defined in this global 
 configuration file, and then proceeds to load parameters in the experiment specific (i.e. local) configuration file. 
@@ -116,7 +113,7 @@ configuration file, and then proceeds to load parameters in the experiment speci
 > Notes:
 > - Global parameters are ignored when also entered in the local configuration file.
 
-### Parameter definition
+#### Parameter definition
 The most important parameter in the MC-4C pipeline which requires user attention is ROI coordiantes 
 (i.e. `roi_start` and `roi_start`). Selection of a Region of Interest (ROI) requires careful consideration because 
 ROI width has an important role in several parts of the MC-4C data processing pipeline. Initially, 
@@ -139,7 +136,7 @@ The user is strongly advised to consider the following suggestions when determin
  (4bp cutter) MC-4C experiment, the ROI should not be larger than 2Mb as sufficient coverage is required for a 
  reliable multi-contact analysis and further interpretation of results (further discussed below).
 
-### Annotations:
+#### Annotations:
 Several quality control or analysis in the MC-4C pipeline use or require annotations. For example, 
 in the SOI-SOI analysis, each SOI should have coordinates assigned to it to be used in the association 
 test and plotting. For each analysis, only annotations within the ROI are considered. These annotations can be 
@@ -157,7 +154,6 @@ HS1 <tab> chr7 <tab> 111007686
 HS2 <tab> chr7 <tab> 111009600
 ```
 
----
 ## Modules:
 The MC-4C pipeline is partitioned into modules. Each module performs a specific task such as mapping fragments 
 to the reference genome or removing PCR duplicates from a given MC-4C dataset. List of available modules in the MC-4C pipeline is given in **Table.2**.
