@@ -260,7 +260,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'LVR-BMaj-96x-Adj']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'asMC4C_DEL_B_70ng']
         # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-HS3-96x']
         # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD,WPL-WTD2']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
@@ -295,7 +295,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
+        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD2']
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'K562-WplD-10x']
 

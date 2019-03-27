@@ -250,7 +250,7 @@ def processMappedFragments(args):
     idx_lft = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
     idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='left')
     vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
-    if idx_lft + 1 == idx_rgt:
+    if idx_lft + 1 != idx_rgt:
         print '[w] Can not map primer positions on a single fragment.'
 
     # define fragment headers
