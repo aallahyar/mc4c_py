@@ -10,7 +10,7 @@ if [[ $# -gt 1 ]]; then
 else
 	n_thread=24;
 fi
-echo "Running MC-4C (python) pipeline for run [$cfg_name] using [$n_thread] threads for mapping."
+echo "Running MC-4C pipeline for run [$cfg_name] using [$n_thread] threads for mapping."
 
 jid_raw=$(qsub                    -terse -P compgen -N mc4c_${cfg_name}_01-cmb -l h_rt=40:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py setReadIds ${cfg_name}")
 echo "[1] Raw data processor is submitted with id: $jid_raw"

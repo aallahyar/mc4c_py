@@ -2,11 +2,12 @@
 *.gz
 
 .idea/
-fragments/
-datasets/
+fastqs/
 reads/
-renzs/
+fragments/
 bams/
+datasets/
+renzs/
 #configs/
 plots/
 side_analysis/01_Why_Pores_are_dying/

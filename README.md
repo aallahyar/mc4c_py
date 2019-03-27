@@ -239,7 +239,7 @@ List of default paths and input/output files for each module is denoted in **Tab
 
 | Module name | Input folder and file | Output folder and file
 | --- | --- | ---
-| **_setReadIds_** | ./fastqs/raw_&lt;name&gt;.fastq.gz | ./read_files/rd_&lt;name&gt;.fasta.gz
+| **_setReadIds_** | ./fastqs/fq_&lt;name&gt;.fastq.gz | ./read_files/rd_&lt;name&gt;.fasta.gz
 | **_splitReads_** | ./reads/rd_&lt;name&gt;.fasta.gz | ./fragments/frg_&lt;name&gt;.fasta.gz
 | **_mapFragments_** | ./fragments/frg_&lt;name&gt;.fasta.gz | ./bams/bam_&lt;name&gt;.bam
 | **_makeDataset_** | ./bams/bam_&lt;name&gt;.bam | ./datasets/mc4c_&lt;name&gt;_all.hdf5
@@ -253,7 +253,8 @@ configuration file, not a run name.
 ## Walkthrough of MC-4C pipeline (estimated run time: 15 minutes):
     
    In this section, we provide a step by step description of how the MC-4C pipeline can be used to process sequenced reads in an MC-4C experiment. In this walkthrough, we assume that the user is using Linux operating system. Minor modifications might be required in the commands used to follow this walkthrough using Mac OSX. 
-    For demonstration and testing purposes, we prepared a test MC-4C dataset. This dataset consists of a small sequencing file (i.e. raw_BMaj-test.fastq.gz) and a corresponding configuration file (cfg_BMaj-test.cfg) that holds experiment specific details of this experiment. These two files can be downloaded from here.
+    For demonstration and testing purposes, we prepared a test MC-4C dataset. This dataset consists of a small sequencing file (i.e. r
+    aw_BMaj-test.fastq.gz) and a corresponding configuration file (cfg_BMaj-test.cfg) that holds experiment specific details of this experiment. These two files can be downloaded from here.
 
    #### Setting up the pipeline
 1) confirm that the required Python packages for MC-4C pipeline are installed by:
@@ -274,10 +275,10 @@ configuration file, not a run name.
     ```
 
    #### Prepare input data:
-4) After downloading the aforementioned example data, create a folder named “fastqs” and move the obtained sequencing file (i.e. raw_BMaj-test.fastq.gz) to this folder:
+4) After downloading the aforementioned example data, create a folder named “fastqs” and move the obtained sequencing file (i.e. fq_BMaj-test.fastq.gz) to this folder:
     ```
     $ mkdir -p ./fastqs
-    $ mv ~/Downloads/raw_BMaj-test.fastq.gz ./fastqs/
+    $ mv ~/Downloads/fq_BMaj-test.fastq.gz ./fastqs/
     ```
 
 5) Create a folder named “configs” and move the obtained configuration file (i.e. cfg_BMaj-test.cfg) to this folder:
