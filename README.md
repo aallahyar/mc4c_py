@@ -253,8 +253,8 @@ configuration file, not a run name.
 ## Walkthrough of MC-4C pipeline (estimated run time: 15 minutes):
     
    In this section, we provide a step by step description of how the MC-4C pipeline can be used to process sequenced reads in an MC-4C experiment. In this walkthrough, we assume that the user is using Linux operating system. Minor modifications might be required in the commands used to follow this walkthrough using Mac OSX. 
-    For demonstration and testing purposes, we prepared a test MC-4C dataset. This dataset consists of a small sequencing file (i.e. r
-    aw_BMaj-test.fastq.gz) and a corresponding configuration file (cfg_BMaj-test.cfg) that holds experiment specific details of this experiment. These two files can be downloaded from here.
+    For demonstration and testing purposes, we prepared a [test MC-4C dataset](http://dx.doi.org/10.17632/pngmgm9yr3.2). This dataset consists of a small sequencing file (i.e. r
+    aw_BMaj-test.fastq.gz) and a corresponding configuration file (cfg_BMaj-test.cfg) that holds experiment specific details of this experiment. These two files can be downloaded from [here](http://dx.doi.org/10.17632/pngmgm9yr3.2).
 
    #### Setting up the pipeline
 1) confirm that the required Python packages for MC-4C pipeline are installed by:

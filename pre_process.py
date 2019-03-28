@@ -272,7 +272,7 @@ def processMappedFragments(args):
 
         frg_set = np.empty([0, n_header], dtype=np.int64)
         for que_idx, que_line in enumerate(bam_fid):
-            if que_idx % 100000 == 0:
+            if que_idx % 500000 == 0:
                 print('\tprocessed {:,d} fragments in {:,d} reads.'.format(que_idx, n_processed))
             if (np.bitwise_and(que_line.flag, 0x800) == 0x800) or (que_line.reference_name not in chr_lst):
                 continue
