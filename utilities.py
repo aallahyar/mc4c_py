@@ -265,7 +265,7 @@ def load_configs(input_fname, max_n_configs=None):
     from os import path
 
     # check number of given configs
-    cfg_file_list = input_fname.split(',')
+    cfg_file_list = input_fname.split(';')
     if max_n_configs is not None:
         assert len(cfg_file_list) <= max_n_configs, \
             'Maximum of {:d} configs are allowed to be loaded.'.format(max_n_configs)
@@ -290,7 +290,7 @@ def load_configs(input_fname, max_n_configs=None):
                         continue
                     columns = line.rstrip('\n').split('\t')
                     assert len(columns) == 2
-                    fld_lst = columns[1].split(',')
+                    fld_lst = columns[1].split(';')
                     if len(fld_lst) == 1:
                         configs[columns[0]] = fld_lst[0]
                     else:
