@@ -105,7 +105,7 @@ def setReadIds(args):
                         raise Exception('[e] the input file is corrupted.\n' +
                                         'Read #{:d}:\n'.format(rd_idx) +
                                         '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
-                    if rd_idx % 5000 == 0:
+                    if rd_idx % 50000 == 0:
                         print('\t\tprocessed {:,d} reads.'.format(rd_idx))
 
                     rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
