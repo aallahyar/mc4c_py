@@ -77,7 +77,7 @@ def setReadIds(args):
 
     # initialize
     if args.input_file is None:
-        args.input_file = './fastqs/raw_' + configs['run_id'] + '.fastq.gz'
+        args.input_file = './fastqs/fq_' + configs['run_id'] + '.fastq.gz'
     if args.output_file is None:
         args.output_file = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     # assert not path.isfile(args.output_file), '[e] output file already exists: {:s}'.format(args.output_file)

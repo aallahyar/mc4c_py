@@ -57,7 +57,7 @@ param_name1 <tab> param_value1
 param_name2 <tab> param_value2
 ```
 
-Multiple values for a parameter are separated by a “;” sign. For example, the following configuration file specifies 
+Multiple values for a parameter are separated by a “,” sign. For example, the following configuration file specifies 
 that the viewpoint lies on chromosome 7, fragments should be mapped to the mm9 mouse reference genome and 
 finally GATC and AAGCTT are used as first and second restriction enzymes to prepare the library:
 
@@ -77,9 +77,9 @@ experiment. Required parameters are denoted by (*).
 | :--- | :--- | :--- |
 | genome_build* | hg19 | Reference genome of interest.
 | vp_chr* | chr7 | Viewpoint chromosome; the chromosome for which the viewpoint primers are designed.
-| prm_start* | 110977147,110977000 | Start coordinate of primers used. Coordinates are separated by “;”.
-| prm_end* | 110977171,110977000 | End coordinate of primers used. Coordinates are separated by “;”.
-| prm_seq* | GATTT...,GCAGT... | Sequence of primers used. Separated by “;”.
+| prm_start* | 110977147,110977000 | Start coordinate of primers used. Coordinates are separated by “,”.
+| prm_end* | 110977171,110977000 | End coordinate of primers used. Coordinates are separated by “,”.
+| prm_seq* | GATTT...,GCAGT... | Sequence of primers used. Separated by “,”.
 | re_name | DpnII,HindIII | Restriction enzyme name used to prepare the MC-4C library.
 | re_seq* | GATC,AAGCTT | Restriction enzyme sequence used to prepare the MC-4C library.
 | bwa* | /bin/bwa | Path to BWA aligner.
@@ -208,7 +208,7 @@ and then saves the results in “./out.bam” file.
 > Notes:
 > - The **_setReadIds_** module supports multiple input files. This is useful if a single library is sequenced 
  multiple times and the data is needed to be processed at the same time (to remove PCR duplicates for example). 
- To achive this, the user can separate file names by “;”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
+ To achive this, the user can separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
 > - The **_splitReads_** module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
 
 ### Default directory and files:
