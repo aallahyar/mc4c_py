@@ -91,28 +91,30 @@ def setReadIds(args):
         print 'Total of [{:d}] files are given as input.'.format(len(inp_flst))
         for inp_fidx, inp_fname in enumerate(inp_flst):
             print('\t{:d}. Reading from: {:s}'.format(inp_fidx + 1, inp_fname))
-            rd_idx = 0
+            rd_nid = 1
             with gzip.open(inp_fname, 'r') as inp_fid:
                 while True:
-                    rd_idx = rd_idx + 1
-                    rd_oid = inp_fid.readline().rstrip('\n')
+                    rd_oid = inp_fid.readline()
+                    if rd_oid == '':
+                        break
+                    rd_oid = rd_oid.rstrip('\n')
+
                     rd_seq = inp_fid.readline().rstrip('\n')
                     rd_plus = inp_fid.readline().rstrip('\n')
                     rd_pred = inp_fid.readline().rstrip('\n')
-                    if rd_oid == '':
-                        break
-                    if rd_oid[0] != '@' or rd_plus != '+':
+                    n_nt = len(rd_seq)
+                    if (rd_oid[0] != '@') or (rd_plus != '+') or (n_nt == 0):
                         raise Exception('[e] the input file is corrupted.\n' +
-                                        'Read #{:d}:\n'.format(rd_idx) +
+                                        'Read #{:d}:\n'.format(rd_nid) +
                                         '\tID: [{:s}],\n\tplus: [{:s}]'.format(rd_oid, rd_plus))
-                    if rd_idx % 50000 == 0:
-                        print('\t\tprocessed {:,d} reads.'.format(rd_idx))
+                    if rd_nid % 50000 == 0:
+                        print('\t\tprocessed {:,d} reads.'.format(rd_nid))
 
-                    rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_idx, len(rd_seq))
+                    rd_sid = 'Fl.Id:{:d};Rd.Id:{:d};Rd.Ln:{:d}'.format(inp_fidx + 1, rd_nid, n_nt)
                     out_fid.write('>' + rd_sid + '\n')
                     out_fid.write(rd_seq + '\n')
+                    rd_nid = rd_nid + 1
     print '[i] Read identifier conversion is completed successfully.'
-    # TODO: check to see if #lines in inp_file equals #lines read
 
 
 def splitReads(args):
