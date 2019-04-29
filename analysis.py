@@ -425,7 +425,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     n_ant = ant_pd.shape[0]
     ant_name_lst = ant_pd['ant_name'].values
     ant_scr = np.full(shape=[n_ant, n_ant], fill_value=np.nan)
-    n_pos = np.zeros(n_ant)
+    n_pos = np.zeros(n_ant, dtype=np.int)
     x_tick_lbl = []
     for ai in range(n_ant):
         soi_pd = ant_pd.loc[ai, :]
@@ -440,13 +440,13 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
         ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
         ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
-        x_tick_lbl.append('{:s}\n#{:0.0f}'.format(ant_name_lst[ai], n_pos[ai]))
+        x_tick_lbl.append('{:s}\n#{:,d}'.format(ant_name_lst[ai], n_pos[ai]))
         del frg_pos
 
         # check number of positive reads
-        if n_pos[ai] < MIN_N_POS:
-            print '[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS)
-            print 'This analysis is ignored ...'
+        if n_pos[ai] <= MIN_N_POS:
+            print '[w] #reads (n={:d}) in the positive set is insufficient '.format(n_pos[ai]) + \
+                  '(required >{:d}). This analysis is ignored ...'.format(MIN_N_POS)
             continue
 
         # calculate expected profile
