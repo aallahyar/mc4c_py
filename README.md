@@ -2,7 +2,7 @@
 A python based approach to process MC4C data. Please refer to the 
 [corresponding paper](https://www.nature.com/articles/s41588-018-0161-5) for details on the method.
 
-##Abstract:
+## Abstract:
 Chromatin folding contributes to the regulation of genomic processes such as gene activity. Of note, detailed 
 topological studies and genetic evidence have further indicated that individual enhancers can contact and control 
 the expression of multiple genes. Conversely, single genes are often influenced by multiple enhancers.
@@ -340,7 +340,7 @@ configuration file, not a run name.
 This is the final pre-processing stage in the MC-4C pipeline. 
 
 
-## Citaiton:
+## Citation:
 Allahyar, A., Vermeulen, C., et al. (2018). Enhancer hubs and loop collisions identified from single-allele topologies. Nature genetics, 50(8), 1151. 
 
 ## Contact
