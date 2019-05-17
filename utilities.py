@@ -118,7 +118,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     np.savez(output_fname, [re_pos_lst, chr_lst_loaded, genome_str])
 
 
-def getFastaSequence(genome, chromosome, pos_start, pos_end):
+def get_fasta_sequence(genome, chromosome, pos_start, pos_end):
     import urllib2
     from xml.etree import ElementTree
 
@@ -265,7 +265,7 @@ def load_configs(input_fname, max_n_configs=None):
     from os import path
 
     # check number of given configs
-    cfg_file_list = input_fname.split(';')
+    cfg_file_list = input_fname.split(',')
     if max_n_configs is not None:
         assert len(cfg_file_list) <= max_n_configs, \
             'Maximum of {:d} configs are allowed to be loaded.'.format(max_n_configs)
@@ -290,7 +290,7 @@ def load_configs(input_fname, max_n_configs=None):
                         continue
                     columns = line.rstrip('\n').split('\t')
                     assert len(columns) == 2
-                    fld_lst = columns[1].split(';')
+                    fld_lst = columns[1].split(',')
                     if len(fld_lst) == 1:
                         configs[columns[0]] = fld_lst[0]
                     else:
@@ -321,18 +321,22 @@ def load_configs(input_fname, max_n_configs=None):
 
         # set default if needed
         roi_cen = int(np.mean([np.min(configs['prm_start']), np.max(configs['prm_end'])]))
+        # TODO: Shall we allow the user to choose bin size?
+        if 'n_bin' not in configs.keys():
+            configs['n_bin'] = 200
         if not np.all([key in configs.keys() for key in ['roi_start', 'roi_end']]):
             configs['roi_start'] = roi_cen - 1000000
             configs['roi_end'] = roi_cen + 1000000
-        if 'bin_width' not in configs.keys():
-            edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64)
-            configs['bin_width'] = edge_lst[1] - edge_lst[0]
+        edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=configs['n_bin'] + 1, dtype=np.int64)
+        configs['bin_width'] = edge_lst[1] - edge_lst[0]
         if not np.all([key in configs.keys() for key in ['vp_start', 'vp_end']]):
             configs['vp_start'] = roi_cen - int(configs['bin_width'] * 1.5)
             configs['vp_end'] = roi_cen + int(configs['bin_width'] * 1.5)
 
         assert (configs['roi_end'] - configs['roi_start'] < 2e6), '[e] ROI can not be defined to be larger than 2mb!'
         assert (configs['roi_end'] - configs['roi_start'] > 1.2e5), '[e] ROI can not be defined to be smaller than 120kb!'
+        assert (configs['n_bin'] >= 100) and (configs['n_bin'] <= 300), \
+            '[e] #bins={:d}, #bins should be in the interval of 100 <= #bin <= 300'.format(configs['n_bin'])
 
         # add to list of configs
         config_lst.append(configs.copy())

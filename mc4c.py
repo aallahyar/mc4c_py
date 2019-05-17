@@ -132,25 +132,6 @@ def main():
     parser = argparse.ArgumentParser(description="MC4C pipeline for processing multi-contact 4C data")
     subparsers = parser.add_subparsers()
 
-    # init command
-    # parser_init = subparsers.add_parser('initRun',
-    #                                       description='Initialize and prepare the pipeline for given configuration')
-    # parser_init.add_argument('config_file', metavar='config-file',
-    #                            type=str,
-    #                            help='Configuration file containing experiment specific details')
-    # parser_init.set_defaults(func=initialize_run)
-
-    # Runs all pre-processing steps
-    parser_process = subparsers.add_parser('process', description='Performs the entire pre-processing ' +
-                                                                  'steps required for an MC-4C experiment.')
-    parser_process.add_argument('config_file', metavar='config-file', type=str,
-                               help='Configuration file containing experiment specific details')
-    parser_process.add_argument('--n_thread', default=6,type=int,
-                               help='Number of threads should be used by the aligner')
-    parser_process.add_argument('--min-mq', default=20, type=int,
-                               help='Minimum mapping quality (MQ) to consider a fragment as confidently mapped.')
-    parser_process.set_defaults(func=pre_process.processMC4C)
-
     # Set read identifiers
     parser_readid = subparsers.add_parser('setReadIds', description='Defining identifiers for sequenced reads')
     parser_readid.add_argument('config_file', metavar='config-file', type=str,
@@ -179,12 +160,13 @@ def main():
     parser_mapFrg.add_argument('--input-file', default=None, type=str,
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
     parser_mapFrg.add_argument('--output-file', default=None, type=str,
-                               help='Output file (in BAM format) containing fragments with traceable IDs')
-    parser_mapFrg.add_argument('--n_thread', default=6, type=int,
+                               help='Output file (in BAM format) containing mapped fragments')
+    parser_mapFrg.add_argument('--map-argument', default='-b 5 -q 2 -r 1 -z 5 -T 15', type=str,
+                               help='Mapping arguments given to BWA-SW to map fragments.')
+    parser_mapFrg.add_argument('--n_thread', default=1, type=int,
                                help='Number of threads should be used by the aligner')
     parser_mapFrg.add_argument('--return_command', action="store_true",
-                               help='Return only mapping command instead of running it ' +
-                                    '(useful for running the pipeline in a cluster)')
+                               help='Return only mapping command instead of running it (useful for running the pipeline in a cluster)')
     parser_mapFrg.set_defaults(func=pre_process.mapFragments)
 
     # Process mapped fragments
@@ -253,14 +235,14 @@ def main():
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
-    if 'FROM_PYCHARM' in environ:
-        Warning('This script is being run interactively!')
+    if 'PYCHARM_HOSTED' in environ:
+        Warning('[w] This script is being run interactively. Running in debug mode!')
         # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'asMC4C_DEL_B_70ng']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'asMC4C_DEL_B_70ng']
         # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-HS3-96x']
         # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD,WPL-WTD2']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
@@ -286,7 +268,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'asMC4C_mESC_WT_C']
+        sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'asMC4C_INV_A']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-PB']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=500', 'WPL-KOD,WPL-KOD2']
