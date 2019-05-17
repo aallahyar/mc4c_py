@@ -1,5 +1,6 @@
 *.pyc
 *.gz
+.DS_Store
 
 .idea/
 fastqs/
