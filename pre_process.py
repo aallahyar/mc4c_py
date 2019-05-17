@@ -50,7 +50,6 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
     return umi_set, duplicate_info
 
 
-##########################################################
 def processMC4C(args):
     from copy import deepcopy
 
@@ -190,7 +189,7 @@ def mapFragments(args):
 
     # prepare the command
     cmd_str = \
-        configs['bwa'] + ' bwasw -b 5 -q 2 -r 1 -z 5 -T 15 -t {:d} '.format(args.n_thread) + \
+        configs['bwa'] + ' bwasw {:s} -t {:d} '.format(args.map_argument, args.n_thread) + \
         configs['bwa_index'] + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
