@@ -164,7 +164,7 @@ def splitReads(args):
                 frg_be = res_enz.start()
             rd_ind = rd_ind + 1
     if n_reduced != 0:
-        print '[i] [{:,d}] fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
+        print '[i] {:,d} fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
     print '[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind - 1, frg_ind - 1)
 
 
