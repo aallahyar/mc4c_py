@@ -205,7 +205,7 @@ $ mc4c.py <b>mapFragments</b> ./expr1.cfg --input_file ./inp.fastq.gz --output_f
 maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, 
 and then saves the results in “./out.bam” file.
 
-### setReadIds module:
+#### setReadIds module:
 Keeping track of reads and their captured fragments is essential for proper data processing and analysis in MC-4C pipeline. 
 To facilitate this, once reads are sequenced, we assign unique identifiers to each read (and later to their originated fragments). 
 This identifier is preserved across the pipeline and therefore, at each stage of data processing, the user can trace how 
@@ -240,7 +240,7 @@ Accepted arguments in setReadIds module are as follows:
  multiple times and the data is needed to be processed at the same time (to remove PCR duplicates for example).
  To achive this, the user can separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
 
-### splitReads module:
+#### splitReads module:
 This module is responsible for splitting reads into fragments according to recognition sequence of restriction enzyme 
 (define in the given config file) used during the MC-4C library preparation. Similar to reads, fragments produced 
 in this step are tagged by a unique identifier to facilitate their tracking across MC-4C pipeline. 
@@ -275,7 +275,7 @@ fragments or an using BWA-SW aligner capable of split-mapping). According to our
 these considerations are sufficient to remedy such a false recognitions to a large extent.
 > - The **_splitReads_** module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
 
-### mapFragments module:
+#### mapFragments module:
 This module maps fragments into defined reference genome (defined in the given config file). 
 By default, MC-4C pipeline use BWA-SW to map the given fragments. Its mapping arguments are defined as 
 follows by default in MC-4C pipeline:
@@ -288,11 +288,11 @@ follows by default in MC-4C pipeline:
 The user can further modify the following arguments in mapFragments module:
 - `--input-file`: Input file (in FASTA format) containing fragments with traceable IDs (Default: determined based on the config file name).
 - `--output-file`: Output file (in BAM format) containing mapped fragments (Default: determined based on the config file name).
-- `--map-argument`: Mapping arguments given to BWA-SW to map fragments (Default=-b 5 -q 2 -r 1 -z 5 -T 15)
+- `--map-argument`: Mapping arguments given to BWA-SW to map fragments (Default=`-b 5 -q 2 -r 1 -z 5 -T 15`)
 - `--n_thread`: Number of threads should be used by the aligner (Default=1).
 - `--return_command`: Return only mapping command instead of running it (useful for running the pipeline in a cluster).
 
-### makeDataset module:
+#### makeDataset module:
 This module is responsible for:
 - Merging adjacently mapped fragments that are also neighbor in a read
 - Marking reads that contain a view point fragment in their middle as invalid. 
@@ -307,7 +307,7 @@ Accepted arguments in makeDataset module are as follows:
 - `--input-file`: Input file (in BAM format) containing fragments with traceable IDs (Default: determined based on the config file name).
 - `--output-file`: Output file (in HDF5 format) containing processed fragments (Default: determined based on the config file name).
 
-### removeDuplicates module:
+#### removeDuplicates module:
 This module is responsible for removing duplicated reads that are produced during the PCR amplification step. 
 Briefly, this is done by grouping reads according to fragments mapped in any chromosome other than the viewpoint 
 chromosome and removing all but one read in each group. Please refer to MC-4C manuscript for further details on this procedure. 
