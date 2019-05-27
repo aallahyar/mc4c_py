@@ -1,18 +1,3 @@
-#! /usr/bin/env python
-
-# cluster run example:
-# qsub -P hub_laat -N mc4c -l h_rt=05:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 ./mc4c.py setReadIds LVR-BMaj"
-# downloader: aria2c -x 4 -s 4 --file-allocation=none URL
-
-# compress raw: tar -czf ESCs-V122-PM.tar.gz ./deLaatUDNHiC5Pro3
-# check integrity: tar -tzf my_tar.tar.gz > /dev/null
-# combine fasq: cat *.fastq | gzip > ../../ESCs-V121-PM.fastq.gz
-
-# fragment flag
-# desc: Bits in fragment flag -> 1:overlapping frags, 2:fused-reads, 3:
-
-# TODO: Use frequent k-mers to check primer sequences
-# TODO: Check if a dup_set of reads share a second fragment in ROI
 
 import argparse
 import sys
@@ -22,28 +7,10 @@ import pandas as pd
 
 import pre_process
 
-# import platform  # ###
-# flag_DEBUG = platform.system() != 'Linux'
-
-np.set_printoptions(linewidth=180, threshold=5000)  # , suppress=True, formatter={'float_kind':'{:0.5f}'.format}
+np.set_printoptions(linewidth=180, threshold=5000)
 pd.set_option('display.width', 180)
 pd.set_option('display.max_rows', 200)
 pd.set_option('display.max_columns', 15)
-
-
-def initialize_run(args):
-    # try:
-    #     configs = mc4c_tools.load_configs(args.config_file)
-    # except:
-    #     raise Exception('Configuration file is missing required fields or not formatted correctly.')
-
-    # TODO:
-    # test refrence genome path
-    # test existance of bwa
-    # test if bwa index is present
-    # check and make RE position file if non existant
-    # test existance of samtools
-    print '[TO DO] Checking the pipeline for related files for given experiment'
 
 
 def perform_qc(args):
@@ -161,8 +128,6 @@ def main():
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
     parser_mapFrg.add_argument('--output-file', default=None, type=str,
                                help='Output file (in BAM format) containing mapped fragments')
-    # parser_mapFrg.add_argument('--map-argument', default='-b 5 -q 2 -r 1 -z 5 -T 15', type=str,
-    #                            help='Mapping arguments given to BWA-SW to map fragments.')
     parser_mapFrg.add_argument('--n_thread', default=1, type=int,
                                help='Number of threads should be used by the aligner')
     parser_mapFrg.add_argument('--return_command', action="store_true",
@@ -233,59 +198,6 @@ def main():
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
     parser_analysis.set_defaults(func=perform_analysis)
-
-    #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
-    if 'PYCHARM_HOSTED' in environ:
-        Warning('[w] This script is being run interactively. Running in debug mode!')
-        # sys.argv = ['./mc4c.py', 'process', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
-        # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'asMC4C_DEL_B_70ng']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-HS3-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD,WPL-WTD2']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-KOC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'asMC4C_mESC_WT_A']
-        # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
-        # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
-
-        # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'VpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
-        sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'asMC4C_INV_A']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=500', 'WPL-KOD,WPL-KOD2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD2']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'K562-WplD-10x']
-
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']
-
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
