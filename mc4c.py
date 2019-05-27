@@ -161,8 +161,8 @@ def main():
                                help='Input file (in FASTA format) containing fragments with traceable IDs')
     parser_mapFrg.add_argument('--output-file', default=None, type=str,
                                help='Output file (in BAM format) containing mapped fragments')
-    parser_mapFrg.add_argument('--map-argument', default='-b 5 -q 2 -r 1 -z 5 -T 15', type=str,
-                               help='Mapping arguments given to BWA-SW to map fragments.')
+    # parser_mapFrg.add_argument('--map-argument', default='-b 5 -q 2 -r 1 -z 5 -T 15', type=str,
+    #                            help='Mapping arguments given to BWA-SW to map fragments.')
     parser_mapFrg.add_argument('--n_thread', default=1, type=int,
                                help='Number of threads should be used by the aligner')
     parser_mapFrg.add_argument('--return_command', action="store_true",

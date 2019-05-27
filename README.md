@@ -205,11 +205,121 @@ $ mc4c.py <b>mapFragments</b> ./expr1.cfg --input_file ./inp.fastq.gz --output_f
 maps the fragments found in “./inp.fastq.gz” file to reference genome defined in “expr1.cfg” configuration file, 
 and then saves the results in “./out.bam” file.
 
-> Notes:
+#### setReadIds module:
+Keeping track of reads and their captured fragments is essential for proper data processing and analysis in MC-4C pipeline. 
+To facilitate this, once reads are sequenced, we assign unique identifiers to each read (and later to their originated fragments). 
+This identifier is preserved across the pipeline and therefore, at each stage of data processing, the user can trace how 
+a given read (or fragment) is processed. 
+
+Read identifiers in MC-4C are a `;` separated list of characteristics including:
+ - **File index (Fl.Id):** An increasing number starting from 1 which refers to sequencing runs combined. 
+ This identifier is useful to track reads across multiple sequencing runs that are being processed together. 
+ This will be the case if a template is sequenced multiple times and therefore corresponding reads need to be 
+ combined and processed together (e.g. to remove the PCR duplicates). 
+ - **Read index (Rd.Id):** An increasing number starting from 1, indicating each sequenced read.
+ - **Read length (Rd.Ln):** This part refers to length of the read in terms of base pairs.
+
+For example, a read id can be:
+<pre>
+Fl.Id:2;Rd.Id:2431;Rd.Ln:4463
+</pre>
+which refers to a read originated from second sequencing run, and is the 2431st read in the dataset with length of 
+4463 base pairs. 
+
+To execute this module, the user is required to provide a configuration file. For example:
+<pre>
+$ python ./mc4c.py <b>setReadIds</b> BMaj-test
+</pre>
+
+Accepted arguments in setReadIds module are as follows:
+ - `--input-file`: Input file (in FASTQ format) containing raw sequenced reads (Default: determined based on the config file name).
+ - `--output-file`: Output file (in FASTA format) containing sequenced reads with traceable IDs (Default: determined based on the config file name).
+ 
+ > Notes:
 > - The **_setReadIds_** module supports multiple input files. This is useful if a single library is sequenced 
- multiple times and the data is needed to be processed at the same time (to remove PCR duplicates for example). 
+ multiple times and the data is needed to be processed at the same time (to remove PCR duplicates for example).
  To achive this, the user can separate file names by “,”. E.g. ./inp1.fastq.gz,./inp2.fastq.gz. 
+
+#### splitReads module:
+This module is responsible for splitting reads into fragments according to recognition sequence of restriction enzyme 
+(define in the given config file) used during the MC-4C library preparation. Similar to reads, fragments produced 
+in this step are tagged by a unique identifier to facilitate their tracking across MC-4C pipeline. 
+
+Fragment identifiers are set of `;` separated fields defined as follows:
+- **Read ID**: Each fragment carries identifier of the read it is originated from.
+- **Fragment index (Fr.Id):** An increasing number starting from 1, indicating each fragment produced during the splitting procedure. Note that this number does not restart for each read.
+- **Start Base pair (Fr.SBp):** Specifies the starting base pair number in read where the fragment is originated from
+- **Start Base pair (Fr.EBp):** Specifies the end base pair number in read where the fragment is originated from
+
+For example a fragment identifier can be:
+<pre>
+Fl.Id:2;Rd.Id:2431;Rd.Ln:4463;Fr.Id:15123;Fr.SBp:10;Fr.EBp:30
+</pre>
+which indicates that this fragment is originated from from 10th to 30th base pairs in read 
+`Fl.Id:2;Rd.Id:2431;Rd.Ln:4463`.
+
+To invoke splitting procedure, the user can call the following command in Terminal:
+<pre>
+$ python ./mc4c.py <b>splitReads</b> BMaj-test
+</pre>
+
+Accepted arguments in splitReads module are as follows:
+- `--input-file`: Input file (in FASTA format) containing reads with IDs assigned in the setReadIds module (Default: determined based on the config file name).
+- `--output-file`: Output file (in FASTA format) containing fragments with traceable IDs (Default: determined based on the config file name).
+
+> Notes:
+> - The split procedure is performed according to “exact string search” across each read. 
+Due to the relatively high error rate expected in long-read sequencing technologies, splits might be introduced or missed. 
+MC-4C pipeline is designed to remedy such a shortcomings as much as possible (by merging closely mapped 
+fragments or an using BWA-SW aligner capable of split-mapping). According to our inspection, 
+these considerations are sufficient to remedy such a false recognitions to a large extent.
 > - The **_splitReads_** module supports regular expressions for restriction enzyme recognition sequence (i.e. the “re_seq” parameter in configuration file). This feature is useful if particular restriction enzymes are used to prepare an MC-4C library. For example, if ApoI restriction enzyme is used (which cuts by R^AATTY), the restriction enzyme sequence can be set to [GA]AATT[CT] to properly cut reads.
+
+#### mapFragments module:
+This module maps fragments into defined reference genome (defined in the given config file). 
+By default, MC-4C pipeline use BWA-SW to map the given fragments. Its mapping arguments are defined as 
+follows by default in MC-4C pipeline:
+- `-b 5`: Penalty of a Mismatch occurred during alignment of a fragment to the reference genome.
+- `-q 2`: Penalty of opening a gap during mapping.
+- `-r 1`: Gap extension penalty.
+- `-z 5`: A number that is used in “z-best” heuristics implemented in bwa-sw. Briefly, BWA-SW selects the top “z” best candid alignments in the built alignment graph and further extends their alignments to identify the best alignment.
+- `-T 15`: Any identified alignment with score smaller than this number is not reported by BWA-SW.
+
+The user can further modify the following arguments in mapFragments module:
+- `--input-file`: Input file (in FASTA format) containing fragments with traceable IDs (Default: determined based on the config file name).
+- `--output-file`: Output file (in BAM format) containing mapped fragments (Default: determined based on the config file name).
+- `--map-argument`: Mapping arguments given to BWA-SW to map fragments (Default=`-b 5 -q 2 -r 1 -z 5 -T 15`)
+- `--n_thread`: Number of threads should be used by the aligner (Default=1).
+- `--return_command`: Return only mapping command instead of running it (useful for running the pipeline in a cluster).
+
+#### makeDataset module:
+This module is responsible for:
+- Merging adjacently mapped fragments that are also neighbor in a read
+- Marking reads that contain a view point fragment in their middle as invalid. 
+- Collecting mapped fragments and storing them in a HDF5 container.
+
+The user can call for this module using:
+<pre>
+$ python ./mc4c.py <b>makeDataset</b> BMaj-test
+</pre>
+
+Accepted arguments in makeDataset module are as follows:
+- `--input-file`: Input file (in BAM format) containing fragments with traceable IDs (Default: determined based on the config file name).
+- `--output-file`: Output file (in HDF5 format) containing processed fragments (Default: determined based on the config file name).
+
+#### removeDuplicates module:
+This module is responsible for removing duplicated reads that are produced during the PCR amplification step. 
+Briefly, this is done by grouping reads according to fragments mapped in any chromosome other than the viewpoint 
+chromosome and removing all but one read in each group. Please refer to MC-4C manuscript for further details on this procedure. 
+The user can call for this module using:
+<pre>
+$ python ./mc4c.py <b>removeDuplicates</b> BMaj-test
+</pre>
+
+Accepted arguments in removeDuplicates module are as follows:
+- `--input-file`: Input file (in HDF5 format) containing MC4C data (Default: determined based on the config file name).
+- `--output-file`: Output file (in HDF5 format) containing MC4C data (Default: determined based on the config file name).
+- `--min-mq`: Minimum mapping quality (MQ) to consider a fragment as confidently mapped (Default: 20).
 
 ### Default directory and files:
 To further reduce verbosity, MC-4C pipeline supports default paths and file names. These default paths and file names 
