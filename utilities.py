@@ -86,7 +86,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
         makedirs(path.dirname(output_fname))
     if ref_fasta is None:
         ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa'
-    print 'Searching in reference: ' + ref_fasta
+    print 'Searching in the reference genome defined in: ' + ref_fasta
 
     # get re sequences
     seq_lst = []
@@ -98,12 +98,12 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     re_pos_lst = [None] * len(chr_lst)
     chr_lst_loaded = [None] * len(chr_lst)
     with pysam.FastxFile(ref_fasta) as ref_fid:
-        print 'Scanning:',
+        print 'Scanning chromosomes for restriction recognition sequences: {:s}'.format(', '.join(seq_lst))
         for chr_ind, chr in enumerate(ref_fid):
             if not chr.name in chr_lst:
-                print '{:s} is ignored,'.format(chr.name),
+                print '\t{:s} is ignored,'.format(chr.name)
                 continue
-            print '{:s},'.format(chr.name),
+            print '\t{:s},'.format(chr.name)
 
             cut_sites = []
             for frg in re.finditer(re_regex, chr.sequence, re.IGNORECASE):
