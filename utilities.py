@@ -97,7 +97,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     # Loop over chromosomes
     re_pos_lst = [None] * len(chr_lst)
     chr_lst_loaded = [None] * len(chr_lst)
-    with pysam.FastxFile(ref_fasta) as ref_fid:
+    with pysam.FastxFile(path.expanduser(ref_fasta)) as ref_fid:
         print 'Scanning chromosomes for restriction recognition sequences: {:s}'.format(', '.join(seq_lst))
         for chr_ind, chr in enumerate(ref_fid):
             if not chr.name in chr_lst:
