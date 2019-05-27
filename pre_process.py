@@ -181,6 +181,8 @@ def mapFragments(args):
         args.input_file = './fragments/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
         args.output_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
+    if not args.map_argument:
+        args.map_argument = '-b 5 -q 2 -r 1 -z 5 -T 15'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     if not args.return_command:
