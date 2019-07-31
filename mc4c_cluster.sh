@@ -8,7 +8,7 @@ cfg_name=$1
 if [[ $# -gt 1 ]]; then
 	n_thread=$2
 else
-	n_thread=24;
+	n_thread=12;
 fi
 echo "Running MC-4C pipeline for run [$cfg_name] using [$n_thread] threads for mapping."
 

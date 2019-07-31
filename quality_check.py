@@ -570,10 +570,10 @@ def plot_sequencing_saturation(configs, n_perm=100):
     x_tick_lbl = ['{:d}'.format(x) for x in x_tick_idx]
     ax_cls.set_xticks(x_tick_idx)
     ax_cls.set_xticklabels(x_tick_lbl)
-    ax_cls.set_xlabel('Top {:d} largest UMIs'.format(n_top))
+    ax_cls.set_xlabel('Observed frequency'.format(n_top))
     ax_cls.set_ylabel('UMI duplicity score')
     ax_cls.set_ylim([0, 50])
-    ax_cls.set_title('Top {:d} largest duplicated UMIs\n'.format(n_top) +
+    ax_cls.set_title('Top {:d} most frequently duplicated UMIs\n'.format(n_top) +
                      '#UMI={:,d}, #UMI (dup>1)={:,d}'.format(n_umi, np.sum(cls_size > 1)))
 
     plt.suptitle('Sequencing saturation levels, {:s}\n\n'.format(configs['run_id']))
