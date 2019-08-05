@@ -1,4 +1,5 @@
 import numpy as np
+from os import path
 
 
 def plot_readSizeDistribution(configs):
@@ -10,6 +11,8 @@ def plot_readSizeDistribution(configs):
         configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/qc_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
+    if not path.isfile(configs['input_file']):
+        raise Exception('[e] Source FASTQ file is not found: {:s}'.format(configs['input_file']))
     MAX_SIZE = 8000
     edge_lst = np.linspace(0, MAX_SIZE, 81)
     n_bin = len(edge_lst) - 1

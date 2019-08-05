@@ -175,14 +175,13 @@ def mapFragments(args):
         print '%% Mapping fragments to genome ...'
 
     configs = load_configs(args.config_file, max_n_configs=1)[0]
+    map_argument = '-b 5 -q 2 -r 1 -z 5 -T 15'
 
     # Map split fragments to genome
     if args.input_file is None:
         args.input_file = './fragments/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
         args.output_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
-    if not args.map_argument:
-        args.map_argument = '-b 5 -q 2 -r 1 -z 5 -T 15'
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     if not args.return_command:
@@ -191,7 +190,7 @@ def mapFragments(args):
 
     # prepare the command
     cmd_str = \
-        configs['bwa'] + ' bwasw {:s} -t {:d} '.format(args.map_argument, args.n_thread) + \
+        configs['bwa'] + ' bwasw {:s} -t {:d} '.format(map_argument, args.n_thread) + \
         configs['bwa_index'] + ' ' + args.input_file + \
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
