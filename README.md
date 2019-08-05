@@ -349,7 +349,7 @@ List of default paths and input/output files for each module is denoted in **Tab
 
 | Module name | Input folder and file | Output folder and file
 | --- | --- | ---
-| **_setReadIds_** | ./fastqs/fq_&lt;name&gt;.fastq.gz | ./read_files/rd_&lt;name&gt;.fasta.gz
+| **_setReadIds_** | ./fastqs/&lt;name&gt;.fastq.gz | ./read_files/rd_&lt;name&gt;.fasta.gz
 | **_splitReads_** | ./reads/rd_&lt;name&gt;.fasta.gz | ./fragments/frg_&lt;name&gt;.fasta.gz
 | **_mapFragments_** | ./fragments/frg_&lt;name&gt;.fasta.gz | ./bams/bam_&lt;name&gt;.bam
 | **_makeDataset_** | ./bams/bam_&lt;name&gt;.bam | ./datasets/mc4c_&lt;name&gt;_all.hdf5
@@ -385,10 +385,10 @@ configuration file, not a run name.
     ```
 
    #### Prepare input data:
-4) After downloading the aforementioned example data, create a folder named “fastqs” and move the obtained sequencing file (i.e. fq_BMaj-test.fastq.gz) to this folder:
+4) After downloading the aforementioned example data, create a folder named “fastqs” and move the obtained sequencing file (i.e. BMaj-test.fastq.gz) to this folder:
     ```
     $ mkdir -p ./fastqs
-    $ mv ~/Downloads/fq_BMaj-test.fastq.gz ./fastqs/
+    $ mv ~/Downloads/BMaj-test.fastq.gz ./fastqs/
     ```
 
 5) Create a folder named “configs” and move the obtained configuration file (i.e. cfg_BMaj-test.cfg) to this folder:
