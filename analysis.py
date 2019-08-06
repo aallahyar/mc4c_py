@@ -345,7 +345,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
                         horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=6)
 
     # final adjustments
-    x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 7, dtype=np.int64)
+    x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 15, dtype=np.int64)
     y_ticks = ax_prf.get_yticks()
     x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
     y_tick_label = ['{:0.0f}%'.format(y) for y in y_ticks]
@@ -524,7 +524,10 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_atAcrossROI_{:s}.pdf'.format(run_id)
+        roi_w = configs['roi_end'] - configs['roi_start']
+        configs['output_file'] = configs['output_dir'] + \
+                                 '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
+                                 'rw{:0.1f}kb.pdf'.format(roi_w / 1e3)
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -698,7 +701,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
     ax_scr.set_yticklabels(y_tick_lbl)
     ax_scr.set_xlabel('Selected SOIs')
-    ax_scr.set_title('Association matrix from {:s}\n'.format(configs['run_id']) +
+    ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                      )

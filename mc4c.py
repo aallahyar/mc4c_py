@@ -72,7 +72,7 @@ def perform_qc(args):
     elif args.report_type == 'cirSizeDist':
         quality_check.plot_cirSizeDistribution(config_lst[0], roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
-        quality_check.plot_overallProfile(config_lst[0], min_n_frg=2)
+        quality_check.plot_overallProfile(config_lst, min_n_frg=2)
     elif args.report_type == 'seqSaturation':
         assert len(config_lst) == 1, '[error] Only one dataset can be tested for saturation!'
         quality_check.plot_sequencing_saturation(config_lst[0])
@@ -240,21 +240,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-HS3-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTD,WPL-WTD2']
+        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x,NPC-PCDHa4-96x,NPC-PCDHaHS7-96x,NPC-PCDHaHS51-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'NPC-PCDHaC1-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-KOC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'WPL-WTC']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'asMC4C_mESC_WT_A,asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'LVR-BMaj-96x']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'removeDuplicates', 'asMC4C_mESC_WT_A']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
@@ -262,27 +250,17 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
 
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'VpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'LVR-BMaj-96x', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'BRN-BMaj-Adj,BRN-BMaj-Adj2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'asMC4C_INV_A']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=500', 'WPL-KOD,WPL-KOD2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', 'BRN-BMaj-96x,BRN-BMaj-96x2']
 
         # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'asMC4C_mESC_WT_C']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'WPL-KOD2']
-        # sys.argv = ['./mc4c.py', 'QC', 'seqSaturation', 'K562-WplD-10x']
 
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-PB']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'LVR-BMaj-96x']
-        # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'asMC4C_mESC_WT_A']
+
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'asMC4C_DEL_C']
 
 
     args = parser.parse_args(sys.argv[1:])

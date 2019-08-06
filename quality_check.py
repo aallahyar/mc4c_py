@@ -370,14 +370,19 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_overallProfile(configs, min_n_frg=2):
+def plot_overallProfile(config_lst, min_n_frg=2):
     from matplotlib import pyplot as plt, patches
 
     from utilities import hasOL, load_mc4c, load_annotation
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_OverallProfile_' + configs['run_id'] + '.pdf'
+        roi_w = configs['roi_end'] - configs['roi_start']
+        configs['output_file'] = configs['output_dir'] + \
+                                 '/qc_OverallProfile_{:s}_'.format(run_id) + \
+                                 'rw{:0.1f}kb.pdf'.format(roi_w / 1e3)
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -393,7 +398,7 @@ def plot_overallProfile(configs, min_n_frg=2):
     for di in range(2):
 
         # load MC-HC data
-        frg_dp = load_mc4c(configs, unique_only=di != 0, valid_only=True, min_mq=20, reindex_reads=True)
+        frg_dp = load_mc4c(config_lst, unique_only=di != 0, valid_only=True, min_mq=20, reindex_reads=True)
         frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
 
         # filter small circles
@@ -455,7 +460,7 @@ def plot_overallProfile(configs, min_n_frg=2):
         'All reads (n={:0,.0f})'.format(n_read[0]),
         'Unique reads (n={:0,.0f})'.format(n_read[1])
     ])
-    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, configs['run_id']))
+    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, run_id))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
