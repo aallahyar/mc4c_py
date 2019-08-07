@@ -117,7 +117,7 @@ def perform_analysis(args):
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
-        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm)
+        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm, downsample=args.downsample)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -230,6 +230,7 @@ def main():
     parser_analysis.add_argument('--n-perm', default=1000, type=int,
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
+    parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
@@ -260,7 +261,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'asMC4C_DEL_C']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=25114', 'asMC4C_WT_B']
 
 
     args = parser.parse_args(sys.argv[1:])

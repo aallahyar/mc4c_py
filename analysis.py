@@ -510,7 +510,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
+def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -525,9 +525,11 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     configs = config_lst[0]
     if configs['output_file'] is None:
         roi_w = configs['roi_end'] - configs['roi_start']
+        if downsample:
+            run_id += '_ds{:d}'.format(downsample)
         configs['output_file'] = configs['output_dir'] + \
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
-                                 'rw{:0.1f}kb.pdf'.format(roi_w / 1e3)
+                                 'rw{:0.1f}kb_np{:0.1f}k.pdf'.format(roi_w / 1e3, n_perm / 1e3)
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -580,8 +582,11 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000):
     read_inf = read_inf[np.isin(read_inf[:, 0], valid_lst), :]
 
     # subsample reads
-    # rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), 6870, replace=False)
-    # read_inf = read_inf[np.isin(read_inf[:, 0], rnd_ids), :]
+    if downsample:
+        n_read = len(np.unique(read_inf[:, 0]))
+        print '[i] Downsampling {:,d} informative reads to {:d} reads.'.format(n_read, downsample)
+        rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), downsample, replace=False)
+        read_inf = read_inf[np.isin(read_inf[:, 0], rnd_ids), :]
 
     # reindexing reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
