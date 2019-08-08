@@ -117,7 +117,8 @@ def perform_analysis(args):
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
-        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm, downsample=args.downsample)
+        analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm,
+                                       downsample=args.downsample, xls_export=args.to_xlsx)
     else:
         raise Exception()
     print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
@@ -231,6 +232,7 @@ def main():
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
+    parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
@@ -261,7 +263,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=25114', 'asMC4C_WT_B']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
 
 
     args = parser.parse_args(sys.argv[1:])

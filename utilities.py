@@ -334,7 +334,7 @@ def load_configs(input_fname, max_n_configs=None):
             configs['vp_end'] = roi_cen + int(configs['bin_width'] * 1.5)
 
         assert (configs['roi_end'] - configs['roi_start'] < 2e6), '[e] ROI can not be defined to be larger than 2mb!'
-        assert (configs['roi_end'] - configs['roi_start'] > 1.2e5), '[e] ROI can not be defined to be smaller than 120kb!'
+        assert (configs['roi_end'] - configs['roi_start'] > 120e3), '[e] ROI can not be defined to be smaller than 120kb!'
         assert (configs['n_bin'] >= 100) and (configs['n_bin'] <= 300), \
             '[e] #bins={:d}, #bins should be in the interval of 100 <= #bin <= 300'.format(configs['n_bin'])
 

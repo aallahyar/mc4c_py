@@ -510,7 +510,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None):
+def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None, xls_export=False):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -711,5 +711,16 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None)
                      'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
+    print 'ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file'])
+
+    # export to excel file
+    if xls_export:
+        xls_fname = configs['output_file'][:-4] + '.xlsx'
+        print 'Exporting z-scores to excel sheet: {:s}'.format(xls_fname)
+
+        import pandas as pd
+        zscr_pd = pd.DataFrame(blk_scr, columns=y_tick_lbl, index=y_tick_lbl)
+        zscr_pd.to_excel(xls_fname, sheet_name='z-scores')
+
 
 
