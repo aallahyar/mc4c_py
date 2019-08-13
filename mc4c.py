@@ -215,6 +215,7 @@ def main():
     parser_qc.set_defaults(func=perform_qc)
 
     # perform basic analysis
+    print test
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
     parser_analysis.add_argument('analysis_type', choices=['mcTest', 'atVpSoi', 'atSOISOI', 'atAcrossROI'], type=str,
                                   help='Type of analysis that needs to be performed')
@@ -242,7 +243,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'init', './cfg_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
-        # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
@@ -263,7 +264,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
 
 
     args = parser.parse_args(sys.argv[1:])

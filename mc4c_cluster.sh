@@ -33,17 +33,17 @@ echo "[5] Duplicate filter is submitted with id: $jid_dup"
 #### Plotting scripts
 if [[ 1 -eq 1 ]]; then
 echo "submitting jobs for plotting statistics"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-RdSDist   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC readSizeDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_07-FrgDist   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC frgSizeDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_08-ChrCvg    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC chrCvg ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_09-CirSDistA -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_10-CirSDistR -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name} --roi-only --uniq-only"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_11-CatReads  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC categorizeReads ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_12-OvAProf   -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC overallProfile ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-SeqSatur  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi     -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-SOISOI    -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI  -l h_rt=03:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --to_xlsx ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_06-RdSDist   -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC readSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_07-FrgDist   -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC frgSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_08-ChrCvg    -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC chrCvg ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_09-CirSDistA -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_10-CirSDistR -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC cirSizeDist ${cfg_name} --roi-only --uniq-only"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_11-CatReads  -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC categorizeReads ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_12-OvAProf   -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC overallProfile ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-SeqSatur  -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi     -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-SOISOI    -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI  -l h_rt=10:00:00 -l h_vmem=50G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --to_xlsx ${cfg_name}"
 fi
 
 #set +x
