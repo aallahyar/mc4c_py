@@ -215,7 +215,6 @@ def main():
     parser_qc.set_defaults(func=perform_qc)
 
     # perform basic analysis
-    print test
     parser_analysis = subparsers.add_parser('analysis', description='Performs analysis on an MC-4C dataset.')
     parser_analysis.add_argument('analysis_type', choices=['mcTest', 'atVpSoi', 'atSOISOI', 'atAcrossROI'], type=str,
                                   help='Type of analysis that needs to be performed')
