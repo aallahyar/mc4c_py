@@ -253,7 +253,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     soi_pd = ant_pd.loc[is_in[0], :]
     soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - int(bin_w * 1.5), soi_pd['ant_pos'] + int(bin_w * 1.5)]
     if hasOL(soi_crd, vp_crd)[0]:
-        '[w] Selected SOI coordinate overlaps with the view point. Ignoring the analysis'
+        print '[w] Selected SOI coordinate overlaps with the view point. Ignoring the analysis'
         return
 
     # compute positive profile and backgrounds

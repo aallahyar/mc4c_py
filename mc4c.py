@@ -86,6 +86,7 @@ def perform_qc(args):
 def perform_analysis(args):
     import analysis
     from utilities import load_configs
+    from copy import deepcopy
 
     config_lst = load_configs(args.config_file)
     if args.output_file is None:
@@ -112,7 +113,7 @@ def perform_analysis(args):
 
         for ant_name in ant_name_lst:
             print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
-            analysis.perform_vpsoi_analysis(list(config_lst), soi_name=ant_name, n_perm=args.n_perm)
+            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, n_perm=args.n_perm)
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
@@ -252,7 +253,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
 
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'BMaj-test,BMaj-test', '--ant-name', 'HS2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'BMaj-test,BMaj-test', '--ant-name', 'HS2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atSOISOI', '--n-perm=1000', 'LVR-BMaj-96x-Adj']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'BMaj-test']
 
@@ -262,6 +263,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_Slc_WT,Prdm14_Slc_WT2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
 
 
