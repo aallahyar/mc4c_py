@@ -186,7 +186,7 @@ def perform_mc_analysis(configs, min_n_frg=2):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
+def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -197,8 +197,10 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     from utilities import load_mc4c, load_annotation, hasOL, flatten
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}.pdf'.format(configs['run_id'], soi_name)
+        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}.pdf'.format(run_id, soi_name)
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -207,7 +209,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     y_lim = [0, 10]
 
     # load MC-HC data
-    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
+    frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
 
@@ -353,7 +355,7 @@ def perform_vpsoi_analysis(configs, soi_name, min_n_frg=2, n_perm=1000):
     ax_scr.set_xticklabels(x_tick_label)
     ax_prf.set_yticklabels(y_tick_label)
     ax_prf.set_ylabel('Percentage of reads')
-    ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(configs['run_id'], soi_name) +
+    ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      '#pos = {:d}\n#perm={:d}\n\n\n'.format(n_pos, n_perm)
                      )
