@@ -277,7 +277,7 @@ def load_configs(input_fname, max_n_configs=None):
         # check if config_file is a file
         if cfg_fname[-4:] != '.cfg':
             cfg_fname = './configs/cfg_' + cfg_fname + '.cfg'
-        assert path.isfile(cfg_fname), 'Configuration file could not be found: '.format(cfg_fname)
+        assert path.isfile(cfg_fname), 'Configuration file could not be found: {:s}'.format(cfg_fname)
 
         # Load global and then given configs
         configs = dict()
