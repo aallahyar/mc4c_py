@@ -265,7 +265,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
         sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
-
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--to_xlsx', 'BMaj-test,BMaj-test']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

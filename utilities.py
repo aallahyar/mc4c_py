@@ -303,7 +303,8 @@ def load_configs(input_fname, max_n_configs=None):
         for cfg_name in ['prm_start', 'prm_end']:
             configs[cfg_name] = [int(value) for value in configs[cfg_name]]
         for cfg_name in ['bwa_index', 'reference_fasta']:
-            configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
+            if cfg_name in configs.keys():
+                configs[cfg_name] = configs[cfg_name].replace('%REF%', configs['genome_build'])
 
         # get chromosome info
         chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
