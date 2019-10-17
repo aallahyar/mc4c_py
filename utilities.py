@@ -80,13 +80,13 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     if output_fname is None:
         output_fname = './renzs/{:s}_{:s}.npz'.format(genome_str, '-'.join(re_name_lst))
     if path.isfile(output_fname):
-        print '[w] Restriction enzyme file exists: ' + output_fname
+        print('[w] Restriction enzyme file exists: ' + output_fname)
         return
     if not path.isdir(path.dirname(output_fname)):
         makedirs(path.dirname(output_fname))
     if ref_fasta is None:
         ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa'
-    print 'Searching in the reference genome defined in: ' + ref_fasta
+    print('Searching in the reference genome defined in: ' + ref_fasta)
 
     # get re sequences
     seq_lst = []
@@ -98,12 +98,12 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     re_pos_lst = [None] * len(chr_lst)
     chr_lst_loaded = [None] * len(chr_lst)
     with pysam.FastxFile(path.expanduser(ref_fasta)) as ref_fid:
-        print 'Scanning chromosomes for restriction recognition sequences: {:s}'.format(', '.join(seq_lst))
+        print('Scanning chromosomes for restriction recognition sequences: {:s}'.format(', '.join(seq_lst)))
         for chr_ind, chr in enumerate(ref_fid):
             if not chr.name in chr_lst:
-                print '\t{:s} is ignored,'.format(chr.name)
+                print('\t{:s} is ignored,'.format(chr.name))
                 continue
-            print '\t{:s},'.format(chr.name)
+            print('\t{:s},'.format(chr.name))
 
             cut_sites = []
             for frg in re.finditer(re_regex, chr.sequence, re.IGNORECASE):
@@ -112,7 +112,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
             chr_lst_loaded[chr_map[chr.name]] = chr.name
         if not np.array_equal(chr_lst, chr_lst_loaded):
             raise Exception('[e] Inconsistent reference genome!')
-        print ''
+        print('')
 
     # Save the result
     np.savez(output_fname, [re_pos_lst, chr_lst_loaded, genome_str])
@@ -367,7 +367,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         if np.isinf(max_rows):
             data_np = h5_fid[target_field][()]
         else:
-            print 'Selecting only top [{:d}] rows in the dataset'.format(max_rows)
+            print('Selecting only top [{:d}] rows in the dataset'.format(max_rows))
             data_np = h5_fid[target_field][:max_rows]
 
         header_lst = list(h5_fid[target_field + '_header_lst'][()])
@@ -385,8 +385,7 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
         assert np.max(part_pd['ReadID']) < MAX_N_CIR
         part_pd['ReadID'] = part_pd['ReadID'] + (cfg_idx + 1) * MAX_N_CIR
         if verbose and (len(config_lst) > 1):
-            print '\tGot [{:,d}] reads and [{:,d}] fragments.'.format(
-                len(np.unique(part_pd['ReadID'])), part_pd.shape[0])
+            print('\tGot [{:,d}] reads and [{:,d}] fragments.'.format(len(np.unique(part_pd['ReadID'])), part_pd.shape[0]))
 
         # Append the part
         out_pd = out_pd.append(part_pd, ignore_index=True)
@@ -394,13 +393,12 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
     if reindex_reads:
         if verbose:
-            print 'Reindexing reads ...'
+            print('Reindexing reads ...')
         header_lst.append('ReadID_original')
         out_pd[header_lst[-1]] = out_pd['ReadID'].copy()
         out_pd['ReadID'] = np.unique(out_pd['ReadID'], return_inverse=True)[1] + 1
     if verbose:
-        print 'In total, [{:,d}] reads and [{:,d}] fragments are loaded.'.format(
-            len(np.unique(out_pd['ReadID'])), out_pd.shape[0])
+        print('In total, [{:,d}] reads and [{:,d}] fragments are loaded.'.format(len(np.unique(out_pd['ReadID'])), out_pd.shape[0]))
 
     return out_pd[header_lst]
 

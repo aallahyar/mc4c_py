@@ -25,7 +25,7 @@ def load_data(config_lst, vp_crd, roi_crd):
     # load mc4c data
     mc4c_pd = load_mc4c(config_lst, unique_only=False, valid_only=True, min_mq=min_mq, reindex_reads=True, verbose=True)
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
-    print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
+    print('There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID']))))
 
     # filtering reads according to their MQ
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']
@@ -33,8 +33,7 @@ def load_data(config_lst, vp_crd, roi_crd):
     is_mapped = read_all[:, 4] >= min_mq
     is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
     read_all = read_all[is_mapped & is_valid, :4]
-    print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
-        min_mq, len(np.unique(read_all[:, 0])))
+    print('Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(min_mq, len(np.unique(read_all[:, 0]))))
     # del is_mapped, is_valid
 
     # select informative reads (#frg > 1), ignoring VP fragments
@@ -44,7 +43,7 @@ def load_data(config_lst, vp_crd, roi_crd):
     read_n_roi = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
     is_inf = np.isin(read_all[:, 0], frg_roi[read_n_roi[frg_roi[:, 0]] > 1, 0])
     read_inf = np.hstack([read_all[is_inf, :].copy(), read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
-    print 'Selected reads #cis fragment > 1: {:d} reads are selected.'.format(len(np.unique(read_inf[:, 0])))
+    print('Selected reads #cis fragment > 1: {:d} reads are selected.'.format(len(np.unique(read_inf[:, 0]))))
 
     return read_all, read_inf
 
@@ -62,22 +61,22 @@ roi_size = configs['roi_end'] - configs['roi_start']
 lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
 is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
 umi_org = read_inf[~is_lcl, :].copy()
-print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_org[:, 0])))
+print('Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_org[:, 0]))))
 unq_set, lcl_info = remove_duplicates_by_umi(umi_org)
 is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
 frg_org = read_all[is_unq, :].copy()
 n_read = [len(np.unique(frg_org[:, 0]))]
-print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[0])
+print('\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[0]))
 
 # use cis chromosome
 is_cis = lcl_crd[0] == read_inf[:, 1]
 umi_trs = read_inf[~is_cis, :].copy()
-print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_trs[:, 0])))
+print('Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_trs[:, 0]))))
 unq_set, trs_info = remove_duplicates_by_umi(umi_trs)
 is_unq = np.isin(read_all[:, 0], unq_set[:, 0])
 frg_trs = read_all[is_unq, :].copy()
 n_read.append(len(np.unique(frg_trs[:, 0])))
-print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[1])
+print('\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[1]))
 
 # make profile
 edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -165,12 +164,12 @@ read_all, read_inf = load_data(config_lst, vp_crd=vp_crd_adj, roi_crd=adj_crd)
 adj_w = adj_crd[2] - adj_crd[1]
 is_adj = hasOL([adj_crd[0], adj_crd[1]-adj_w, adj_crd[2]+adj_w], read_inf[:, 1:4], offset=0)
 umi_set = read_inf[~is_adj, :].copy()
-print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0])))
+print('Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0]))))
 adj_set, adj_info = remove_duplicates_by_umi(umi_set)
 is_adj = np.isin(read_all[:, 0], adj_set[:, 0])
 frg_adj = read_all[is_adj, :].copy()
 n_read.append(len(np.unique(frg_adj[:, 0])))
-print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[2])
+print('\t#reads: {:,d} --> {:,d}'.format(len(np.unique(read_all[:, 0])), n_read[2]))
 plt.xlim([adj_crd[1]-adj_w*3, adj_crd[2]+adj_w*3])
 plt.ylim(y_lim)
 plt.savefig(out_fname + 'ProfileLocal.pdf', bbox_inches='tight')
@@ -194,5 +193,5 @@ plt.title('{:s}\n'.format(run_id) +
 plt.savefig(out_fname + 'ProfileLocal_withAdj.pdf', bbox_inches='tight')
 
 # assert np.array_equal(read_all, mc4c_pd.loc[is_mapped & is_valid, header_lst[:-2]].values)
-print 'Done'
+print('Done')
 # plt.show()

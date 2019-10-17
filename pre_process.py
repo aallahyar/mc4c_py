@@ -19,11 +19,11 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
     umi_idx = 0
     duplicate_info = []
     if verbose:
-        print 'Scanning {:,d} UMIs for duplicates:'.format(n_umi)
+        print('Scanning {:,d} UMIs for duplicates:'.format(n_umi))
     while umi_idx < n_umi:
         if verbose and (umi_idx % 1000 == 0):
-            print '\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
-                  '{:,d} reads are still unique.'.format(len(np.unique(umi_set[:, 0])))
+            print('\tscanned {:,d} trans-fragments, '.format(umi_idx) + \
+                  '{:,d} reads are still unique.'.format(len(np.unique(umi_set[:, 0]))))
         has_ol = hasOL(frg_umi[umi_idx, :3], umi_set[:, 1:4], offset=0)
         n_ovl = len(np.unique(umi_set[has_ol, 0]))
         if n_ovl > 1:
@@ -53,7 +53,7 @@ def remove_duplicates_by_umi(umi_set, verbose=False):
 def processMC4C(args):
     from copy import deepcopy
 
-    print '%% Processing MC-4C library ...'
+    print('%% Processing MC-4C library ...')
     setattr(args, 'input_file', None)
     setattr(args, 'output_file', None)
     setattr(args, 'return_command', False)
@@ -63,14 +63,14 @@ def processMC4C(args):
     mapFragments(deepcopy(args))
     processMappedFragments(deepcopy(args))
     removeDuplicates(deepcopy(args))
-    print '[i] Processing MC-4C experiment is completed successfully.'
+    print('[i] Processing MC-4C experiment is completed successfully.')
 
 
 def setReadIds(args):
     import gzip
 
     from utilities import load_configs
-    print '%% Assigning traceable identifiers to reads ...'
+    print('%% Assigning traceable identifiers to reads ...')
 
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
@@ -87,7 +87,7 @@ def setReadIds(args):
     # loop over reads
     with gzip.open(args.output_file, 'w') as out_fid:
         inp_flst = args.input_file.split(',')
-        print 'Total of [{:d}] files are given as input.'.format(len(inp_flst))
+        print('Total of [{:d}] files are given as input.'.format(len(inp_flst)))
         for inp_fidx, inp_fname in enumerate(inp_flst):
             print('\t{:d}. Reading from: {:s}'.format(inp_fidx + 1, inp_fname))
             rd_nid = 1
@@ -113,7 +113,7 @@ def setReadIds(args):
                     out_fid.write('>' + rd_sid + '\n')
                     out_fid.write(rd_seq + '\n')
                     rd_nid = rd_nid + 1
-    print '[i] Read identifier conversion is completed successfully.'
+    print('[i] Read identifier conversion is completed successfully.')
 
 
 def splitReads(args):
@@ -122,7 +122,7 @@ def splitReads(args):
 
     from utilities import load_configs, get_re_info
 
-    print '%% Splitting reads into fragments ...'
+    print('%% Splitting reads into fragments ...')
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
@@ -164,15 +164,15 @@ def splitReads(args):
                 frg_be = res_enz.start()
             rd_ind = rd_ind + 1
     if n_reduced != 0:
-        print '[i] {:,d} fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE)
-    print '[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind - 1, frg_ind - 1)
+        print('[i] {:,d} fragments are reduced to {:,d}bp.'.format(n_reduced, MAX_FRG_SIZE))
+    print('[i] Total of {:,d} reads and {:,d} fragments are produced successfully.'.format(rd_ind - 1, frg_ind - 1))
 
 
 def mapFragments(args):
 
     from utilities import load_configs
     if not args.return_command:
-        print '%% Mapping fragments to genome ...'
+        print('%% Mapping fragments to genome ...')
 
     configs = load_configs(args.config_file, max_n_configs=1)[0]
     map_argument = '-b 5 -q 2 -r 1 -z 5 -T 15'
@@ -195,17 +195,17 @@ def mapFragments(args):
         ' | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
     if args.return_command:
-        print '{:s}'.format(cmd_str)
+        print('{:s}'.format(cmd_str))
     else:
         assert path.isfile(args.input_file), '[e] Input file could not be found: {:s}'.format(args.input_file)
-        print 'Running: {:s}'.format(cmd_str)
+        print('Running: {:s}'.format(cmd_str))
         import subprocess
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         std_out, std_err = map_prs.communicate()
         # TODO: A better error handling here would be nice
         assert std_err.split('\n')[-2][:18] == '[main] Real time: ', \
             'bwa failed to run properly, see below:\n{:s}'.format(std_err)
-        print '[i] Fragments are mapped to genome successfully.'
+        print('[i] Fragments are mapped to genome successfully.')
 
 
 def processMappedFragments(args):
@@ -217,7 +217,7 @@ def processMappedFragments(args):
 
     from utilities import load_configs, get_chr_info, hasOL
 
-    print '%% Creating an MC-4C dataset from mapped fragments ...'
+    print('%% Creating an MC-4C dataset from mapped fragments ...')
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
@@ -238,8 +238,8 @@ def processMappedFragments(args):
     re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
     if not path.isfile(re_pos_fname):
         from utilities import extract_re_positions
-        print 'Database of restriction enzyme cut sites is not found. ' + \
-              'Scanning the reference genome to create this database ...'
+        print('Database of restriction enzyme cut sites is not found. ' + \
+              'Scanning the reference genome to create this database ...')
         extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
                              ref_fasta=configs['reference_fasta'])
     re_pos, re_chr_lst, re_genome_str = np.load(re_pos_fname)['arr_0']
@@ -253,7 +253,7 @@ def processMappedFragments(args):
     idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='left')
     vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
     if idx_lft + 1 != idx_rgt:
-        print '[w] Can not map primer positions on a single fragment.'
+        print('[w] Can not map primer positions on a single fragment.')
 
     # define fragment headers
     header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand', 'MapStart', 'MapEnd', 'MQ',
@@ -404,8 +404,7 @@ def processMappedFragments(args):
             n_processed += 1
 
     if n_fusion != 0:
-        print '[w] {:,d} fused reads ({:0.1f}% of total) are identified and flagged.'.format(
-            n_fusion, n_fusion * 100.0 / n_processed)
+        print('[w] {:,d} fused reads ({:0.1f}% of total) are identified and flagged.'.format(n_fusion, n_fusion * 100.0 / n_processed))
 
     # Load fragments in pandas format and sort fragments within a read according to their relative positions
     print('Loading the temporary file: {:s}'.format(tmp_fname))
@@ -425,7 +424,7 @@ def processMappedFragments(args):
 
     print('Removing temporary file: {:s}'.format(tmp_fname))
     remove(tmp_fname)
-    print '[i] MC4C dataset is created successfully.'
+    print('[i] MC4C dataset is created successfully.')
 
 
 def removeDuplicates(args):
@@ -435,7 +434,7 @@ def removeDuplicates(args):
 
     from utilities import load_configs, hasOL
 
-    print '%% Removing pcr duplicates from an MC-4C dataset ...'
+    print('%% Removing pcr duplicates from an MC-4C dataset ...')
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
@@ -456,15 +455,15 @@ def removeDuplicates(args):
     chr_lst = list(h5_fid['chr_lst'][()])
     h5_fid.close()
     MAX_ReadID = np.max(mc4c_pd['ReadID'])
-    print 'There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID'])))
+    print('There are {:d} reads in the dataset.'.format(len(np.unique(mc4c_pd['ReadID']))))
 
     # filtering reads according to their MQ
     read_all = mc4c_pd[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'Flag']].values
     is_mapped = read_all[:, 4] >= args.min_mq
     is_valid = np.bitwise_and(read_all[:, 5], 1) == 0
     read_all = read_all[is_mapped & is_valid, :4]
-    print 'Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
-        args.min_mq, len(np.unique(read_all[:, 0])))
+    print('Selected non-overlapping fragments with MQ >= {:d}: {:d} reads are left.'.format(
+        args.min_mq, len(np.unique(read_all[:, 0]))))
     del is_mapped, is_valid
 
     # select informative reads (#frg > 1), ignoring VP fragments
@@ -476,20 +475,20 @@ def removeDuplicates(args):
     read_n_roi = np.bincount(frg_roi[:, 0], minlength=MAX_ReadID + 1)
     is_inf = np.isin(read_all[:, 0], frg_roi[read_n_roi[frg_roi[:, 0]] > 1, 0])
     read_inf = np.hstack([read_all[is_inf, :], read_n_roi[read_all[is_inf, 0]].reshape(-1, 1)])
-    print 'Selected reads #cis fragment > 1: {:d} reads are selected.'.format(len(np.unique(read_inf[:, 0])))
+    print('Selected reads #cis fragment > 1: {:d} reads are selected.'.format(len(np.unique(read_inf[:, 0]))))
 
     # select reads with #traceable fragment > 1
     roi_size = configs['roi_end'] - configs['roi_start']
     lcl_crd = np.array([configs['vp_cnum'], configs['roi_start'] - roi_size, configs['roi_end'] + roi_size])
     is_lcl = hasOL(lcl_crd, read_inf[:, 1:4], offset=0)
     umi_set = read_inf[~is_lcl, :]
-    print 'Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0])))
+    print('Selected reads with #trans fragment > 0: {:d} reads are selected.'.format(len(np.unique(umi_set[:, 0]))))
 
     # remove duplicates
     unq_set, duplicate_info = remove_duplicates_by_umi(umi_set, verbose=True)
-    print 'Result statistics (before --> after filtering):'
-    print '\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(unq_set[:, 0])))
-    print '\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], unq_set.shape[0])
+    print('Result statistics (before --> after filtering):')
+    print('\t#reads: {:,d} --> {:,d}'.format(len(np.unique(mc4c_pd['ReadID'])), len(np.unique(unq_set[:, 0]))))
+    print('\t#fragments: {:,d} --> {:,d}'.format(mc4c_pd['ReadID'].shape[0], unq_set.shape[0]))
 
     # select and save unique reads
     is_uniq = np.isin(mc4c_pd['ReadID'], unq_set[:, 0])
@@ -506,5 +505,5 @@ def removeDuplicates(args):
     h5_fid.create_dataset('duplicate_info', data=np.array(duplicate_info, dtype=dup_dt), dtype=dup_dt)
 
     h5_fid.close()
-    print '[i] PCR duplicates are removed from MC4C dataset successfully.'
+    print('[i] PCR duplicates are removed from MC4C dataset successfully.')
 

@@ -26,7 +26,7 @@ for run_id in run_lst:
     vp_info = vpi_pd.loc[di[0]]
     out_fname = './configs/cfg_{:s}.cfg'.format(vp_info['id'])
     assert not path.isfile(out_fname), 'File exists: {:s}'.format(out_fname)
-    print 'writing config file to: ' + out_fname
+    print('writing config file to: ' + out_fname)
     with open(out_fname, 'w') as out_fid:
         out_fid.write('run_id\t{:s}\n'.format(vp_info['id']))
         out_fid.write('vp_chr\tchr{:0.0f}\n'.format(vp_info['Target_Chr']))

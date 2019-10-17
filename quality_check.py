@@ -23,7 +23,7 @@ def plot_readSizeDistribution(configs):
     nbp_lrg = 0
     nrd_lrg = 0
     size_dist = np.zeros(n_bin, dtype=np.int64)
-    print 'Calculating read size distribution for: {:s}'.format(configs['input_file'])
+    print('Calculating read size distribution for: {:s}'.format(configs['input_file']))
     with pysam.FastxFile(configs['input_file']) as gz_fid:
         for rd_idx, read in enumerate(gz_fid):
             if rd_idx % 50000 == 0:
@@ -84,7 +84,7 @@ def plot_frg_size_distribution(configs):
 
     # Read res-enz positions
     re_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
-    print 'Loading RE positions from: {:s}'.format(re_fname)
+    print('Loading RE positions from: {:s}'.format(re_fname))
     if not path.isfile(re_fname):
         from utilities import extract_re_positions
         extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
@@ -107,7 +107,7 @@ def plot_frg_size_distribution(configs):
     frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
-    print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
+    print('Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0]))
 
     # calculate mapped fragment sizes
     frg_size = frg_np[:, 2] - frg_np[:, 1] + 1
@@ -129,7 +129,7 @@ def plot_frg_size_distribution(configs):
 
     # calculate raw fragment size
     frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print 'Scanning raw fragments in {:s}'.format(frg_fname)
+    print('Scanning raw fragments in {:s}'.format(frg_fname))
     dist_mq00 = np.zeros(n_bin, dtype=np.int64)
     n_bp_mq00 = 0
     n_frg_mq00 = 0
@@ -219,7 +219,7 @@ def plot_chrCvg(configs):
     frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
-    print 'Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0])
+    print('Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0]))
 
     # calculate chromosome coverage
     is_mq01 = frg_np[:, 3] >= 1
@@ -236,7 +236,7 @@ def plot_chrCvg(configs):
 
     # calculate raw fragment size
     frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print 'Scanning raw fragments in {:s}'.format(frg_fname)
+    print('Scanning raw fragments in {:s}'.format(frg_fname))
     n_bp_mq00 = 0
     n_frg_mq00 = 0
     with gzip.open(frg_fname, 'r') as splt_fid:
@@ -308,7 +308,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
 
     # Looping over circles
     size_dist = np.zeros([4, n_edge], dtype=np.int64)
-    print 'Computing circle size from {:d} reads:'.format(n_grp)
+    print('Computing circle size from {:d} reads:'.format(n_grp))
     for read_idx, frg_set in enumerate(read_grp):
         if read_idx % 50000 == 0:
             print('\t{:,d}/{:,d} Reads are processed.'.format(read_idx, n_grp))
@@ -485,7 +485,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     assert umi_info[0][1].ndim == 1, 'The dataset is prepared using old version of the pipeline.'
 
     # extract all read identifiers
-    print 'Extracting read identifiers ...'
+    print('Extracting read identifiers ...')
     ids_unq = []
     ids_dup = []
     for ui in range(n_umi):
@@ -497,7 +497,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
     del ids_unq, ids_dup
 
     # link all reads to unique reads
-    print 'Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_seq, n_unq)
+    print('Linking {:,d} sequenced reads to {:,d} unique reads ...'.format(n_seq, n_unq))
     all2unq = np.zeros(n_seq, np.int64)
     for ui in range(n_umi):
         unq_id = umi_info[ui][0]
@@ -512,12 +512,12 @@ def plot_sequencing_saturation(configs, n_perm=100):
     assert n_step > 1, 'Too few (n={:d}) sequenced reads are found.'.format(n_seq)
 
     # loop over down sampling steps
-    print 'Downsampling {:,d} reads ...'.format(n_seq)
+    print('Downsampling {:,d} reads ...'.format(n_seq))
     ds_n_unq = np.full([n_step, n_perm], fill_value=np.nan)
     for si in range(n_step):
         if ds_step_lst[si] > n_seq:
             break
-        print '\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm)
+        print('\tRandom sampling of {:7,d} reads, {:d} times ...'.format(ds_step_lst[si], n_perm))
         for pi in range(n_perm):
             # showprogress(pi, n_perm)
             seq_set = np.random.choice(all2unq, size=ds_step_lst[si], replace=False)
@@ -600,10 +600,10 @@ def plot_reads_per_category(config_lst):
 
     # load number of sequenced reads
     n_seq = 0
-    print 'Loading number of sequenced reads from fastq files ...'
+    print('Loading number of sequenced reads from fastq files ...')
     for configs in config_lst:
         seq_fname = './reads/rd_' + configs['run_id'] + '.fasta.gz'
-        print '\tscanning {:s}'.format(seq_fname)
+        print('\tscanning {:s}'.format(seq_fname))
 
         cmd_str = 'zgrep ">" ' + seq_fname + ' | wc -l'
         map_prs = subprocess.Popen(cmd_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -45,7 +45,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None
     neg_lst = range(n_neg)
     for ei in np.arange(n_perm):
         if verbose and (((ei + 1) % 200) == 0):
-            print '\t{:d} randomized profiles are computed.'.format(ei + 1)
+            print('\t{:d} randomized profiles are computed.'.format(ei + 1))
         np.random.shuffle(neg_lst)
         for rd_idx in neg_lst[:n_pos]:
             f2b_rnd = cfb_neg[rd_idx]
@@ -103,12 +103,12 @@ def perform_mc_analysis(configs, min_n_frg=2):
     cvg_lst = [np.unique(cvg_lst[i]) for i in range(n_read)]
 
     # looping over bins
-    print 'Performing the MC analysis using {:d} reads ...'.format(n_read)
+    print('Performing the MC analysis using {:d} reads ...'.format(n_read))
     mat_freq = np.full([n_bin, n_bin], fill_value=np.nan)
     mat_zscr = np.full([n_bin, n_bin], fill_value=np.nan)
     for bi in range(n_bin):
         if bi % (n_bin / 10) == 0:
-            print '{:0.0f}%,'.format(bi * 100.0 / n_bin),
+            print('{:0.0f}%,'.format(bi * 100.0 / n_bin), end='')
         is_pos = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
         frg_pos = frg_roi[np.isin(frg_roi[:, 0], frg_roi[is_pos, 0]), :]
         frg_neg = frg_roi[~np.isin(frg_roi[:, 0], frg_pos[:, 0]), :]
@@ -253,21 +253,21 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     soi_pd = ant_pd.loc[is_in[0], :]
     soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - int(bin_w * 1.5), soi_pd['ant_pos'] + int(bin_w * 1.5)]
     if hasOL(soi_crd, vp_crd)[0]:
-        print '[w] Selected SOI coordinate overlaps with the view point. Ignoring the analysis'
+        print('[w] Selected SOI coordinate overlaps with the view point. Ignoring the analysis')
         return
 
     # compute positive profile and backgrounds
-    print 'Computing expected profile for bins:'
+    print('Computing expected profile for bins:')
     prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
-    print '{:,d} reads are found to cover '.format(n_pos) + \
-          '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2])
+    print('{:,d} reads are found to cover '.format(n_pos) + \
+          '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2]))
 
     # check enough #pos
     if n_pos < MIN_N_POS:
-        print '[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS)
-        print 'Analysis is ignored ...'
+        print('[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS))
+        print('Analysis is ignored ...')
         return
 
     # compute scores
@@ -284,7 +284,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     bin_scr[is_vp] = np.nan
 
     # compute score for annotations
-    print 'Computing expected profile for annotations:'
+    print('Computing expected profile for annotations:')
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
     ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
     ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
@@ -437,7 +437,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
             continue
 
         # compute score for annotations
-        print 'Computing expected profile for {:s}:'.format(soi_pd['ant_name'])
+        print('Computing expected profile for {:s}:'.format(soi_pd['ant_name']))
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
         ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
         ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
@@ -447,8 +447,8 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
 
         # check number of positive reads
         if n_pos[ai] <= MIN_N_POS:
-            print '[w] #reads (n={:d}) in the positive set is insufficient '.format(n_pos[ai]) + \
-                  '(required >{:d}). This analysis is ignored ...'.format(MIN_N_POS)
+            print('[w] #reads (n={:d}) in the positive set is insufficient '.format(n_pos[ai]) + \
+                  '(required >{:d}). This analysis is ignored ...'.format(MIN_N_POS))
             continue
 
         # calculate expected profile
@@ -566,7 +566,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     n_read = len(np.unique(read_inf[:, 0]))
 
     # convert fragments to bin-coverage
-    print 'Mapping reads to bins ...'
+    print('Mapping reads to bins ...')
     cfb_lst = [list() for i in range(n_read + 1)]
     n_frg = read_inf.shape[0]
     for fi in range(n_frg):
@@ -586,21 +586,21 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # subsample reads
     if downsample:
         n_read = len(np.unique(read_inf[:, 0]))
-        print '[i] Downsampling {:,d} informative reads to {:d} reads.'.format(n_read, downsample)
+        print('[i] Downsampling {:,d} informative reads to {:d} reads.'.format(n_read, downsample))
         rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), downsample, replace=False)
         read_inf = read_inf[np.isin(read_inf[:, 0], rnd_ids), :]
 
     # reindexing reads
     read_inf[:, 0] = np.unique(read_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(read_inf[:, 0])
-    print '{:,d} reads are left after bin-coverage filter.'.format(n_read)
+    print('{:,d} reads are left after bin-coverage filter.'.format(n_read))
 
     # get soi info
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
     # compute score for annotations
-    print 'Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS)
+    print('Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
     blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
     # x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
@@ -641,7 +641,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         blk_scr[is_nei, bi] = np.nan
 
     if n_ignored != 0:
-        print '[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk)
+        print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # set self scores to nan
     # np.fill_diagonal(blk_scr, val=np.nan)
@@ -714,12 +714,12 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
     plt.close()
-    print 'ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file'])
+    print('ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file']))
 
     # export to excel file
     if xls_export:
         xls_fname = configs['output_file'][:-4] + '.xlsx'
-        print 'Exporting z-scores to excel sheet: {:s}'.format(xls_fname)
+        print('Exporting z-scores to excel sheet: {:s}'.format(xls_fname))
 
         import pandas as pd
         zscr_pd = pd.DataFrame(blk_scr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])

@@ -43,7 +43,6 @@ def initialize_run(args):
     # test if bwa index is present
     # check and make RE position file if non existant
     # test existance of samtools
-    print '[TO DO] Checking the pipeline for related files for given experiment'
 
 
 def perform_qc(args):
@@ -80,7 +79,7 @@ def perform_qc(args):
         quality_check.plot_reads_per_category(config_lst)
     else:
         raise Exception()
-    print '[i] {:s} plot is produced successfully.'.format(args.report_type)
+    print('[i] {:s} plot is produced successfully.'.format(args.report_type))
 
 
 def perform_analysis(args):
@@ -112,7 +111,7 @@ def perform_analysis(args):
             ant_name_lst = args.ant_name.split(',')
 
         for ant_name in ant_name_lst:
-            print 'Preparing VP-SOI for [{:s}]'.format(ant_name)
+            print('Preparing VP-SOI for [{:s}]'.format(ant_name))
             analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, n_perm=args.n_perm)
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
@@ -121,7 +120,7 @@ def perform_analysis(args):
                                        downsample=args.downsample, xls_export=args.to_xlsx)
     else:
         raise Exception()
-    print '[i] {:s} analysis is performed successfully.'.format(args.analysis_type)
+    print('[i] {:s} analysis is performed successfully.'.format(args.analysis_type))
 
 
 def main():

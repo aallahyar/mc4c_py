@@ -26,7 +26,7 @@ roi_crd = np.array([configs['vp_cnum'], configs['roi_start'], configs['roi_end']
 run_id = ','.join([config['run_id'] for config in config_lst])
 
 # load dataset
-print 'Loading datasets:'
+print('Loading datasets:')
 header_lst = ['ReadID', 'Chr', 'ExtStart', 'ExtEnd']
 read_all = np.empty([0, 4], dtype=np.int)
 for cfg_idx, cfg in enumerate(config_lst):
@@ -35,7 +35,7 @@ for cfg_idx, cfg in enumerate(config_lst):
         assert cfg['roi_start'] == config_lst[0]['roi_start']
         assert cfg['roi_end'] == config_lst[0]['roi_end']
 
-    print '\tLoading {:s}:'.format(cfg['run_id']),
+    print('\tLoading {:s}:'.format(cfg['run_id']), end='')
     mc4c_prt = load_mc4c(cfg, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=False)
     read_prt = mc4c_prt[header_lst].values
     del mc4c_prt
@@ -52,12 +52,12 @@ for cfg_idx, cfg in enumerate(config_lst):
     # add run specific read ids
     assert n_read_prt < max_n_read
     read_roi[:, 0] = read_roi[:, 0] + (cfg_idx + 1) * max_n_read
-    print '[{:,d}] unique reads are added to the collection.'.format(len(np.unique(read_roi[:, 0])))
+    print('[{:,d}] unique reads are added to the collection.'.format(len(np.unique(read_roi[:, 0]))))
 
     # appending to total reads
     read_all = np.vstack([read_all, read_roi.copy()])
     del read_prt
-print 'Got [{:,d}] reads in total.'.format(len(np.unique(read_all[:, 0])))
+print('Got [{:,d}] reads in total.'.format(len(np.unique(read_all[:, 0]))))
 
 # get annotation info
 ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
@@ -83,7 +83,7 @@ for oi, n_bin in enumerate(n_bin_lst):
     bin_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_crd[:, 1:], axis=1, dtype=np.int)
     n_roll = int(np.ceil(1000.0 / bin_w[oi])) + 1
-    print 'Computing scores for #bin={:d}, bin-w={:0.0f}bp, #nrm={:d} ...'.format(n_bin, bin_w[oi], n_roll)
+    print('Computing scores for #bin={:d}, bin-w={:0.0f}bp, #nrm={:d} ...'.format(n_bin, bin_w[oi], n_roll))
 
     # iterate over annotations
     bin_scr = np.full([2, n_ant], fill_value=np.nan)
@@ -145,7 +145,7 @@ for oi, n_bin in enumerate(n_bin_lst):
             plt.ylim([0, 10])
             plt.show(block=True)
     if n_ant != size_n_test[oi]:
-        print '\t{:d} annotations are ignored due to lack of coverage (i.e. #read < 100).'.format(n_ant - size_n_test[oi])
+        print('\t{:d} annotations are ignored due to lack of coverage (i.e. #read < 100).'.format(n_ant - size_n_test[oi]))
 
     # compute expected correlation
     exp_mat = spearmanr(prf_roi.T, nan_policy='omit').correlation
