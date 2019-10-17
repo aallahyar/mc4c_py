@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy as np
 from utilities import showprogress
 
@@ -667,9 +668,10 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # add score scatter matrix
     x_lim = [0, n_blk]
     ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
-                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='bottom')
+                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='lower')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
+    ax_scr.invert_yaxis()
 
     # add vp patches
     vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
@@ -708,6 +710,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
     ax_scr.set_yticklabels(y_tick_lbl)
     ax_scr.set_xlabel('Selected SOIs')
+    ax_scr.tick_params(length=0)
     ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
