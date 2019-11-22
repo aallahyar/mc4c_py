@@ -31,14 +31,6 @@ pd.set_option('display.max_rows', 200)
 pd.set_option('display.max_columns', 15)
 
 
-# TODO:
-# test refrence genome path
-# test existance of bwa
-# test if bwa index is present
-# check and make RE position file if non existant
-# test existance of samtools
-
-
 def perform_qc(args):
     import quality_check
     from utilities import load_configs
@@ -258,7 +250,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=100', 'Prdm14_RB_WT']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
