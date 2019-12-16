@@ -82,6 +82,7 @@ def perform_analysis(args):
         makedirs(config_lst[0]['output_dir'])
     config_lst[0]['input_file'] = args.input_file
     config_lst[0]['output_file'] = args.output_file
+    config_lst[0]['zscr_lim'] = [int(x) for x in args.zscr_lim.split(',')]
 
     # call the requested function
     if args.analysis_type == 'mcTest':
@@ -218,6 +219,7 @@ def main():
                                       'that contain no fragment from site of interest) to produce the expected profile.')
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
+    parser_analysis.add_argument('--zscr_lim', default='-6,6', type=str)
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():

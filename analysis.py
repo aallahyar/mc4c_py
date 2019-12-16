@@ -532,7 +532,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
             run_id += '_ds{:d}'.format(downsample)
         configs['output_file'] = configs['output_dir'] + \
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
-                                 'rw{:0.1f}kb_np{:0.1f}k.pdf'.format(roi_w / 1e3, n_perm / 1e3)
+                                 'rw{:0.1f}kb_np{:0.1f}k_'.format(roi_w / 1e3, n_perm / 1e3) + \
+                                 'zlm{:0.0f},{:0.0f}.pdf'.format(*configs['zscr_lim'])
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -655,20 +656,19 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
 
     # set up color bar
-    c_lim = [-6, 6]
     clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
     clr_map.set_bad('gray', 0.1)
-    norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
+    norm = matplotlib.colors.Normalize(vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
     cbar_h.ax.set_ylabel('z-score', rotation=90)
-    cbar_edge = np.round(cbar_h.cmap(norm(c_lim)), decimals=2)
+    cbar_edge = np.round(cbar_h.cmap(norm(configs['zscr_lim'])), decimals=2)
 
     # add score scatter matrix
     x_lim = [0, n_blk]
     ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
-                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest', origin='lower')
+                  vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1], interpolation='nearest', origin='lower')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
     ax_scr.invert_yaxis()
@@ -676,9 +676,9 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # add vp patches
     vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
     ax_scr.add_patch(patches.Rectangle([0, vp_idx[0]], n_blk, vp_idx[-1] - vp_idx[0],
-                                          linewidth=0, edgecolor='None', facecolor='orange'))
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
     ax_scr.add_patch(patches.Rectangle([vp_idx[0], 0], vp_idx[-1] - vp_idx[0], n_blk,
-                                          linewidth=0, edgecolor='None', facecolor='orange'))
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add score values to each box
     # for bi in range(n_blk):
