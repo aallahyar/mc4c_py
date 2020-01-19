@@ -652,7 +652,7 @@ def plot_reads_per_category(config_lst):
         plt_h[cls_idx] = plt.bar(cls_idx, n_read, width=0.8, color=clr_map[cls_idx])[0]
 
         plt.text(cls_idx, n_read,
-                 '{:0.0f}%\n'.format(n_read * 1e2 / n_seq) +
+                 '{:0.2f}%\n'.format(n_read * 1e2 / n_seq) +
                  '#{:,d}'.format(n_read),
                  verticalalignment='bottom', horizontalalignment='center')
 

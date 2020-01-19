@@ -358,7 +358,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}\n'.format(min_n_frg - 1, n_read, n_pos) +
-                     'bin-w={:0.0f}; soi-w={:0.0f}; #perm={:d}\n\n\n'.format(bin_w, np.diff(ant_bnd[0]), n_perm)
+                     'bin-w={:0.0f}; soi-w={:0.0f}; #perm={:d}\n\n\n'.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0], n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 

@@ -2,6 +2,7 @@ import numpy as np
 
 
 def get_chr_info(genome_str, property='chr_name'):
+    # chr size: https://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes
     chr_details = dict({
         'hg19': dict({
             'chr_name': [
@@ -13,6 +14,18 @@ def get_chr_info(genome_str, property='chr_name'):
                 249250621, 243199373, 198022430, 191154276, 180915260, 171115067, 159138663, 146364022, 141213431, 135534747,
                 135006516, 133851895, 115169878, 107349540, 102531392, 90354753, 81195210, 78077248, 59128983, 63025520, 48129895, 51304566,
                 155270560, 59373566, 16571
+            ]
+        }),
+        'hg38': dict({
+            'chr_name': [
+                'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9',
+                'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18',
+                'chr19', 'chr20', 'chr21', 'chr22', 'chrX', 'chrY', 'chrM'
+            ],
+            'chr_size': [
+                248956422, 242193529, 198295559, 190214555, 181538259, 170805979, 159345973, 145138636, 138394717,
+                133797422, 135086622, 133275309, 114364328, 107043718, 101991189, 90338345, 83257441, 80373285,
+                58617616, 64444167, 46709983, 50818468, 156040895, 57227415, 16569
             ]
         }),
         'mm9': dict({
@@ -85,7 +98,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
     if not path.isdir(path.dirname(output_fname)):
         makedirs(path.dirname(output_fname))
     if ref_fasta is None:
-        ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa'
+        ref_fasta = '../../../datasets/reference_genomes/' + genome_str + '/chrAll.fa.gz'
     print('Searching in the reference genome defined in: ' + ref_fasta)
 
     # get re sequences
