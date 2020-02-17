@@ -5,7 +5,7 @@ from utilities import showprogress
 MIN_N_POS = 100
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None, verbose=True):
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=0):
     from utilities import hasOL, flatten
 
     # initialization
@@ -23,11 +23,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None
         cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
 
     # select positive/negative circles
-    if pos_ids is not None:
-        assert len(pos_crd) == 0
-        is_pos = np.isin(frg_inf[:, 0], pos_ids)
-    else:
-        is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
+    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
     frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
@@ -51,143 +47,23 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, pos_ids=None
         for rd_idx in neg_lst[:n_pos]:
             f2b_rnd = cfb_neg[rd_idx]
             np.random.shuffle(f2b_rnd)
-            prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly removed everytime
+            prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly ignored everytime
+
+    # smoothing if needed
+    if sigma != 0:
+        # np.set_printoptions(linewidth=250, edgeitems=50, formatter={'float_kind': lambda x: "%6.3f" % x})
+        if verbose:
+            print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
+        from utilities import get_gauss_kernel
+        kernel = get_gauss_kernel(size=7, sigma=sigma, ndim=1)
+        prf_pos = np.convolve(prf_pos, kernel, mode='same')
+        for ei in np.arange(n_perm):
+            prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
 
     return prf_pos, prf_rnd, frg_pos, frg_neg
 
 
-def perform_mc_analysis(configs, min_n_frg=2):
-    import platform
-    if platform.system() == 'Linux':
-        import matplotlib
-        matplotlib.use('Agg')
-    from matplotlib import pyplot as plt, patches
-    from matplotlib.colors import LinearSegmentedColormap
-
-    from utilities import load_mc4c, load_annotation, hasOL
-
-    # initialization
-    if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_mcTest_' + configs['run_id'] + '.pdf'
-    edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
-    bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
-    n_bin = bin_bnd.shape[0]
-    n_epoch = 1000
-    x_lim = [configs['roi_start'], configs['roi_end']]
-
-    # load MC-HC data
-    frg_dp = load_mc4c(configs, unique_only=True, valid_only=True, min_mq=20, reindex_reads=False)
-    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
-    del frg_dp
-
-    # select within roi fragments
-    vp_crd = [configs['vp_cnum'], configs['vp_start'], configs['vp_end']]
-    roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
-    is_vp = hasOL(vp_crd, frg_np[:, 1:4])
-    is_roi = hasOL(roi_crd, frg_np[:, 1:4])
-    frg_roi = frg_np[~is_vp & is_roi, :]
-    del frg_np
-
-    # filter small circles
-    cir_size = np.bincount(frg_roi[:, 0])[frg_roi[:, 0]]
-    frg_roi = frg_roi[cir_size >= min_n_frg, :]
-    n_read = len(np.unique(frg_roi[:, 0]))
-
-    # re-index circles
-    frg_roi[:, 0] = np.unique(frg_roi[:, 0], return_inverse=True)[1]
-
-    # convert reads to bin coverage
-    cvg_lst = [list() for i in range(n_read)]
-    for fi in range(frg_roi.shape[0]):
-        bin_idx = np.where(hasOL(frg_roi[fi, 2:4], bin_bnd))[0]
-        cvg_lst[frg_roi[fi, 0]].extend(bin_idx)
-    cvg_lst = [np.unique(cvg_lst[i]) for i in range(n_read)]
-
-    # looping over bins
-    print('Performing the MC analysis using {:d} reads ...'.format(n_read))
-    mat_freq = np.full([n_bin, n_bin], fill_value=np.nan)
-    mat_zscr = np.full([n_bin, n_bin], fill_value=np.nan)
-    for bi in range(n_bin):
-        if bi % (n_bin / 10) == 0:
-            print('{:0.0f}%,'.format(bi * 100.0 / n_bin), end='')
-        is_pos = hasOL(bin_bnd[bi, :], frg_roi[:, 2:4])
-        frg_pos = frg_roi[np.isin(frg_roi[:, 0], frg_roi[is_pos, 0]), :]
-        frg_neg = frg_roi[~np.isin(frg_roi[:, 0], frg_pos[:, 0]), :]
-        ids_pos = np.unique(frg_pos[:, 0])
-        ids_neg = np.unique(frg_neg[:, 0])
-        n_pos = len(ids_pos)
-        n_neg = len(ids_neg)
-        assert n_pos <= n_neg
-        if n_pos < 100:
-            continue
-
-        # calculate the background
-        rnd_freq = np.zeros([n_epoch, n_bin])
-        for ei in np.arange(n_epoch):
-            rnd_lst = np.random.choice(ids_neg, n_pos, replace=False)
-            for rd_idx in rnd_lst:
-                bin_cvg = cvg_lst[rd_idx]
-                n_cvg = len(bin_cvg)
-                rnd_freq[ei, bin_cvg] += 1
-                rnd_freq[ei, bin_cvg[np.random.randint(n_cvg)]] -= 1
-
-        # calculate observed
-        for bj in range(bi+1, n_bin):
-            is_cov = hasOL(bin_bnd[bj, :], frg_pos[:, 2:4])
-            mat_freq[bi, bj] = len(np.unique(frg_pos[is_cov, 0]))
-
-            zscr_avg = np.mean(rnd_freq[:, bj])
-            zscr_std = np.std(rnd_freq[:, bj])
-            if zscr_std == 0:
-                continue
-            mat_zscr[bi, bj] = (mat_freq[bi, bj] - zscr_avg) / zscr_std
-            mat_zscr[bj, bi] = mat_zscr[bi, bj]
-
-    # set vp bins to nan
-    is_vp = hasOL([configs['vp_start'], configs['vp_end']], bin_bnd)
-    mat_zscr[is_vp, :] = np.nan
-    mat_zscr[:, is_vp] = np.nan
-    vp_bnd = [bin_bnd[is_vp, 0][0], bin_bnd[is_vp, 1][-1]]
-
-    # plotting
-    plt.figure(figsize=(17, 9))
-    clr_lst = ['#ff1a1a', '#ff8a8a', '#ffffff', '#ffffff', '#ffffff', '#8ab5ff', '#3900f5']
-    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=10)
-    clr_map.set_bad('gray', 0.05)
-    plt.imshow(mat_zscr, extent=x_lim + x_lim, cmap=clr_map, origin='bottom', interpolation='nearest')
-    plt.gca().add_patch(patches.Rectangle([vp_bnd[0], x_lim[0]], vp_bnd[1] - vp_bnd[0], x_lim[1] - x_lim[0],
-                                          linewidth=0, edgecolor='None', facecolor='orange'))
-    plt.gca().add_patch(patches.Rectangle([x_lim[0], vp_bnd[0]], x_lim[1] - x_lim[0], vp_bnd[1] - vp_bnd[0],
-                                          linewidth=0, edgecolor='None', facecolor='orange'))
-    cbar_h = plt.colorbar()
-    cbar_h.ax.tick_params(labelsize=14)
-    plt.clim(-6, 6)
-
-    # add annotations
-    ant_pd = load_annotation(configs['genome_build'], roi_crd=[configs['vp_cnum'], configs['roi_start'], configs['roi_end']])
-    for ai in range(ant_pd.shape[0]):
-        ant_pos = ant_pd.loc[ai, 'ant_pos']
-        plt.text(ant_pos, x_lim[1], ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='left', verticalalignment='bottom', rotation=60)
-        plt.text(x_lim[1], ant_pos, ' ' + ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='left', verticalalignment='center')
-        plt.plot([ant_pos, ant_pos], x_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
-        plt.plot(x_lim, [ant_pos, ant_pos], ':', color='#bfbfbf', linewidth=1, alpha=0.4)
-
-    # final adjustments
-    plt.xlim(x_lim)
-    plt.ylim(x_lim)
-    x_ticks = np.linspace(configs['roi_start'], configs['roi_end'], 7, dtype=np.int64)
-    x_tick_label = ['{:0.2f}m'.format(x / 1e6) for x in x_ticks]
-    plt.xticks(x_ticks, x_tick_label, rotation=0, horizontalalignment='center')
-    plt.yticks(x_ticks, x_tick_label, rotation=0)
-    plt.title('Multicontact matrix, {:s}\n'.format(configs['run_id']) +
-              '#read (#roiFrg>{:d}, ex. vp)={:,d}\n\n\n'.format(min_n_frg - 1, n_read)
-              )
-    plt.savefig(configs['output_file'], bbox_inches='tight')
-
-
-def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
+def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma=0):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -201,7 +77,9 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}.pdf'.format(run_id, soi_name)
+        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
+                                 'sig{:0.2f}_'.format(sigma) + \
+                                 'zlm{:0.1f},{:0.1f}.pdf'.format(*configs['zscr_lim'])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -209,7 +87,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     x_lim = [configs['roi_start'], configs['roi_end']]
     y_lim = [0, 10]
 
-    # load MC-HC data
+    # load MC-4C data
     frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
@@ -259,10 +137,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
-    prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm)
+    prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
-    print('{:,d} reads are found to cover '.format(n_pos) + \
+    print('{:,d} reads are found to cover '.format(n_pos) +
           '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2]))
 
     # check enough #pos
@@ -288,7 +166,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     print('Computing expected profile for annotations:')
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
     ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
-    ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:2]
+    ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm, sigma=0)[:2]
     ant_exp = np.mean(soi_rnd, axis=0)
     ant_std = np.std(soi_rnd, axis=0, ddof=0)
     np.seterr(all='ignore')
@@ -307,11 +185,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     ax_scr = plt.subplot2grid((20, 40), (19, 0), rowspan=1, colspan=39)
 
     # set up colorbar
-    c_lim = [-6, 6]
     clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
     clr_map.set_bad('gray', 0.05)
-    norm = matplotlib.colors.Normalize(vmin=c_lim[0], vmax=c_lim[1])
+    norm = matplotlib.colors.Normalize(vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1])
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
     cbar_h.ax.set_ylabel('z-score', rotation=90)
@@ -330,10 +207,11 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     ax_prf.set_xticks([])
 
     # add score plot
-    ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-500, 500], cmap=clr_map,
-                  vmin=c_lim[0], vmax=c_lim[1], interpolation='nearest')
+    ax_scr.imshow(bin_scr.reshape(1, -1), extent=x_lim + [-1, 1], aspect='auto',
+                  cmap=clr_map, vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1])
     ax_scr.set_xlim(x_lim)
     ax_scr.set_yticks([])
+    # ax_scr.spines['top'].set_color('none')
 
     # add annotations
     for ai in range(n_ant):
@@ -358,7 +236,8 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000):
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}\n'.format(min_n_frg - 1, n_read, n_pos) +
-                     'bin-w={:0.0f}; soi-w={:0.0f}; #perm={:d}\n\n\n'.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0], n_perm)
+                     'bin-w={:0.0f}; soi-w={:0.0f}; '.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0]) +
+                     '#perm={:d}, sigma={:0.2f}\n\n\n'.format(n_perm, sigma)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
@@ -513,7 +392,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None, xls_export=False):
+def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None, xls_export=False, sigma=0):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -532,7 +411,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
             run_id += '_ds{:d}'.format(downsample)
         configs['output_file'] = configs['output_dir'] + \
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
-                                 'rw{:0.1f}kb_np{:0.1f}k_'.format(roi_w / 1e3, n_perm / 1e3) + \
+                                 'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) + \
+                                 'np{:0.1f}k_'.format(n_perm / 1e3) + \
                                  'zlm{:0.0f},{:0.0f}.pdf'.format(*configs['zscr_lim'])
 
     # create bin list
@@ -543,7 +423,6 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
     # make block list
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64).reshape(-1, 1)
-    # blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin / 3).reshape(-1, 1), edge_lst[:-3:3], edge_lst[3::3] - 1])
     blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), bin_cen - int(bin_w * 1.5), bin_cen + int(bin_w * 1.5) - 1])
     blk_w = blk_crd[0, 2] - blk_crd[0, 1]
     n_blk = blk_crd.shape[0]
@@ -554,7 +433,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     vp_crd = np.array([configs['vp_cnum'], roi_cen - int(bin_w * 1.5), roi_cen + int(bin_w * 1.5)])
     roi_crd = [configs['vp_cnum'], configs['roi_start'], configs['roi_end']]
 
-    # load MC-HC data
+    # load MC-4C data
     frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
     read_all = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
     del frg_dp
@@ -604,7 +483,6 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # compute score for annotations
     print('Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
     blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
-    # x_tick_lbl = [' '] * n_blk
     y_tick_lbl = [' '] * n_blk
     n_ignored = 0
     for bi in range(n_blk):
@@ -614,10 +492,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
         if len(ant_idx) > 0:
             ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
-            # x_tick_lbl[bi] = ('{:s}, #{:0.0f}'.format(ant_name, n_pos))
             y_tick_lbl[bi] = ant_name
-        # else:
-            # x_tick_lbl[bi] = ('#{:0.0f}'.format(n_pos))
 
         # ignore if vp
         if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
@@ -625,7 +500,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
         # compute the observe and background
         blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
-                                                             n_perm=n_perm, verbose=False)[:3]
+                                                             n_perm=n_perm, verbose=False, sigma=sigma)[:3]
         n_pos = len(np.unique(read_pos[:, 0]))
         if n_pos < MIN_N_POS:
             n_ignored += 1
@@ -713,7 +588,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ax_scr.tick_params(length=0)
     ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
+                     'bin-w={:0.0f}; block-w={:0.0f}; '.format(bin_w, blk_w) +
+                     '#perm={:d}; sigma={:0.2f}'.format(n_perm, sigma)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
     plt.close()

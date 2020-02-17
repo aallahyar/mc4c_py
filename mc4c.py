@@ -85,10 +85,7 @@ def perform_analysis(args):
     config_lst[0]['zscr_lim'] = [int(x) for x in args.zscr_lim.split(',')]
 
     # call the requested function
-    if args.analysis_type == 'mcTest':
-        assert len(config_lst) == 1
-        analysis.perform_mc_analysis(config_lst[0])
-    elif args.analysis_type == 'atVpSoi':
+    if args.analysis_type == 'atVpSoi':
         if args.ant_name is None:
             from utilities import load_annotation
             roi_crd = [config_lst[0]['vp_cnum'], config_lst[0]['roi_start'], config_lst[0]['roi_end']]
@@ -99,12 +96,12 @@ def perform_analysis(args):
 
         for ant_name in ant_name_lst:
             print('Preparing VP-SOI for [{:s}]'.format(ant_name))
-            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, n_perm=args.n_perm)
+            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, n_perm=args.n_perm, sigma=args.sigma)
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
         analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm,
-                                       downsample=args.downsample, xls_export=args.to_xlsx)
+                                       downsample=args.downsample, xls_export=args.to_xlsx, sigma=args.sigma)
     else:
         raise Exception()
     print('[i] {:s} analysis is performed successfully.'.format(args.analysis_type))
@@ -217,6 +214,8 @@ def main():
     parser_analysis.add_argument('--n-perm', default=1000, type=int,
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
+    parser_analysis.add_argument('--sigma', default=0, type=float,
+                                 help='Sigma for Gaussian smoothing (default=0, i.e. no smoothing)')
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
     parser_analysis.add_argument('--zscr_lim', default='-6,6', type=str)
@@ -252,10 +251,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C11-Enh-3769_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C4-Enh-1627_WT']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=2.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=100', 'Prdm14_RB_WT']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', '--downsample=5000', 'K562_C4-Enh-1627_WT']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

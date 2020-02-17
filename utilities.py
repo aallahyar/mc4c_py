@@ -466,9 +466,24 @@ def get_nreads_per_bin(reads, bin_crd=None, n_bin=None, boundary=None, min_n_frg
     return bin_cvg, n_read
 
 
-def showprogress(iter, n_iter, n_step=10, output_format='{:1.0f}%,'):
-    iter = iter + 1
-    if ((iter % (n_iter / float(n_step))) - ((iter - 1) % (n_iter / float(n_step))) < 0) or (n_iter / float(n_step) <= 1):
-        print(output_format.format(iter * 100 / n_iter)),
-        if iter == n_iter:
+def showprogress(index, n_iter, n_step=10, output_format='{:1.0f}%,'):
+    index = index + 1
+    if ((index % (n_iter / float(n_step))) - ((index - 1) % (n_iter / float(n_step))) < 0) or (n_iter / float(n_step) <= 1):
+        print(output_format.format(index * 100 / n_iter)),
+        if index == n_iter:
             print
+
+
+def get_gauss_kernel(size, sigma, ndim=1):
+    if ndim == 1:
+        kernel = np.exp(-((np.arange(-size // 2 + 1, size // 2 + 1) ** 2) / (2.0 * sigma ** 2)))
+    else:
+        if sigma == 0:
+            kernel = np.zeros([size, size])
+            kernel[size // 2, size // 2] = 1
+        else:
+            dx, dy = np.mgrid[-size // 2 + 1:size // 2 + 1, -size // 2 + 1:size // 2 + 1]
+            kernel = np.exp(-((dx ** 2 + dy ** 2) / (2.0 * sigma ** 2)))
+    return kernel / kernel.sum()
+
+

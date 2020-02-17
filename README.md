@@ -454,4 +454,4 @@ This is the final pre-processing stage in the MC-4C pipeline.
 Allahyar, A., Vermeulen, C., et al. (2018). Enhancer hubs and loop collisions identified from single-allele topologies. Nature genetics, 50(8), 1151. 
 
 ## Contact
-For any inquiry please contact Amin Allahyar at a.allahyar@hubrecht.eu
+For any inquiry please contact Amin Allahyar at a{DOT}allahyar{AT}hubrecht{DOT}eu
