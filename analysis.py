@@ -194,9 +194,9 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     cbar_h.ax.set_ylabel('z-score', rotation=90)
 
     # profile plot
-    ax_prf.plot(bin_cen, prf_obs, color='#5757ff', linewidth=1)
-    ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1)
-    ax_prf.fill_between(bin_cen, prf_exp - prf_std, prf_exp + prf_std, color='#ebebeb', linewidth=0.2)
+    ax_prf.plot(bin_cen, prf_obs, color='#5757ff', linewidth=1, zorder=3)
+    ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1, zorder=2)
+    ax_prf.fill_between(bin_cen, prf_exp - prf_std, prf_exp + prf_std, color='#ebebeb', linewidth=0.2, zorder=1)
 
     ax_prf.add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
                                        edgecolor='None', facecolor='orange', zorder=100))

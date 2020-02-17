@@ -252,9 +252,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C11-Enh-3769_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=2.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=0.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', '--downsample=5000', 'K562_C4-Enh-1627_WT']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
