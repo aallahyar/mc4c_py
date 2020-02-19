@@ -30,6 +30,8 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True
     cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
     n_pos = len(cfb_pos)
     n_neg = len(cfb_neg)
+    if verbose:
+        print('#reads in sets: pos={:,d} vs. neg={:,d}'.format(n_pos, n_neg))
 
     # make positive profile
     prf_pos = np.zeros(n_bin)

@@ -12,3 +12,4 @@ renzs/
 #configs/
 plots/
 side_analysis/01_Why_Pores_are_dying/
+side_analysis/02_using_graph_for_3way_associations/*.pdf
