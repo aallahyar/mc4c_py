@@ -1,9 +1,11 @@
 
 import numpy as np
+# np.set_printoptions(linewidth=250, threshold=100, edgeitems=50, formatter={'float_kind': lambda x: "%6.3f" % x})
 
 
 def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=0):
     from utilities import hasOL, flatten
+    from utilities import get_gauss_kernel
 
     # initialization
     n_bin = bin_bnd.shape[0]
@@ -37,40 +39,34 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
         prf_pos[bin_lst] += 1
 
     # fill in coverage matrix
-    if n_bin < 50:
-        decay_prob = np.ones(n_bin + 1) / (n_bin + 1)
-    else:
-        cvg_mat = np.zeros([n_bin, n_bin])
-        for bi in range(n_bin):
-            hit_lst = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
-            for rd_idx in hit_lst:
-                cvg_mat[bi, flatten(rd2bins[rd_idx])] += 1
-        val_rdxs = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
-        cvg_mat = cvg_mat[val_rdxs, :]
-        n_row = cvg_mat.shape[0]
+    cvg_mat = np.zeros([n_bin, n_bin])
+    for bi in range(n_bin):
+        hit_lst = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
+        for rd_idx in hit_lst:
+            cvg_mat[bi, flatten(rd2bins[rd_idx])] += 1
+    val_rdxs = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
+    cvg_mat = cvg_mat[val_rdxs, :]
+    n_row = cvg_mat.shape[0]
 
-        cvg_row1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
-        cvg_both1 = cvg_row1 - np.mean(cvg_row1, axis=0)
+    cvg_row1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
+    cvg_both1 = cvg_row1 - np.mean(cvg_row1, axis=0)
 
-        cvg_rol = np.zeros([n_row, n_bin])
-        for bi in range(n_row):
-            cvg_rol[bi, :] = np.roll(cvg_both1[bi, :], n_bin // 2 - val_rdxs[bi])
+    cvg_rol = np.zeros([n_row, n_bin])
+    for bi in range(n_row):
+        cvg_rol[bi, :] = np.roll(cvg_both1[bi, :], n_bin // 2 - val_rdxs[bi])
 
-        # smoothen
-        rol_smt = np.zeros([n_row, n_bin])
-        from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=11, sigma=0.8, ndim=1)
-        np.set_printoptions(linewidth=180, threshold=5000, formatter={'float_kind': '{:6.3f}'.format})  # , suppress=True,
-        print(kernel)
-        for ri in range(n_row):
-            rol_smt[ri, :] = np.convolve(cvg_rol[ri, :], kernel, mode='same')
-        smt_stk = np.vstack([rol_smt[:, n_bin // 2:], np.fliplr(rol_smt[:, 1:n_bin // 2 + 1])])
-        smt_stk = np.hstack([smt_stk, np.zeros_like(smt_stk)])
-        stk_avg = np.mean(smt_stk, axis=0)
-        stk_avg = stk_avg - stk_avg.min()
-        stk_avg[np.argmin(stk_avg):] = 0
-        # stk_avg[stk_avg < 0] = 0
-        decay_prob = stk_avg / np.sum(stk_avg)
+    # smoothen
+    rol_smt = np.zeros([n_row, n_bin])
+    kernel = get_gauss_kernel(size=11, sigma=0.8, ndim=1)
+    print(kernel)
+    for ri in range(n_row):
+        rol_smt[ri, :] = np.convolve(cvg_rol[ri, :], kernel, mode='same')
+    smt_stk = np.vstack([rol_smt[:, n_bin // 2:], np.fliplr(rol_smt[:, 1:n_bin // 2 + 1])])
+    smt_stk = np.hstack([smt_stk, np.zeros_like(smt_stk)])
+    stk_avg = np.mean(smt_stk, axis=0)
+    stk_avg = stk_avg - stk_avg.min()
+    stk_avg[np.argmin(stk_avg):] = 0
+    decay_prob = stk_avg / np.sum(stk_avg)
 
     # assign probability to neg fragments
     pos_bdx = int(np.mean(np.where(hasOL(pos_crd[1:], bin_bnd))[0]))
@@ -94,7 +90,6 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
 
     # smoothing, if needed
     if sigma != 0:
-        # np.set_printoptions(linewidth=250, edgeitems=50, formatter={'float_kind': lambda x: "%6.3f" % x})
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
