@@ -81,7 +81,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
                                  'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) + \
-                                 'zlm{:0.1f}.pdf'.format(*configs['zscr_lim'][1])
+                                 'zlm{:0.1f}.pdf'.format(configs['zscr_lim'][1])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -204,14 +204,14 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1, zorder=2)
     if configs['test_method'] == 'decayCorrector':
         soi_cen = np.mean(soi_crd[1:])
-        ax_prf.plot(bin_cen + (soi_cen - bin_cen[0]), decay_prob * 100, color='#bb4444', linewidth=0.5, alpha=0.5, zorder=200)
-        ax_prf.plot(bin_cen - (bin_cen[-1] - soi_cen), decay_prob[::-1] * 100, color='#bb4444', linewidth=0.5, alpha=0.5, zorder=200)
+        ax_prf.plot(bin_cen + (soi_cen - bin_cen[0]), decay_prob * 100, color='#377d22', linewidth=0.5, alpha=0.5, zorder=200)
+        ax_prf.plot(bin_cen - (bin_cen[-1] - soi_cen), decay_prob[::-1] * 100, color='#377d22', linewidth=0.5, alpha=0.5, zorder=200)
     ax_prf.fill_between(bin_cen, prf_exp - prf_std, prf_exp + prf_std, color='#ebebeb', linewidth=0.2, zorder=1)
 
     ax_prf.add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],
                                        edgecolor='None', facecolor='orange', zorder=100))
     ax_prf.add_patch(patches.Rectangle([soi_crd[1], y_lim[0]], soi_crd[2] - soi_crd[1], y_lim[1] - y_lim[0],
-                                       edgecolor='None', facecolor='green', zorder=100))
+                                       edgecolor='None', facecolor='#377d22', zorder=100))
     ax_prf.set_xlim(x_lim)
     ax_prf.set_ylim(y_lim)
     ax_prf.set_xticks([])
