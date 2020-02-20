@@ -81,7 +81,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
                                  'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) + \
-                                 'zlm{:0.1f},{:0.1f}.pdf'.format(*configs['zscr_lim'])
+                                 'zlm{:0.1f}.pdf'.format(*configs['zscr_lim'][1])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -423,7 +423,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
                                  'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) + \
                                  'np{:0.1f}k_'.format(n_perm / 1e3) + \
-                                 'zlm{:0.0f},{:0.0f}.pdf'.format(*configs['zscr_lim'])
+                                 'zlm{:0.0f}.pdf'.format(configs['zscr_lim'][1])
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)

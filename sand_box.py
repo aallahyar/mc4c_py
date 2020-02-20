@@ -3,12 +3,9 @@ import numpy as np
 # np.set_printoptions(linewidth=250, threshold=100, edgeitems=50, formatter={'float_kind': lambda x: "%6.3f" % x})
 
 
-def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=0):
+def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     from utilities import hasOL, flatten
     from utilities import get_gauss_kernel
-
-    # initialization
-    n_bin = bin_bnd.shape[0]
 
     # re-index circles
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
@@ -17,12 +14,13 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
     # convert fragments to bin-coverage
     rd2bins = [list() for i in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
+    assert len(np.unique(frg_inf[:, 1])) == 1
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
         rd2bins[frg_inf[fi, 0]].append(list(bin_idx))
 
     # select positive/negative circles
-    is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
+    is_pos = hasOL(pos_crd, frg_inf[:, 1:4])
     frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     rd2bins_pos = [rd2bins[i] for i in np.unique(frg_pos[:, 0])]
@@ -33,32 +31,35 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
         print('#reads in sets: pos={:,d} vs. neg={:,d}'.format(n_pos, n_neg))
 
     # make positive profile
+    n_bin = bin_bnd.shape[0]
     prf_pos = np.zeros(n_bin)
     for pi in range(n_pos):
-        bin_lst = flatten(rd2bins_pos[pi])
-        prf_pos[bin_lst] += 1
+        hit_bins = flatten(rd2bins_pos[pi])
+        prf_pos[hit_bins] += 1
 
     # fill in coverage matrix
     cvg_mat = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
-        hit_lst = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
-        for rd_idx in hit_lst:
+        hit_reads = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
+        for rd_idx in hit_reads:
             cvg_mat[bi, flatten(rd2bins[rd_idx])] += 1
-    val_rdxs = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
-    cvg_mat = cvg_mat[val_rdxs, :]
+    valid_rows = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
+    cvg_mat = cvg_mat[valid_rows, :]
     n_row = cvg_mat.shape[0]
 
+    # normalize rows to sum=1, removing mean from columns
     cvg_row1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
     cvg_both1 = cvg_row1 - np.mean(cvg_row1, axis=0)
 
+    # rolling profiles to align their "view point" on top of each other
     cvg_rol = np.zeros([n_row, n_bin])
-    for bi in range(n_row):
-        cvg_rol[bi, :] = np.roll(cvg_both1[bi, :], n_bin // 2 - val_rdxs[bi])
+    for ri in range(n_row):
+        cvg_rol[ri, :] = np.roll(cvg_both1[ri, :], n_bin // 2 - valid_rows[ri])
 
-    # smoothen
+    # smoothening the profiles
     rol_smt = np.zeros([n_row, n_bin])
-    kernel = get_gauss_kernel(size=11, sigma=0.8, ndim=1)
-    print(kernel)
+    kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
+    print('Smoothing using: {:s}'.format(', '.join(['{:0.4f}'.format(k) for k in kernel])))
     for ri in range(n_row):
         rol_smt[ri, :] = np.convolve(cvg_rol[ri, :], kernel, mode='same')
     smt_stk = np.vstack([rol_smt[:, n_bin // 2:], np.fliplr(rol_smt[:, 1:n_bin // 2 + 1])])
