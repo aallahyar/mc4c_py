@@ -23,7 +23,7 @@ cfg_fname = ','.join(['../../configs/cfg_Prdm14_Slc_WT.cfg',
 parser = argparse.ArgumentParser()
 parser.add_argument('--config_file', default=cfg_fname)
 parser.add_argument('--min_n_frg', default=2, type=int)
-parser.add_argument('--sigma', default=2.0, type=float)
+parser.add_argument('--sigma', default=1.0, type=float)
 args = parser.parse_args(sys.argv[1:])
 
 # load config file
@@ -101,19 +101,16 @@ for bi in range(n_bin):
     hit_lst = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
     for rd_idx in hit_lst:
         cvg_mat[bi, rd2bins[rd_idx]] += 1
-val_idxs = np.where(np.sum(cvg_mat, axis=1) != 0)[0]
-cvg_mat = cvg_mat[val_idxs, :]
+val_rdxs = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
+cvg_mat = cvg_mat[val_rdxs, :]
 n_row = cvg_mat.shape[0]
 
-cvg_st1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
-cvg_med = cvg_st1 - np.median(cvg_st1, axis=0).reshape(1, -1)
-cvg_avg = cvg_st1 - np.mean(cvg_st1, axis=0).reshape(1, -1)
+cvg_row1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
+cvg_both1 = cvg_row1 - np.mean(cvg_row1, axis=0)
 
 cvg_rol = np.zeros([n_row, n_bin])
 for bi in range(n_row):
-    cvg_rol[bi, :] = np.roll(cvg_avg[bi, :], n_bin // 2 - val_idxs[bi])
-rol_med = cvg_rol - np.median(cvg_rol, axis=0).reshape(1, -1)
-rol_avg = cvg_rol - np.mean(cvg_rol, axis=0).reshape(1, -1)
+    cvg_rol[bi, :] = np.roll(cvg_both1[bi, :], n_bin // 2 - val_rdxs[bi])
 
 # smoothen
 rol_smt = np.zeros([n_row, n_bin])
@@ -122,7 +119,7 @@ print(kernel)
 for ri in range(n_row):
     rol_smt[ri, :] = np.convolve(cvg_rol[ri, :], kernel, mode='same')
 
-for var_idx, var_name in enumerate(['cvg_mat', 'cvg_st1', 'cvg_med', 'cvg_avg', 'cvg_rol', 'rol_med', 'rol_avg', 'rol_smt']):
+for var_idx, var_name in enumerate(['cvg_row1', 'cvg_both1', 'cvg_rol', 'rol_smt']):
     plt.close()
     fig = plt.figure(figsize=(12, 11))
     img_h = plt.imshow(eval(var_name), vmin=0, vmax=0.005)
@@ -133,17 +130,15 @@ for var_idx, var_name in enumerate(['cvg_mat', 'cvg_st1', 'cvg_med', 'cvg_avg', 
                 '{:02d}-varName_Mat_{:s}_'.format(var_idx, var_name) +
                 'sig{:0.2f}.pdf'.format(args.sigma), bbox_inches='tight')
 
-rol_avg = np.mean(cvg_rol, axis=0)
-rol_med = np.median(cvg_rol, axis=0)
 smt_avg = np.mean(rol_smt, axis=0)
 smt_med = np.median(rol_smt, axis=0)
 plt.close()
-fig = plt.figure(figsize=(12, 11))
-for var_idx, var_name in enumerate(['rol_avg', 'rol_med', 'smt_avg', 'smt_med']):
+fig = plt.figure(figsize=(17, 3))
+for var_idx, var_name in enumerate(['smt_avg', 'smt_med']):
     plt.plot(bin_cen, eval(var_name), label=var_name)
 plt.vlines([configs['roi_start'], configs['roi_end']], ymin=0, ymax=1, colors='k', linestyles='--', linewidth=1)
 plt.hlines([0], xmin=roi_bnd[0], xmax=roi_bnd[1], colors='#bbbbbb', linestyles=':', linewidth=0.5)
-plt.xlim(roi_bnd)
+plt.xlim([configs['roi_start'] + roi_w / 3, configs['roi_end'] - roi_w / 3])
 plt.ylim([-0.005, 0.006])
 plt.legend()
 # plt.show()

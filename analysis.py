@@ -46,8 +46,8 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True
         if verbose and (((ei + 1) % 200) == 0):
             print('\t{:d} randomized profiles are computed.'.format(ei + 1))
         np.random.shuffle(neg_lst)
-        for rd_idx in neg_lst[:n_pos]:
-            f2b_rnd = cfb_neg[rd_idx]
+        for ni in range(n_pos):
+            f2b_rnd = cfb_neg[neg_lst[ni]]
             np.random.shuffle(f2b_rnd)
             prf_rnd[ei, flatten(f2b_rnd[1:])] += 1  # making sure one element is randomly ignored everytime
 
@@ -80,7 +80,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     configs = config_lst[0]
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
-                                 'sig{:0.2f}_'.format(sigma) + \
+                                 'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) + \
                                  'zlm{:0.1f},{:0.1f}.pdf'.format(*configs['zscr_lim'])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
@@ -139,7 +139,11 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
-    prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+    if configs['test_method'] == 'decayCorrector':
+        from sand_box import contact_test_by_decay
+        prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = contact_test_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+    else:
+        prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
     print('{:,d} reads are found to cover '.format(n_pos) +
@@ -198,6 +202,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     # profile plot
     ax_prf.plot(bin_cen, prf_obs, color='#5757ff', linewidth=1, zorder=3)
     ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1, zorder=2)
+    if configs['test_method'] == 'decayCorrector':
+        soi_cen = np.mean(soi_crd[1:])
+        ax_prf.plot(bin_cen + (soi_cen - bin_cen[0]), decay_prob * 100, color='#bb4444', linewidth=0.5, alpha=0.5, zorder=200)
+        ax_prf.plot(bin_cen - (bin_cen[-1] - soi_cen), decay_prob[::-1] * 100, color='#bb4444', linewidth=0.5, alpha=0.5, zorder=200)
     ax_prf.fill_between(bin_cen, prf_exp - prf_std, prf_exp + prf_std, color='#ebebeb', linewidth=0.2, zorder=1)
 
     ax_prf.add_patch(patches.Rectangle([vp_bnd[0], y_lim[0]], vp_bnd[1] - vp_bnd[0], y_lim[1] - y_lim[0],

@@ -192,7 +192,7 @@ def mapFragments(args):
     cmd_str = \
         configs['bwa'] + ' bwasw {:s} -t {:d} '.format(map_argument, args.n_thread) + \
         configs['bwa_index'] + ' ' + args.input_file + \
-        ' | samtools view -q 1 -hbS - ' + \
+        ' | samtools sort -n | samtools view -q 1 -hbS - ' + \
         '> ' + args.output_file
     if args.return_command:
         print('{:s}'.format(cmd_str))

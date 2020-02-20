@@ -83,6 +83,7 @@ def perform_analysis(args):
     config_lst[0]['input_file'] = args.input_file
     config_lst[0]['output_file'] = args.output_file
     config_lst[0]['zscr_lim'] = [int(x) for x in args.zscr_lim.split(',')]
+    config_lst[0]['test_method'] = args.test_method
 
     # call the requested function
     if args.analysis_type == 'atVpSoi':
@@ -219,6 +220,7 @@ def main():
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
     parser_analysis.add_argument('--zscr_lim', default='-6,6', type=str)
+    parser_analysis.add_argument('--test_method', default='default', type=str)
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
@@ -252,7 +254,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C11-Enh-3769_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=2.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=0.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--ant-name=RB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS4', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=default', '--ant-name=HS4', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
