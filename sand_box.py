@@ -1,47 +1,31 @@
 
 import numpy as np
-# np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'float_kind': lambda x: "%8.5f" % x})
+np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'float_kind': lambda x: "%8.5f" % x})
+
+from utilities import hasOL, flatten
+from utilities import get_gauss_kernel
 
 
-def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
-    from utilities import hasOL, flatten
-    from utilities import get_gauss_kernel
+def get_decay_prob(frg_np, bin_bnd, sigma):
 
     # re-index circles
-    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
-    n_read = np.max(frg_inf[:, 0])
+    frg_np[:, 0] = np.unique(frg_np[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(frg_np[:, 0])
+    n_bin = bin_bnd.shape[0]
 
     # convert fragments to bin-coverage
     rd2bins = [list() for i in range(n_read + 1)]
-    n_frg = frg_inf.shape[0]
-    assert len(np.unique(frg_inf[:, 1])) == 1
+    n_frg = frg_np.shape[0]
+    assert len(np.unique(frg_np[:, 1])) == 1
     for fi in range(n_frg):
-        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        rd2bins[frg_inf[fi, 0]].append(list(bin_idx))
-
-    # select positive/negative circles
-    is_pos = hasOL(pos_crd, frg_inf[:, 1:4])
-    frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
-    frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
-    rd2bins_pos = [rd2bins[i] for i in np.unique(frg_pos[:, 0])]
-    rd2bins_neg = [rd2bins[i] for i in np.unique(frg_neg[:, 0])]
-    n_pos = len(rd2bins_pos)
-    n_neg = len(rd2bins_neg)
-    if verbose:
-        print('#reads in sets: pos={:,d} vs. neg={:,d}'.format(n_pos, n_neg))
-
-    # make positive profile
-    n_bin = bin_bnd.shape[0]
-    prf_pos = np.zeros(n_bin)
-    for pi in range(n_pos):
-        hit_bins = flatten(rd2bins_pos[pi])
-        prf_pos[hit_bins] += 1
+        bin_idx = np.where(hasOL(frg_np[fi, 2:4], bin_bnd))[0]
+        rd2bins[frg_np[fi, 0]].append(list(bin_idx))
 
     # fill in coverage matrix
     cvg_mat = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
-        hit_reads = np.unique(frg_inf[hasOL(bin_bnd[bi], frg_inf[:, 2:4]), 0])
-        for rd_idx in hit_reads:
+        hit_ridxs = np.unique(frg_np[hasOL(bin_bnd[bi], frg_np[:, 2:4]), 0])
+        for rd_idx in hit_ridxs:
             cvg_mat[bi, flatten(rd2bins[rd_idx])] += 1
     valid_rows = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
     cvg_mat = cvg_mat[valid_rows, :]
@@ -81,6 +65,43 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
     stk_med = stk_med - stk_med.min()
     stk_med[np.argmin(stk_med):] = 0
     decay_prob = stk_med / np.sum(stk_med)
+
+    return decay_prob
+
+
+def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
+
+    # re-index circles
+    frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
+    n_read = np.max(frg_inf[:, 0])
+
+    # convert fragments to bin-coverage
+    rd2bins = [list() for i in range(n_read + 1)]
+    n_frg = frg_inf.shape[0]
+    assert len(np.unique(frg_inf[:, 1])) == 1
+    for fi in range(n_frg):
+        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        rd2bins[frg_inf[fi, 0]].append(list(bin_idx))
+
+    # select positive/negative circles
+    is_pos = hasOL(pos_crd, frg_inf[:, 1:4])
+    frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    rd2bins_pos = [rd2bins[i] for i in np.unique(frg_pos[:, 0])]
+    rd2bins_neg = [rd2bins[i] for i in np.unique(frg_neg[:, 0])]
+    n_pos = len(rd2bins_pos)
+    n_neg = len(rd2bins_neg)
+    if verbose:
+        print('#reads in sets: pos={:,d} vs. neg={:,d}'.format(n_pos, n_neg))
+
+    # make positive profile
+    n_bin = bin_bnd.shape[0]
+    prf_pos = np.zeros(n_bin)
+    for pi in range(n_pos):
+        hit_bins = flatten(rd2bins_pos[pi])
+        prf_pos[hit_bins] += 1
+
+    decay_prob = get_decay_prob(frg_inf, bin_bnd, sigma=sigma)
 
     # assign probability to neg fragments
     soi_bdx = int(np.mean(np.where(hasOL(pos_crd[1:], bin_bnd))[0]))

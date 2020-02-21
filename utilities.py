@@ -476,7 +476,11 @@ def showprogress(index, n_iter, n_step=10, output_format='{:1.0f}%,'):
 
 def get_gauss_kernel(size, sigma, ndim=1):
     if ndim == 1:
-        kernel = np.exp(-((np.arange(-size // 2 + 1, size // 2 + 1) ** 2) / (2.0 * sigma ** 2)))
+        if sigma == 0:
+            kernel = np.zeros(size)
+            kernel[size // 2] = 1
+        else:
+            kernel = np.exp(-((np.arange(-size // 2 + 1, size // 2 + 1) ** 2) / (2.0 * sigma ** 2)))
     else:
         if sigma == 0:
             kernel = np.zeros([size, size])
