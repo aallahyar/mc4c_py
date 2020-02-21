@@ -6,27 +6,19 @@ from utilities import hasOL, flatten
 from utilities import get_gauss_kernel
 
 
-def get_decay_prob(frg_np, bin_bnd, sigma):
-
-    # re-index circles
-    frg_np[:, 0] = np.unique(frg_np[:, 0], return_inverse=True)[1] + 1
-    n_read = np.max(frg_np[:, 0])
-    n_bin = bin_bnd.shape[0]
-
-    # convert fragments to bin-coverage
-    rd2bins = [list() for i in range(n_read + 1)]
-    n_frg = frg_np.shape[0]
-    assert len(np.unique(frg_np[:, 1])) == 1
-    for fi in range(n_frg):
-        bin_idx = np.where(hasOL(frg_np[fi, 2:4], bin_bnd))[0]
-        rd2bins[frg_np[fi, 0]].append(list(bin_idx))
+def get_decay_prob(rd2bins, n_bin, sigma):
 
     # fill in coverage matrix
     cvg_mat = np.zeros([n_bin, n_bin])
-    for bi in range(n_bin):
-        hit_ridxs = np.unique(frg_np[hasOL(bin_bnd[bi], frg_np[:, 2:4]), 0])
-        for rd_idx in hit_ridxs:
-            cvg_mat[bi, flatten(rd2bins[rd_idx])] += 1
+    n_read = 0
+    for read in rd2bins:
+        if len(read) == 0:
+            continue
+        n_read += 1
+        hit_lst = np.unique(flatten(read))
+        for bi in hit_lst:
+            for bj in hit_lst:
+                cvg_mat[bi, bj] += 1
     valid_rows = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
     cvg_mat = cvg_mat[valid_rows, :]
     n_row = cvg_mat.shape[0]
@@ -101,7 +93,7 @@ def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, 
         hit_bins = flatten(rd2bins_pos[pi])
         prf_pos[hit_bins] += 1
 
-    decay_prob = get_decay_prob(frg_inf, bin_bnd, sigma=sigma)
+    decay_prob = get_decay_prob(rd2bins, n_bin, sigma=sigma)
 
     # assign probability to neg fragments
     soi_bdx = int(np.mean(np.where(hasOL(pos_crd[1:], bin_bnd))[0]))
