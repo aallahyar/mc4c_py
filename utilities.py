@@ -243,6 +243,66 @@ def flatten(nested_lst):
     return out_lst
 
 
+def showprogress(index, n_iter, n_step=10, output_format='{:1.0f}%,'):
+    index = index + 1
+    if ((index % (n_iter / float(n_step))) - ((index - 1) % (n_iter / float(n_step))) < 0) or (
+            n_iter / float(n_step) <= 1):
+        print(output_format.format(index * 100 / n_iter)),
+        if index == n_iter:
+            print
+
+
+def get_gauss_kernel(size, sigma, ndim=1):
+    if ndim == 1:
+        if sigma == 0:
+            kernel = np.zeros(size)
+            kernel[size // 2] = 1
+        else:
+            kernel = np.exp(-((np.arange(-size // 2 + 1, size // 2 + 1) ** 2) / (2.0 * sigma ** 2)))
+    else:
+        if sigma == 0:
+            kernel = np.zeros([size, size])
+            kernel[size // 2, size // 2] = 1
+        else:
+            dx, dy = np.mgrid[-size // 2 + 1:size // 2 + 1, -size // 2 + 1:size // 2 + 1]
+            kernel = np.exp(-((dx ** 2 + dy ** 2) / (2.0 * sigma ** 2)))
+    return kernel / kernel.sum()
+
+
+class OnlineStats(object):
+    """
+    Welford's algorithm computes the sample variance incrementally.
+    from: https://stackoverflow.com/questions/5543651/computing-standard-deviation-in-a-stream
+    example:
+        from _utilities import OnlineStats
+        ostat = OnlineStats(ddof=0)
+        for item in item_lst:
+            bkg_ostat.include(item)
+        assert np.allclose(ostat.mean, np.mean(item_lst))
+        assert np.allclose(ostat.std, np.std(item_lst))
+    """
+
+    def __init__(self, iterable=None, ddof=0):
+        self.ddof, self.n, self.mean, self.M2 = ddof, 0, 0.0, 0.0
+        if iterable is not None:
+            for datum in iterable:
+                self.include(datum)
+
+    def include(self, datum):
+        self.n += 1
+        self.delta = datum - self.mean
+        self.mean += self.delta / self.n
+        self.M2 += self.delta * (datum - self.mean)
+
+    @property
+    def variance(self):
+        return self.M2 / (self.n - self.ddof)
+
+    @property
+    def std(self):
+        return np.sqrt(self.variance)
+
+
 ################### MC-4C related functions #########################
 
 def load_annotation(genome_str, roi_crd=None):
@@ -464,30 +524,5 @@ def get_nreads_per_bin(reads, bin_crd=None, n_bin=None, boundary=None, min_n_frg
         bin_cvg[bi] = len(np.unique(reads[is_in, 0]))
 
     return bin_cvg, n_read
-
-
-def showprogress(index, n_iter, n_step=10, output_format='{:1.0f}%,'):
-    index = index + 1
-    if ((index % (n_iter / float(n_step))) - ((index - 1) % (n_iter / float(n_step))) < 0) or (n_iter / float(n_step) <= 1):
-        print(output_format.format(index * 100 / n_iter)),
-        if index == n_iter:
-            print
-
-
-def get_gauss_kernel(size, sigma, ndim=1):
-    if ndim == 1:
-        if sigma == 0:
-            kernel = np.zeros(size)
-            kernel[size // 2] = 1
-        else:
-            kernel = np.exp(-((np.arange(-size // 2 + 1, size // 2 + 1) ** 2) / (2.0 * sigma ** 2)))
-    else:
-        if sigma == 0:
-            kernel = np.zeros([size, size])
-            kernel[size // 2, size // 2] = 1
-        else:
-            dx, dy = np.mgrid[-size // 2 + 1:size // 2 + 1, -size // 2 + 1:size // 2 + 1]
-            kernel = np.exp(-((dx ** 2 + dy ** 2) / (2.0 * sigma ** 2)))
-    return kernel / kernel.sum()
 
 

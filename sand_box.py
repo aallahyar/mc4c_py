@@ -1,9 +1,97 @@
 
 import numpy as np
-np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'float_kind': lambda x: "%8.5f" % x})
+import scipy.ndimage as ndimage
 
-from utilities import hasOL, flatten
-from utilities import get_gauss_kernel
+from utilities import hasOL, flatten, get_gauss_kernel
+from utilities import OnlineStats
+
+np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'float_kind': lambda x: "%10.5f" % x})
+
+
+def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
+
+    # store mapped bins for each fragments
+    frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='left') - 1
+
+    # re-index circles
+    read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
+    n_read = np.max(frg_inf[:, 0])
+
+    # convert fragments to bin-coverage
+    rd2bin = [list() for _ in range(n_read)]
+    n_frg = frg_inf.shape[0]
+    assert len(np.unique(frg_inf[:, 1])) == 1
+    for fi in range(n_frg):
+        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        rd2bin[read_idxs[fi]].append(list(bin_idx))
+    del frg_inf
+
+    # store read idxs for each bin
+    n_bin = bin_bnd.shape[0]
+    bin2rd = [list() for _ in range(n_bin)]
+    for rd_idx, read in enumerate(rd2bin):
+        for frag in read:
+            for bin_idx in frag:
+                bin2rd[bin_idx].append(rd_idx)
+    for bi in range(n_bin):
+        bin2rd[bi] = np.unique(bin2rd[bi])
+
+    # compute positive coverage
+    pos_cvg = np.zeros([n_bin, n_bin])
+    for read in rd2bin:
+        for frag_i in read:
+            for bin_i in frag_i:
+                for frag_j in read:
+                    pos_cvg[bin_i, frag_j] += 1
+    kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
+    pos_smt = ndimage.convolve(pos_cvg, kernel_2d, mode='reflect')
+
+    # estimate decay profile
+    decay_prob = get_decay_prob(rd2bin, n_bin, sigma=sigma)
+
+    # estimate expected distributions
+    all_rids = np.arange(n_read)
+    exp_obj = []
+    for bi in range(n_bin):
+        exp_obj.append([OnlineStats() for _ in range(n_bin)])
+    for ei in range(n_perm):
+        if ei % 1 == 0:
+            print('Epoch #{:03d}/{:03d}: '.format(ei + 1, n_perm))
+
+        bkg_cvg = np.zeros([n_bin, n_bin])
+        for soi_bdx in range(n_bin):
+
+            # select pos/neg reads
+            pos_rids = bin2rd[soi_bdx]
+            neg_rids = all_rids[~np. isin(all_rids, pos_rids)]
+            n_pos = len(pos_rids)
+            n_neg = len(neg_rids)
+
+            # assign probability to neg fragments
+            frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
+            frg_prob = frg_prob / np.sum(frg_prob)
+
+            # make background coverage
+            neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)
+            for ni in range(n_pos):
+                rnd_idx = np.random.randint(n_neg)
+                neg_bins = rd2bin[neg_rids[rnd_idx]]
+                np.random.shuffle(neg_bins)
+                bkg_cvg[soi_bdx, flatten(neg_bins[1:])] += 1  # making sure one element is randomly ignored everytime
+                bkg_cvg[soi_bdx, neg_fbdx[ni]] += 1
+        bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
+
+        # store the current epoch
+        for bi in range(n_bin):
+            for bj in range(n_bin):
+                exp_obj[bi][bj].include(bkg_smt[bi, bj])
+
+    # compute expected values
+    zscr_mat = np.zeros([n_bin, n_bin])
+    for bi in range(n_bin):
+        for bj in range(n_bin):
+            if exp_obj[bi][bj].std != 0:
+                zscr_mat[bi, bj] = (pos_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
 
 
 def get_decay_prob(rd2bins, n_bin, sigma):
@@ -61,7 +149,7 @@ def get_decay_prob(rd2bins, n_bin, sigma):
     return decay_prob
 
 
-def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
+def contact_test_by_decay(frg_inf, pos_crd, bin_bnd, decay_prob, n_perm=1000, verbose=True, sigma=1.0):
 
     # re-index circles
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
