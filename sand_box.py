@@ -10,35 +10,30 @@ np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'floa
 
 def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
 
-    # store mapped bins for each fragments
+    # initialization
     frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='left') - 1
-
-    # re-index circles
     read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
-    n_read = np.max(frg_inf[:, 0])
+    n_read = np.max(read_idxs) + 1
+    n_frg = frg_inf.shape[0]
+    n_bin = bin_bnd.shape[0]
+    assert len(np.unique(frg_inf[:, 1])) == 1
 
     # convert fragments to bin-coverage
-    rd2bin = [list() for _ in range(n_read)]
-    n_frg = frg_inf.shape[0]
-    assert len(np.unique(frg_inf[:, 1])) == 1
+    print('Mapping fragments to bins, and bins to reads ...')
+    rds2bin = [list() for _ in range(n_read)]
+    bin2rds = [list() for _ in range(n_bin)]
     for fi in range(n_frg):
-        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        rd2bin[read_idxs[fi]].append(list(bin_idx))
-    del frg_inf
-
-    # store read idxs for each bin
-    n_bin = bin_bnd.shape[0]
-    bin2rd = [list() for _ in range(n_bin)]
-    for rd_idx, read in enumerate(rd2bin):
-        for frag in read:
-            for bin_idx in frag:
-                bin2rd[bin_idx].append(rd_idx)
+        bin_idxs = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        rds2bin[read_idxs[fi]].append(list(bin_idxs))
+        for bin_idx in bin_idxs:
+            bin2rds[bin_idx].append(read_idxs[fi])
     for bi in range(n_bin):
-        bin2rd[bi] = np.unique(bin2rd[bi])
+        bin2rds[bi] = np.unique(bin2rds[bi])
+    del frg_inf
 
     # compute positive coverage
     pos_cvg = np.zeros([n_bin, n_bin])
-    for read in rd2bin:
+    for read in rds2bin:
         for frag_i in read:
             for bin_i in frag_i:
                 for frag_j in read:
@@ -47,23 +42,25 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     pos_smt = ndimage.convolve(pos_cvg, kernel_2d, mode='reflect')
 
     # estimate decay profile
-    decay_prob = get_decay_prob(rd2bin, n_bin, sigma=sigma)
+    print('Estimating decay profile ...')
+    decay_prob = get_decay_prob(rds2bin, n_bin, sigma=sigma)
 
     # estimate expected distributions
+    print('Estimating expected distributions:')
     all_rids = np.arange(n_read)
     exp_obj = []
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
     for ei in range(n_perm):
         if ei % 1 == 0:
-            print('Epoch #{:03d}/{:03d}: '.format(ei + 1, n_perm))
+            print('\tEpoch #{:04d}/{:04d}: '.format(ei + 1, n_perm))
 
         bkg_cvg = np.zeros([n_bin, n_bin])
         for soi_bdx in range(n_bin):
 
             # select pos/neg reads
-            pos_rids = bin2rd[soi_bdx]
-            neg_rids = all_rids[~np. isin(all_rids, pos_rids)]
+            pos_rids = bin2rds[soi_bdx]
+            neg_rids = all_rids[~np.isin(all_rids, pos_rids)]
             n_pos = len(pos_rids)
             n_neg = len(neg_rids)
 
@@ -75,7 +72,7 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
             neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)
             for ni in range(n_pos):
                 rnd_idx = np.random.randint(n_neg)
-                neg_bins = rd2bin[neg_rids[rnd_idx]]
+                neg_bins = rds2bin[neg_rids[rnd_idx]]
                 np.random.shuffle(neg_bins)
                 bkg_cvg[soi_bdx, flatten(neg_bins[1:])] += 1  # making sure one element is randomly ignored everytime
                 bkg_cvg[soi_bdx, neg_fbdx[ni]] += 1
