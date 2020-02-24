@@ -40,10 +40,9 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     # compute observed coverage
     print('Calculating observed coverage ...')
     obs_cvg = np.zeros([n_bin, n_bin])
-    for read in rds2bin:
-        for bin_i in read:
-            for bin_j in read:
-                obs_cvg[bin_i, bin_j] += 1
+    for soi_bdx in range(n_bin):
+        for rd_idx in bin2rds[soi_bdx]:
+            obs_cvg[soi_bdx, rds2bin[rd_idx]] += 1
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
 
@@ -65,9 +64,8 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
         for soi_bdx in range(n_bin):
 
             # select pos/neg reads
-            pos_rids = bin2rds[soi_bdx]
-            neg_rids = all_rids[~np.isin(all_rids, pos_rids)]
-            n_pos = len(pos_rids)
+            neg_rids = all_rids[~np.isin(all_rids, bin2rds[soi_bdx])]
+            n_pos = len(bin2rds[soi_bdx])
             n_neg = len(neg_rids)
 
             # assign probability to neg fragments
@@ -75,15 +73,14 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
             frg_prob = frg_prob / np.sum(frg_prob)
 
             # make background coverage
-            neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)  # selection from all, instead of neg
+            neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
             rnd_rdxs = np.random.randint(n_neg, size=n_pos)
-            rnd_fdxs = np.random.randint(100, size=n_pos)
+            rnd_fdxs = np.random.randint(30, size=n_pos)
             for ni in range(n_pos):
                 rnd_read = copy(rds2bin[neg_rids[rnd_rdxs[ni]]])
                 rnd_read[rnd_fdxs[ni] % len(rnd_read)] = neg_fbdx[ni]
                 for bin_i in rnd_read:
-                    for bin_j in rnd_read:
-                        bkg_cvg[bin_i, bin_j] += 1
+                    bkg_cvg[soi_bdx, bin_i] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
         # store the current epoch
@@ -95,8 +92,26 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     zscr_mat = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         for bj in range(n_bin):
+            if bi == bj:
+                continue
             if exp_obj[bi][bj].std != 0:
                 zscr_mat[bi, bj] = (obs_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
+
+    # plot
+    exp_avg = np.zeros([n_bin, n_bin])
+    exp_std = np.zeros([n_bin, n_bin])
+    for bi in range(n_bin):
+        for bj in range(n_bin):
+            exp_avg[bi, bj] = exp_obj[bi][bj].mean
+            exp_std[bi, bj] = exp_obj[bi][bj].std
+    from matplotlib import pyplot as plt
+    plt.close('all')
+    plt.figure(figsize=[15, 13])
+    for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
+        ax = plt.subplot(2, 2, pi + 1)
+        img_h = ax.imshow(mat)
+        plt.colorbar(ax=ax, mappable=img_h)
+
 
 
 def get_decay_prob(rd2bins, n_bin, sigma):
