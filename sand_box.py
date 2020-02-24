@@ -10,11 +10,16 @@ np.set_printoptions(linewidth=250, threshold=300, edgeitems=30, formatter={'floa
 
 def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
 
-    # initialization
-    frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='left') - 1
+    # find covered bins
+    n_frg = frg_inf.shape[0]
+    frg_bdx = np.zeros(n_frg, dtype=np.int64)
+    is_fw = frg_inf[:, 4] == 1
+    frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='left') - 1
+    frg_bdx[~is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[~is_fw, 3], side='left') - 1
+
+    # reset read indices
     read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
     n_read = np.max(read_idxs) + 1
-    n_frg = frg_inf.shape[0]
     n_bin = bin_bnd.shape[0]
     assert len(np.unique(frg_inf[:, 1])) == 1
 
@@ -23,21 +28,21 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     rds2bin = [list() for _ in range(n_read)]
     bin2rds = [list() for _ in range(n_bin)]
     for fi in range(n_frg):
-        bin_idxs = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        rds2bin[read_idxs[fi]].append(list(bin_idxs))
-        for bin_idx in bin_idxs:
-            bin2rds[bin_idx].append(read_idxs[fi])
+        rds2bin[read_idxs[fi]].append(frg_bdx[fi])
+        bin2rds[frg_bdx[fi]].append(read_idxs[fi])
+    for ri in range(n_read):
+        rds2bin[ri] = np.unique(rds2bin[ri])
     for bi in range(n_bin):
         bin2rds[bi] = np.unique(bin2rds[bi])
     del frg_inf
 
-    # compute positive coverage
+    # compute observed coverage
+    print('Calculating observed coverage ...')
     pos_cvg = np.zeros([n_bin, n_bin])
     for read in rds2bin:
-        for frag_i in read:
-            for bin_i in frag_i:
-                for frag_j in read:
-                    pos_cvg[bin_i, frag_j] += 1
+        for bin_i in read:
+            for bin_j in read:
+                pos_cvg[bin_i, bin_j] += 1
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     pos_smt = ndimage.convolve(pos_cvg, kernel_2d, mode='reflect')
 
@@ -72,9 +77,9 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
             neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)
             for ni in range(n_pos):
                 rnd_idx = np.random.randint(n_neg)
-                neg_bins = rds2bin[neg_rids[rnd_idx]]
-                np.random.shuffle(neg_bins)
-                bkg_cvg[soi_bdx, flatten(neg_bins[1:])] += 1  # making sure one element is randomly ignored everytime
+                rnd_read = rds2bin[neg_rids[rnd_idx]]
+                np.random.shuffle(rnd_read)
+                bkg_cvg[soi_bdx, rnd_read[1:]] += 1  # making sure one element is randomly ignored everytime
                 bkg_cvg[soi_bdx, neg_fbdx[ni]] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
