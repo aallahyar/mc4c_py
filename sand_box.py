@@ -57,7 +57,7 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
     for ei in range(n_perm):
-        if ei % 1 == 0:
+        if ei % 25 == 0:
             print('\tEpoch #{:04d}/{:04d}: '.format(ei + 1, n_perm))
 
         bkg_cvg = np.zeros([n_bin, n_bin])
@@ -104,14 +104,24 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
         for bj in range(n_bin):
             exp_avg[bi, bj] = exp_obj[bi][bj].mean
             exp_std[bi, bj] = exp_obj[bi][bj].std
-    from matplotlib import pyplot as plt
+    from matplotlib import pyplot as plt, cm
+    from matplotlib.colors import LinearSegmentedColormap
     plt.close('all')
     plt.figure(figsize=[15, 13])
+    cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
+                LinearSegmentedColormap.from_list('rwwb', ['#ff0000', '#ffffff', '#ffffff', '#0000ff']),
+                ]
     for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
         ax = plt.subplot(2, 2, pi + 1)
-        img_h = ax.imshow(mat)
+        img_h = ax.imshow(mat, cmap=cmap_lst[pi])
+        if pi == 3:
+            img_h.set_clim([-6, 6])
+        elif pi < 2:
+            img_h.set_clim([0, np.percentile(obs_smt, 96)])
         plt.colorbar(ax=ax, mappable=img_h)
-
+    out_fname = './plt_sig{:0.2f}_'.format(sigma) + \
+                'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
+    plt.savefig(out_fname, bbox_inches='tight')
 
 
 def get_decay_prob(rd2bins, n_bin, sigma):
