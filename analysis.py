@@ -546,6 +546,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
                                  'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) + \
                                  'np{:0.1f}k_'.format(n_perm / 1e3) + \
+                                 'mth-{:s}_'.format(configs['test_method']) + \
                                  'zlm{:0.0f}.pdf'.format(configs['zscr_lim'][1])
 
     # create bin list
@@ -613,44 +614,59 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd)
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
-    # compute score for annotations
-    print('Computing expected profile for {:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
-    blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
-    y_tick_lbl = [' '] * n_blk
-    n_ignored = 0
-    for bi in range(n_blk):
-        showprogress(bi, n_blk, n_step=20)
+    # choose the model
+    print('Computing expected profile using "{:s}" model'.format(configs['test_method']))
+    if configs['test_method'] == 'decayCorrector':
+        print('{:d} bins (required coverage: {:d} reads):'.format(n_bin, MIN_N_POS))
+        from sand_box import contact_test_2d
+        # tmp_frq, tmp_rnd, tmp_pos, tmp_neg, tmp_prob = contact_test_by_decay(read_inf, [configs['vp_cnum'], bin_bnd[50, 0], bin_bnd[50, 1]], bin_bnd, n_perm=n_perm, sigma=0)
+        blk_scr = contact_test_2d(read_inf, bin_bnd, n_perm=n_perm, sigma=0)
 
         # add axes labels
-        ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
-        if len(ant_idx) > 0:
-            ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
-            y_tick_lbl[bi] = ant_name
+        y_tick_lbl = [' '] * n_bin
+        for bi in range(n_bin):
+            ant_idx = np.where(hasOL(bin_bnd[bi, :], ant_bnd, offset=0))[0]
+            if len(ant_idx) > 0:
+                ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
+                y_tick_lbl[bi] = ant_name
+    else:
+        print('{:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
 
-        # ignore if vp
-        if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
-            continue
+        # compute score for annotations
+        blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
+        y_tick_lbl = [' '] * n_blk
+        n_ignored = 0
+        for bi in range(n_blk):
+            showprogress(bi, n_blk, n_step=20)
 
-        # compute the observe and background
-        blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
-                                                             n_perm=n_perm, verbose=False, sigma=sigma)[:3]
-        n_pos = len(np.unique(read_pos[:, 0]))
-        if n_pos < MIN_N_POS:
-            n_ignored += 1
-            continue
+            # add axes labels
+            ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
+            if len(ant_idx) > 0:
+                ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
+                y_tick_lbl[bi] = ant_name
 
-        # compute the scores
-        blk_exp = np.mean(blk_rnd, axis=0)
-        blk_std = np.std(blk_rnd, axis=0, ddof=0)
-        np.seterr(all='ignore')
-        blk_scr[:, bi] = np.divide(blk_obs - blk_exp, blk_std)
-        np.seterr(all=None)
+            # ignore if vp
+            if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
+                continue
 
-        # remove scores overlapping with positive set
-        is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
-        blk_scr[is_nei, bi] = np.nan
+            # compute the observe and background
+            blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
+                                                                 n_perm=n_perm, verbose=False, sigma=sigma)[:3]
+            n_pos = len(np.unique(read_pos[:, 0]))
+            if n_pos < MIN_N_POS:
+                n_ignored += 1
+                continue
 
-    if n_ignored != 0:
+            # compute the scores
+            blk_exp = np.mean(blk_rnd, axis=0)
+            blk_std = np.std(blk_rnd, axis=0, ddof=0)
+            np.seterr(all='ignore')
+            blk_scr[:, bi] = np.divide(blk_obs - blk_exp, blk_std)
+            np.seterr(all=None)
+
+            # remove scores overlapping with positive set
+            is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
+            blk_scr[is_nei, bi] = np.nan
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # set self scores to nan

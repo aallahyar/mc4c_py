@@ -125,4 +125,6 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, sigma=1.0):
                 'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
     plt.savefig(out_fname, bbox_inches='tight')
 
+    return zscr_mat
+
 
