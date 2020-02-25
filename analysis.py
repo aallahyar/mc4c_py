@@ -57,8 +57,132 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
     cvg_chance = cvg_chance - cvg_chance.min()
     cvg_chance[np.argmin(cvg_chance):] = 0
     decay_prob = cvg_chance / np.sum(cvg_chance)
-
     return decay_prob
+
+
+def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm=1000, sigma=1.0):
+
+    from copy import copy
+
+    import scipy.ndimage as ndimage
+
+    from utilities import get_gauss_kernel
+    from utilities import OnlineStats
+
+    # find covered bins
+    n_frg = frg_inf.shape[0]
+    frg_bdx = np.zeros(n_frg, dtype=np.int64)
+    is_fw = frg_inf[:, 4] == 1
+    frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='left') - 1
+    frg_bdx[~is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[~is_fw, 3], side='left') - 1
+    frg_bdx[frg_bdx == -1] = 0  # TODO: Better correction for out of bounds fragments
+
+    # reset read indices
+    read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
+    n_read = np.max(read_idxs) + 1
+    n_bin = bin_bnd.shape[0]
+    assert len(np.unique(frg_inf[:, 1])) == 1
+
+    # convert fragments to bin-coverage
+    print('Mapping fragments to bins, and bins to reads ...')
+    rds2bin = [list() for _ in range(n_read)]
+    bin2rds = [list() for _ in range(n_bin)]
+    for fi in range(n_frg):
+        rds2bin[read_idxs[fi]].append(frg_bdx[fi])
+        bin2rds[frg_bdx[fi]].append(read_idxs[fi])
+    for ri in range(n_read):
+        rds2bin[ri] = np.unique(rds2bin[ri])
+    for bi in range(n_bin):
+        bin2rds[bi] = np.unique(bin2rds[bi])
+    # del frg_inf
+
+    # compute observed coverage
+    print('Calculating observed coverage ...')
+    obs_cvg = np.zeros([n_bin, n_bin])
+    for soi_bdx in range(n_bin):
+        for rd_idx in bin2rds[soi_bdx]:
+            obs_cvg[rds2bin[rd_idx], soi_bdx] += 1
+    kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
+    obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
+
+    # estimate decay profile
+    print('Estimating decay profile ...')
+    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=sigma)
+
+    # estimate expected distributions
+    print('Estimating expected distributions:')
+    all_rids = np.arange(n_read)
+    exp_obj = []
+    for bi in range(n_bin):
+        exp_obj.append([OnlineStats() for _ in range(n_bin)])
+    for ei in range(n_perm):
+        if ei % 50 == 0:
+            print('\tEpoch #{:04d}/{:04d}: '.format(ei, n_perm))
+
+        bkg_cvg = np.zeros([n_bin, n_bin])
+        for soi_bdx in range(n_bin):
+
+            # select pos/neg reads
+            neg_rids = all_rids[~np.isin(all_rids, bin2rds[soi_bdx])]
+            n_pos = len(bin2rds[soi_bdx])
+            n_neg = len(neg_rids)
+
+            # assign probability to neg fragments
+            frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
+            frg_prob = frg_prob / np.sum(frg_prob)
+
+            # make background coverage
+            neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
+            rnd_rdxs = np.random.randint(n_neg, size=n_pos)
+            rnd_fdxs = np.random.randint(30, size=n_pos)
+            for ni in range(n_pos):
+                rnd_read = copy(rds2bin[neg_rids[rnd_rdxs[ni]]])
+                rnd_read[rnd_fdxs[ni] % len(rnd_read)] = neg_fbdx[ni]
+                for bin_i in rnd_read:
+                    bkg_cvg[bin_i, soi_bdx] += 1
+        bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
+
+        # store the current epoch
+        for bi in range(n_bin):
+            for bj in range(n_bin):
+                exp_obj[bi][bj].include(bkg_smt[bi, bj])
+
+    # compute expected values
+    blk_scr = np.full([n_bin, n_bin], fill_value=np.nan)
+    for bi in range(n_bin):
+        for bj in range(n_bin):
+            if np.abs(bi - bj) <= 3:
+                continue
+            if exp_obj[bi][bj].std != 0:
+                blk_scr[bi, bj] = (obs_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
+
+    # plot
+    exp_avg = np.zeros([n_bin, n_bin])
+    exp_std = np.zeros([n_bin, n_bin])
+    for bi in range(n_bin):
+        for bj in range(n_bin):
+            exp_avg[bi, bj] = exp_obj[bi][bj].mean
+            exp_std[bi, bj] = exp_obj[bi][bj].std
+    # from matplotlib import pyplot as plt, cm
+    # from matplotlib.colors import LinearSegmentedColormap
+    # plt.close('all')
+    # plt.figure(figsize=[15, 13])
+    # cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
+    #             LinearSegmentedColormap.from_list('rwwb', ['#ff0000', '#ffffff', '#ffffff', '#0000ff']),
+    #             ]
+    # for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
+    #     ax = plt.subplot(2, 2, pi + 1)
+    #     img_h = ax.imshow(mat, cmap=cmap_lst[pi])
+    #     if pi == 3:
+    #         img_h.set_clim([-6, 6])
+    #     elif pi < 2:
+    #         img_h.set_clim([0, np.percentile(obs_smt, 96)])
+    #     plt.colorbar(ax=ax, mappable=img_h)
+    # out_fname = './plt_sig{:0.2f}_'.format(sigma) + \
+    #             'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
+    # plt.savefig(out_fname, bbox_inches='tight')
+
+    return obs_smt, exp_avg, exp_std, blk_scr
 
 
 def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
@@ -530,7 +654,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     import matplotlib
     if platform.system() == 'Linux':
         matplotlib.use('Agg')
-    from matplotlib import pyplot as plt, patches
+    from matplotlib import pyplot as plt, patches, cm
     from matplotlib.colors import LinearSegmentedColormap
 
     from utilities import load_mc4c, load_annotation, hasOL, flatten, limit_to_roi
@@ -618,9 +742,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     print('Computing expected profile using "{:s}" model'.format(configs['test_method']))
     if configs['test_method'] == 'decayCorrector':
         print('{:d} bins (required coverage: {:d} reads):'.format(n_bin, MIN_N_POS))
-        from sand_box import contact_test_2d
-        # tmp_frq, tmp_rnd, tmp_pos, tmp_neg, tmp_prob = contact_test_by_decay(read_inf, [configs['vp_cnum'], bin_bnd[50, 0], bin_bnd[50, 1]], bin_bnd, n_perm=n_perm, sigma=0)
-        blk_obs, blk_exp, blk_std, blk_scr = contact_test_2d(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
+        blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
 
         # add axes labels
         y_tick_lbl = [' '] * n_bin
@@ -633,7 +755,10 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         print('{:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
 
         # compute score for annotations
-        blk_scr = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_zsr = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_obs = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_exp = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_std = np.full([n_blk, n_blk], fill_value=np.nan)
         y_tick_lbl = [' '] * n_blk
         n_ignored = 0
         for bi in range(n_blk):
@@ -650,7 +775,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                 continue
 
             # compute the observe and background
-            blk_obs, blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
+            blk_obs[:, bi], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                                  n_perm=n_perm, verbose=False, sigma=sigma)[:3]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
@@ -658,15 +783,15 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                 continue
 
             # compute the scores
-            blk_exp = np.mean(blk_rnd, axis=0)
-            blk_std = np.std(blk_rnd, axis=0, ddof=0)
+            blk_exp[:, bi] = np.mean(blk_rnd, axis=0)
+            blk_std[:, bi] = np.std(blk_rnd, axis=0, ddof=0)
             np.seterr(all='ignore')
-            blk_scr[:, bi] = np.divide(blk_obs - blk_exp, blk_std)
+            blk_zsr[:, bi] = np.divide(blk_obs[:, bi] - blk_exp[:, bi], blk_std[:, bi])
             np.seterr(all=None)
 
             # remove scores overlapping with positive set
             is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
-            blk_scr[is_nei, bi] = np.nan
+            blk_zsr[is_nei, bi] = np.nan
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # set self scores to nan
@@ -675,7 +800,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # clean up tick labels
 
     # plotting the scores
-    plt.figure(figsize=(15, 13))
+    plt.figure(figsize=(13, 12))
     ax_scr = plt.subplot2grid((40, 40), (0, 0), rowspan=39, colspan=39)
     ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
 
@@ -691,7 +816,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
     # add score scatter matrix
     x_lim = [0, n_blk]
-    ax_scr.imshow(blk_scr, extent=x_lim + x_lim, cmap=clr_map,
+    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map,
                   vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1], interpolation='nearest', origin='lower')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
@@ -750,8 +875,58 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         print('Exporting z-scores to excel sheet: {:s}'.format(xls_fname))
 
         import pandas as pd
-        zscr_pd = pd.DataFrame(blk_scr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
+        zscr_pd = pd.DataFrame(blk_zsr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
         zscr_pd.to_excel(xls_fname, sheet_name='z-scores')
 
+    plt.figure(figsize=(16, 14))
+    img_names = ['Observed', 'Expected', 'Standard deviation', 'z-score']
+    zclr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
+    cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('summer_r', 20),
+                LinearSegmentedColormap.from_list('bwwr', zclr_lst, 9)]
+    obs_clim = [np.nanpercentile(blk_obs, 20), np.nanpercentile(blk_obs, 95)]
+    print('Maximum colored value is set at {:0.2f}'.format(obs_clim[1]))
+    for img_idx, img in enumerate([blk_obs, blk_exp, blk_std, blk_zsr]):
+        ax = plt.subplot(2, 2, img_idx + 1)
 
+        # plot the image
+        cmap = cmap_lst[img_idx]
+        cmap.set_bad('#b2b2a3', 0.4)
+        img_h = plt.imshow(img, interpolation=None, cmap=cmap, extent=x_lim + x_lim, origin='lower')
 
+        # adjustments
+        if img_idx < 2:
+            plt.clim(obs_clim)
+        elif img_idx == 2:
+            plt.clim(np.nanpercentile(blk_std, [60, 95]))
+        elif img_idx == 3:
+            plt.clim(configs['zscr_lim'])
+
+        # add vp patches
+        vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
+        ax.add_patch(patches.Rectangle([0, vp_idx[0]], n_blk, vp_idx[-1] - vp_idx[0],
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
+        ax.add_patch(patches.Rectangle([vp_idx[0], 0], vp_idx[-1] - vp_idx[0], n_blk,
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
+
+        plt.colorbar(img_h, fraction=0.046, pad=0.04)  # , extend='both'
+        ax.set_xticks(np.arange(n_blk) + 0.5)
+        ax.set_yticks(np.arange(n_blk) + 0.5)
+        ax.set_xticklabels(y_tick_lbl, rotation=90)
+        ax.set_yticklabels(y_tick_lbl)
+        ax.set_xlabel('Selected SOIs')
+        ax.tick_params(length=0)
+        ax.set_xlim(x_lim)
+        ax.set_ylim(x_lim)
+        ax.invert_yaxis()
+        ax.set_title(img_names[img_idx])
+
+    # final adjustments
+    plt.suptitle('Association matrix from {:s}\n'.format(run_id) +
+                 '#read (#roiFrg>{:d}, ex. vp)={:,d}; '.format(min_n_frg - 1, n_read) +
+                 'method={:s}; sigma={:0.2f}\n'.format(configs['test_method'], sigma) +
+                 'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
+                 )
+    plt.subplots_adjust(wspace=0.2, hspace=0.1, top=0.93)
+    plt.savefig(configs['output_file'].replace('.pdf', '_newUI.pdf'), bbox_inches='tight')
+    plt.close()
+    print('ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file']))
