@@ -101,7 +101,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm=1000, sigma=1.0
     obs_cvg = np.zeros([n_bin, n_bin])
     for soi_bdx in range(n_bin):
         for rd_idx in bin2rds[soi_bdx]:
-            obs_cvg[rds2bin[rd_idx], soi_bdx] += 1
+            obs_cvg[soi_bdx, rds2bin[rd_idx]] += 1
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
 
@@ -139,7 +139,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm=1000, sigma=1.0
                 rnd_read = copy(rds2bin[neg_rids[rnd_rdxs[ni]]])
                 rnd_read[rnd_fdxs[ni] % len(rnd_read)] = neg_fbdx[ni]
                 for bin_i in rnd_read:
-                    bkg_cvg[bin_i, soi_bdx] += 1
+                    bkg_cvg[soi_bdx, bin_i] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
         # store the current epoch
@@ -775,7 +775,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                 continue
 
             # compute the observe and background
-            blk_obs[:, bi], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
+            blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
                                                                  n_perm=n_perm, verbose=False, sigma=sigma)[:3]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
@@ -783,10 +783,10 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
                 continue
 
             # compute the scores
-            blk_exp[:, bi] = np.mean(blk_rnd, axis=0)
-            blk_std[:, bi] = np.std(blk_rnd, axis=0, ddof=0)
+            blk_exp[bi, :] = np.mean(blk_rnd, axis=0)
+            blk_std[bi, :] = np.std(blk_rnd, axis=0, ddof=0)
             np.seterr(all='ignore')
-            blk_zsr[:, bi] = np.divide(blk_obs[:, bi] - blk_exp[:, bi], blk_std[:, bi])
+            blk_zsr[bi, :] = np.divide(blk_obs[bi, :] - blk_exp[bi, :], blk_std[bi, :])
             np.seterr(all=None)
 
             # remove scores overlapping with positive set
@@ -858,7 +858,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ax_scr.set_yticks(np.arange(n_blk) + 0.5)
     ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
     ax_scr.set_yticklabels(y_tick_lbl)
-    ax_scr.set_xlabel('Selected SOIs')
+    ax_scr.set_xlabel('Coverage/profile')
+    ax_scr.set_ylabel('Selected SOIs')
     ax_scr.tick_params(length=0)
     ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
@@ -913,7 +914,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         ax.set_yticks(np.arange(n_blk) + 0.5)
         ax.set_xticklabels(y_tick_lbl, rotation=90)
         ax.set_yticklabels(y_tick_lbl)
-        ax.set_xlabel('Selected SOIs')
+        ax.set_xlabel('Coverage/profile')
+        ax.set_ylabel('Selected SOIs')
         ax.tick_params(length=0)
         ax.set_xlim(x_lim)
         ax.set_ylim(x_lim)
