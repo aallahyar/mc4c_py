@@ -478,17 +478,18 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
 
 def limit_to_roi(reads, vp_crd=None, roi_crd=None, min_n_frg=2):
     # Reads format: ReadID, Chr, StartCrd, EndCrd
+    assert reads.shape[1] >= 4
     n_frg = reads.shape[0]
     if n_frg == 0:
-        return np.empty([0, 4])
+        return np.empty([0, reads.shape[1]])
 
     is_val = np.ones(n_frg, dtype=np.bool)
     if vp_crd is not None:
-        assert reads.shape[1] - 1 == len(vp_crd)
-        is_val = is_val & ~ hasOL(vp_crd, reads[:, 1:], offset=0)
+        assert len(vp_crd) == 3
+        is_val = is_val & ~hasOL(vp_crd, reads[:, 1:4], offset=0)
     if roi_crd is not None:
-        assert reads.shape[1] - 1 == len(roi_crd)
-        is_val = is_val & hasOL(roi_crd, reads[:, 1:], offset=0)
+        assert len(roi_crd) == 3
+        is_val = is_val & hasOL(roi_crd, reads[:, 1:4], offset=0)
     reads_roi = reads[is_val, :].copy()
 
     if min_n_frg is not None:
