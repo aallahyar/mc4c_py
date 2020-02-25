@@ -19,28 +19,28 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
         for bi in hit_lst:
             for bj in hit_lst:
                 cvg_mat[bi, bj] += 1
-    valid_rows = np.where(np.sum(cvg_mat, axis=1) > n_read * 0.01)[0]
+    valid_rows = np.where(np.sum(cvg_mat, axis=1) >= n_read * 0.01)[0]
     cvg_mat = cvg_mat[valid_rows, :]
     n_row = cvg_mat.shape[0]
 
     # normalize rows to sum=1, removing mean from columns
-    cvg_row1 = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
-    cvg_both1 = cvg_row1 - np.mean(cvg_row1, axis=0)
+    cvg_prob = cvg_mat / np.sum(cvg_mat, axis=1).reshape(-1, 1)
+    cvg_no_mean = cvg_prob - np.mean(cvg_prob, axis=0)
 
     # rolling profiles to align their "view point" on top of each other
-    cvg_rol = np.zeros([n_row, n_bin])
+    cvg_rolled = np.zeros([n_row, n_bin])
     for ri in range(n_row):
-        cvg_rol[ri, :] = np.roll(cvg_both1[ri, :], n_bin // 2 - valid_rows[ri])
+        cvg_rolled[ri, :] = np.roll(cvg_no_mean[ri, :], n_bin // 2 - valid_rows[ri])
 
     # smoothening the profiles
-    rol_smt = np.zeros([n_row, n_bin])
+    cvg_smooth = np.zeros([n_row, n_bin])
     kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
     print('Smoothing ROI decay profiles by: {:s}'.format(', '.join(['{:0.4f}'.format(k) for k in kernel])))
     for ri in range(n_row):
-        rol_smt[ri, :] = np.convolve(cvg_rol[ri, :], kernel, mode='same')
-    smt_stk = np.vstack([rol_smt[:, n_bin // 2:], np.fliplr(rol_smt[:, 1:n_bin // 2 + 1])])
-    smt_stk = np.hstack([smt_stk, np.zeros_like(smt_stk)])
-    stk_med = np.median(smt_stk, axis=0)
+        cvg_smooth[ri, :] = np.convolve(cvg_rolled[ri, :], kernel, mode='same')
+    cvg_stacked = np.vstack([cvg_smooth[:, n_bin // 2:], np.fliplr(cvg_smooth[:, 1:n_bin // 2 + 1])])
+    cvg_stacked = np.hstack([cvg_stacked, np.zeros_like(cvg_stacked)])
+    cvg_chance = np.median(cvg_stacked, axis=0)
 
     # from matplotlib import pyplot as plt
     # plt.close('all')
@@ -54,9 +54,9 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
     # corrections
     # stk_avg[stk_avg < 0] = 0
-    stk_med = stk_med - stk_med.min()
-    stk_med[np.argmin(stk_med):] = 0
-    decay_prob = stk_med / np.sum(stk_med)
+    cvg_chance = cvg_chance - cvg_chance.min()
+    cvg_chance[np.argmin(cvg_chance):] = 0
+    decay_prob = cvg_chance / np.sum(cvg_chance)
 
     return decay_prob
 
@@ -69,12 +69,12 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, ver
     n_read = np.max(frg_inf[:, 0])
 
     # convert fragments to bin-coverage
-    rd2bins = [list() for i in range(n_read + 1)]
+    rd2bins = [list() for _ in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
     assert len(np.unique(frg_inf[:, 1])) == 1
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        rd2bins[frg_inf[fi, 0]].append([bin_idx[0]])
+        rd2bins[frg_inf[fi, 0]].append(bin_idx.tolist())
 
     # select positive/negative circles
     is_pos = hasOL(pos_crd, frg_inf[:, 1:4])
@@ -90,8 +90,8 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, ver
     # make positive profile
     n_bin = bin_bnd.shape[0]
     prf_pos = np.zeros(n_bin)
-    for pi in range(n_pos):
-        hit_bins = flatten(rd2bins_pos[pi])
+    for ri in range(n_pos):
+        hit_bins = flatten(rd2bins_pos[ri])
         prf_pos[hit_bins] += 1
 
     decay_prob = estimate_decay_effect(rd2bins, n_bin, sigma=sigma)
@@ -121,7 +121,7 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, ver
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=7, sigma=sigma, ndim=1)
+        kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
         prf_pos = np.convolve(prf_pos, kernel, mode='same')
         for ei in np.arange(n_perm):
             prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
@@ -264,8 +264,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
     if configs['test_method'] == 'decayCorrector':
-        from sand_box import contact_test_by_decay
-        prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = contact_test_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+        prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     else:
         prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
