@@ -620,7 +620,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         print('{:d} bins (required coverage: {:d} reads):'.format(n_bin, MIN_N_POS))
         from sand_box import contact_test_2d
         # tmp_frq, tmp_rnd, tmp_pos, tmp_neg, tmp_prob = contact_test_by_decay(read_inf, [configs['vp_cnum'], bin_bnd[50, 0], bin_bnd[50, 1]], bin_bnd, n_perm=n_perm, sigma=0)
-        blk_scr = contact_test_2d(read_inf, bin_bnd, n_perm=n_perm, sigma=0)
+        blk_obs, blk_exp, blk_std, blk_scr = contact_test_2d(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
 
         # add axes labels
         y_tick_lbl = [' '] * n_bin
@@ -738,7 +738,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      'bin-w={:0.0f}; block-w={:0.0f}; '.format(bin_w, blk_w) +
-                     '#perm={:d}; sigma={:0.2f}'.format(n_perm, sigma)
+                     '#perm={:d}; sigma={:0.2f}; method={:s}'.format(n_perm, sigma, configs['test_method'])
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
     plt.close()

@@ -3,7 +3,7 @@ import numpy as np
 import scipy.ndimage as ndimage
 from copy import copy
 
-from utilities import hasOL, flatten, get_gauss_kernel
+from utilities import get_gauss_kernel
 from utilities import OnlineStats
 from analysis import estimate_decay_effect
 
@@ -91,13 +91,13 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, sigma=1.0):
                 exp_obj[bi][bj].include(bkg_smt[bi, bj])
 
     # compute expected values
-    zscr_mat = np.zeros([n_bin, n_bin])
+    blk_scr = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         for bj in range(n_bin):
-            if bi == bj:
+            if np.abs(bi - bj) <= 2:
                 continue
             if exp_obj[bi][bj].std != 0:
-                zscr_mat[bi, bj] = (obs_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
+                blk_scr[bi, bj] = (obs_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
 
     # plot
     exp_avg = np.zeros([n_bin, n_bin])
@@ -106,25 +106,25 @@ def contact_test_2d(frg_inf, bin_bnd, n_perm=1000, sigma=1.0):
         for bj in range(n_bin):
             exp_avg[bi, bj] = exp_obj[bi][bj].mean
             exp_std[bi, bj] = exp_obj[bi][bj].std
-    from matplotlib import pyplot as plt, cm
-    from matplotlib.colors import LinearSegmentedColormap
-    plt.close('all')
-    plt.figure(figsize=[15, 13])
-    cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
-                LinearSegmentedColormap.from_list('rwwb', ['#ff0000', '#ffffff', '#ffffff', '#0000ff']),
-                ]
-    for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
-        ax = plt.subplot(2, 2, pi + 1)
-        img_h = ax.imshow(mat, cmap=cmap_lst[pi])
-        if pi == 3:
-            img_h.set_clim([-6, 6])
-        elif pi < 2:
-            img_h.set_clim([0, np.percentile(obs_smt, 96)])
-        plt.colorbar(ax=ax, mappable=img_h)
-    out_fname = './plt_sig{:0.2f}_'.format(sigma) + \
-                'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
-    plt.savefig(out_fname, bbox_inches='tight')
+    # from matplotlib import pyplot as plt, cm
+    # from matplotlib.colors import LinearSegmentedColormap
+    # plt.close('all')
+    # plt.figure(figsize=[15, 13])
+    # cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
+    #             LinearSegmentedColormap.from_list('rwwb', ['#ff0000', '#ffffff', '#ffffff', '#0000ff']),
+    #             ]
+    # for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
+    #     ax = plt.subplot(2, 2, pi + 1)
+    #     img_h = ax.imshow(mat, cmap=cmap_lst[pi])
+    #     if pi == 3:
+    #         img_h.set_clim([-6, 6])
+    #     elif pi < 2:
+    #         img_h.set_clim([0, np.percentile(obs_smt, 96)])
+    #     plt.colorbar(ax=ax, mappable=img_h)
+    # out_fname = './plt_sig{:0.2f}_'.format(sigma) + \
+    #             'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
+    # plt.savefig(out_fname, bbox_inches='tight')
 
-    return zscr_mat
+    return obs_smt, exp_avg, exp_std, blk_scr
 
 
