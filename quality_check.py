@@ -199,7 +199,6 @@ def plot_frg_size_distribution(configs):
     # map_h[0].remove()
 
 
-
 def plot_chrCvg(configs):
     import numpy as np
     import gzip
@@ -594,15 +593,17 @@ def plot_reads_per_category(config_lst):
     from utilities import load_mc4c, hasOL
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_readCategories_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + \
+                                 '/qc_readCategories_{:s}.pdf'.format(run_id)
 
     # load number of sequenced reads
     n_seq = 0
     print('Loading number of sequenced reads from fastq files ...')
-    for configs in config_lst:
-        seq_fname = './reads/rd_' + configs['run_id'] + '.fasta.gz'
+    for cfg_item in config_lst:
+        seq_fname = './reads/rd_' + cfg_item['run_id'] + '.fasta.gz'
         print('\tscanning {:s}'.format(seq_fname))
 
         cmd_str = 'zgrep ">" ' + seq_fname + ' | wc -l'
@@ -646,7 +647,7 @@ def plot_reads_per_category(config_lst):
     name_lst = ['#Sequenced', '#Mapped>0', 'Only non-VP\nfragments', '#ROI>0', '#ROI>1', '#Unique']
     n_bar = len(name_lst)
     clr_map = ['#fd8181', '#fda981', '#fcc631', '#b8c903', '#38c903', '#04f1ba', '#0472f1']
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(10, 7))
     plt_h = [None] * n_bar
     for cls_idx, n_read in enumerate([n_seq, n_map, n_nvp, n_roi, n_inf, n_pcr]):
         plt_h[cls_idx] = plt.bar(cls_idx, n_read, width=0.8, color=clr_map[cls_idx])[0]
@@ -664,7 +665,7 @@ def plot_reads_per_category(config_lst):
     plt.ylabel('#reads')
     plt.xlim([-1, n_bar])
     plt.ylim([0, n_seq * 1.12])
-    plt.title(configs['run_id'])
+    plt.title(run_id)
     # plt.legend(plt_h, [])
 
     plt.savefig(configs['output_file'], bbox_inches='tight')

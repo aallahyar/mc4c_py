@@ -419,12 +419,12 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     print('Computing expected profile for annotations:')
     ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
     ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
-    ant_obs, soi_rnd = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm, sigma=0)[:2]
-    ant_exp = np.mean(soi_rnd, axis=0)
-    ant_std = np.std(soi_rnd, axis=0, ddof=0)
-    np.seterr(all='ignore')
-    ant_scr = np.divide(ant_obs - ant_exp, ant_std)
-    np.seterr(all=None)
+    ant_scr = np.full(shape=n_ant, fill_value=np.nan)
+    for ai in range(n_ant):
+        ov_idxs = np.where(hasOL(ant_bnd[ai, :], bin_bnd))[0]
+        ov_sim = 1 / np.abs(np.mean(ant_bnd[ai, :]) - bin_cen[ov_idxs])
+        ov_sim = ov_sim / np.sum(ov_sim)
+        ant_scr[ai] = np.sum(bin_scr[ov_idxs] * ov_sim)
 
     # set vp score to nan
     is_vp = hasOL(vp_bnd, ant_bnd)
@@ -912,9 +912,9 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
         plt.colorbar(img_h, fraction=0.046, pad=0.04)  # , extend='both'
         ax.set_xticks(np.arange(n_blk) + 0.5)
         ax.set_yticks(np.arange(n_blk) + 0.5)
-        ax.set_xticklabels(y_tick_lbl, rotation=90)
+        ax.set_xticklabels(y_tick_lbl, rotation=25)
         ax.set_yticklabels(y_tick_lbl)
-        ax.set_xlabel('Coverage/profile')
+        # ax.set_xlabel('Coverage/profile')
         ax.set_ylabel('Selected SOIs')
         ax.tick_params(length=0)
         ax.set_xlim(x_lim)
