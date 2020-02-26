@@ -61,9 +61,6 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
 
 def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
-
-    from copy import deepcopy
-
     import scipy.ndimage as ndimage
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten
@@ -137,13 +134,17 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
             frg_prob = frg_prob / np.sum(frg_prob)
 
             # make background coverage
-            rnd_fdxs = np.random.choice(all_fids, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
-            rnd_rdxs = np.random.randint(n_neg, size=n_pos)
+            rnd_frgs = np.random.choice(all_fids, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
+            rnd_negs = np.random.randint(n_neg, size=n_pos)
             for ni in range(n_pos):
-                rnd_read = deepcopy(rds2bin[neg_rids[rnd_rdxs[ni]]])
-                rnd_idx = np.random.randint(len(rnd_read))
-                rnd_read[rnd_idx] = frg2bin[rnd_fdxs[ni]]
-                bkg_cvg[soi_bdx, flatten(rnd_read)] += 1
+                rnd_read = rds2bin[neg_rids[rnd_negs[ni]]]
+                rnd_nfrg = len(rnd_read)
+                del_idx = np.random.randint(rnd_nfrg)
+                for fi in range(rnd_nfrg):
+                    if fi == del_idx:
+                        bkg_cvg[soi_bdx, frg2bin[rnd_frgs[ni]]] += 1
+                    else:
+                        bkg_cvg[soi_bdx, rnd_read[fi]] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
         # store the current epoch
