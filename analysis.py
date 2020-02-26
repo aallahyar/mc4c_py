@@ -60,7 +60,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
     return decay_prob
 
 
-def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm=1000, sigma=1.0):
+def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
 
     from copy import copy
 
@@ -185,7 +185,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm=1000, sigma=1.0
     return obs_smt, exp_avg, exp_std, blk_scr
 
 
-def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=1.0):
+def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
     from utilities import hasOL, flatten
 
     # re-index circles
@@ -253,7 +253,7 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm=1000, ver
     return prf_pos, prf_rnd, frg_pos, frg_neg, decay_prob
 
 
-def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True, sigma=0):
+def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
     from utilities import hasOL, flatten
 
     # initialization
@@ -313,7 +313,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm=1000, verbose=True
     return prf_pos, prf_rnd, frg_pos, frg_neg
 
 
-def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma=0):
+def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -491,7 +491,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     ax_scr.set_xticklabels(x_tick_label)
     ax_prf.set_yticklabels(y_tick_label)
     ax_prf.set_ylabel('Percentage of reads')
-    ax_prf.set_title('VP-SOI from {:s}, using as SOI {:s}\n'.format(run_id, soi_name) +
+    ax_prf.set_title('VP-SOI from {:s}, SOI={:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}\n'.format(min_n_frg - 1, n_read, n_pos) +
                      'bin-w={:0.0f}; soi-w={:0.0f}; '.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0]) +
                      '#perm={:d}, sigma={:0.2f}\n\n\n'.format(n_perm, sigma)
@@ -499,7 +499,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg=2, n_perm=1000, sigma
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
+def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -649,7 +649,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg=2, n_perm=1000):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None, xls_export=False, sigma=0):
+def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, downsample=None):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -662,8 +662,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # initialization
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
+    roi_w = configs['roi_end'] - configs['roi_start']
     if configs['output_file'] is None:
-        roi_w = configs['roi_end'] - configs['roi_start']
         if downsample:
             run_id += '_ds{:d}'.format(downsample)
         configs['output_file'] = configs['output_dir'] + \
@@ -791,7 +791,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
             # remove scores overlapping with positive set
             is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
-            blk_zsr[is_nei, bi] = np.nan
+            blk_zsr[bi, is_nei] = np.nan
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # set self scores to nan
@@ -800,7 +800,7 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     # clean up tick labels
 
     # plotting the scores
-    plt.figure(figsize=(13, 12))
+    plt.figure(figsize=(12, 12))
     ax_scr = plt.subplot2grid((40, 40), (0, 0), rowspan=39, colspan=39)
     ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
 
@@ -815,8 +815,8 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
     cbar_edge = np.round(cbar_h.cmap(norm(configs['zscr_lim'])), decimals=2)
 
     # add score scatter matrix
-    x_lim = [0, n_blk]
-    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map,
+    x_lim = [configs['roi_start'], configs['roi_end']]
+    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map, aspect='auto',
                   vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1], interpolation='nearest', origin='lower')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
@@ -824,9 +824,9 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
     # add vp patches
     vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
-    ax_scr.add_patch(patches.Rectangle([0, vp_idx[0]], n_blk, vp_idx[-1] - vp_idx[0],
+    ax_scr.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
                                        linewidth=0, edgecolor='None', facecolor='orange'))
-    ax_scr.add_patch(patches.Rectangle([vp_idx[0], 0], vp_idx[-1] - vp_idx[0], n_blk,
+    ax_scr.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
                                        linewidth=0, edgecolor='None', facecolor='orange'))
 
     # add score values to each box
@@ -854,13 +854,13 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
             y_tick_lbl[kpt_idx] = lbl + ' '
 
     # final adjustments
-    ax_scr.set_xticks(np.arange(n_blk) + 0.5)
-    ax_scr.set_yticks(np.arange(n_blk) + 0.5)
-    ax_scr.set_xticklabels(y_tick_lbl, rotation=90)
-    ax_scr.set_yticklabels(y_tick_lbl)
+    ax_scr.set_xticks(ant_pd['ant_pos'])
+    ax_scr.set_yticks(ant_pd['ant_pos'])
+    ax_scr.set_xticklabels(ant_pd['ant_name'], rotation=35)
+    ax_scr.set_yticklabels(ant_pd['ant_name'])
     ax_scr.set_xlabel('Coverage/profile')
     ax_scr.set_ylabel('Selected SOIs')
-    ax_scr.tick_params(length=0)
+    # ax_scr.tick_params(length=0)
     ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
                      'bin-w={:0.0f}; block-w={:0.0f}; '.format(bin_w, blk_w) +
@@ -904,16 +904,16 @@ def perform_at_across_roi(config_lst, min_n_frg=2, n_perm=1000, downsample=None,
 
         # add vp patches
         vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
-        ax.add_patch(patches.Rectangle([0, vp_idx[0]], n_blk, vp_idx[-1] - vp_idx[0],
-                                       linewidth=0, edgecolor='None', facecolor='orange'))
-        ax.add_patch(patches.Rectangle([vp_idx[0], 0], vp_idx[-1] - vp_idx[0], n_blk,
-                                       linewidth=0, edgecolor='None', facecolor='orange'))
+        ax_scr.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
+                                           linewidth=0, edgecolor='None', facecolor='orange'))
+        ax_scr.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
+                                           linewidth=0, edgecolor='None', facecolor='orange'))
 
         plt.colorbar(img_h, fraction=0.046, pad=0.04)  # , extend='both'
-        ax.set_xticks(np.arange(n_blk) + 0.5)
-        ax.set_yticks(np.arange(n_blk) + 0.5)
-        ax.set_xticklabels(y_tick_lbl, rotation=25)
-        ax.set_yticklabels(y_tick_lbl)
+        ax.set_xticks(ant_pd['ant_pos'])
+        ax.set_yticks(ant_pd['ant_pos'])
+        ax.set_xticklabels(ant_pd['ant_name'], rotation=35)
+        ax.set_yticklabels(ant_pd['ant_name'])
         # ax.set_xlabel('Coverage/profile')
         ax.set_ylabel('Selected SOIs')
         ax.tick_params(length=0)

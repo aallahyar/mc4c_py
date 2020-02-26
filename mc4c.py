@@ -215,7 +215,7 @@ def main():
     parser_analysis.add_argument('--n-perm', default=1000, type=int,
                                  help='Number of profiles that needs to be drawn from negative reads (i.e. reads ' +
                                       'that contain no fragment from site of interest) to produce the expected profile.')
-    parser_analysis.add_argument('--sigma', default=0, type=float,
+    parser_analysis.add_argument('--sigma', default=0.0, type=float,
                                  help='Sigma for Gaussian smoothing (default=0, i.e. no smoothing)')
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
@@ -255,7 +255,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C11-Enh-3769_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=2.0', '--n-perm=10', '--ant-name=CLOCK', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=default', '--ant-name=RB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=default', '--ant-name=HS4', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
@@ -268,7 +268,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--test_method=decayCorrector', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=1.0', '--test_method=decayCorrector', 'WPL-KOD,WPL-KOD2']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', 'WPL-KOD,WPL-KOD2']
 
 
     args = parser.parse_args(sys.argv[1:])
