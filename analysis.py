@@ -62,14 +62,13 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
 def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
 
-    from copy import copy
+    from copy import deepcopy
 
     import scipy.ndimage as ndimage
 
-    from utilities import get_gauss_kernel
-    from utilities import OnlineStats
+    from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten
 
-    # find covered bins
+    # find covered bins for each fragment
     n_frg = frg_inf.shape[0]
     frg_bdx = np.zeros(n_frg, dtype=np.int64)
     is_fw = frg_inf[:, 4] == 1
@@ -81,17 +80,21 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
     n_read = np.max(read_idxs) + 1
     n_bin = bin_bnd.shape[0]
-    assert len(np.unique(frg_inf[:, 1])) == 1
 
     # convert fragments to bin-coverage
     print('Mapping fragments to bins, and bins to reads ...')
+    frg2bin = []
     rds2bin = [list() for _ in range(n_read)]
     bin2rds = [list() for _ in range(n_bin)]
+    assert len(np.unique(frg_inf[:, 1])) == 1
     for fi in range(n_frg):
-        rds2bin[read_idxs[fi]].append(frg_bdx[fi])
-        bin2rds[frg_bdx[fi]].append(read_idxs[fi])
-    for ri in range(n_read):
-        rds2bin[ri] = np.unique(rds2bin[ri])
+        ov_bdxs = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0].tolist()
+        frg2bin.append(ov_bdxs)
+        rds2bin[read_idxs[fi]].append(ov_bdxs)
+        for bin_idx in ov_bdxs:
+            bin2rds[bin_idx].append(read_idxs[fi])
+    # for ri in range(n_read):
+    #     rds2bin[ri] = np.unique(rds2bin[ri])
     for bi in range(n_bin):
         bin2rds[bi] = np.unique(bin2rds[bi])
     # del frg_inf
@@ -101,7 +104,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     obs_cvg = np.zeros([n_bin, n_bin])
     for soi_bdx in range(n_bin):
         for rd_idx in bin2rds[soi_bdx]:
-            obs_cvg[soi_bdx, rds2bin[rd_idx]] += 1
+            obs_cvg[soi_bdx, flatten(rds2bin[rd_idx])] += 1
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
 
@@ -112,6 +115,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     # estimate expected distributions
     print('Estimating expected distributions:')
     all_rids = np.arange(n_read)
+    all_fids = np.arange(n_frg)
     exp_obj = []
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
@@ -132,14 +136,13 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
             frg_prob = frg_prob / np.sum(frg_prob)
 
             # make background coverage
-            neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
+            rnd_fdxs = np.random.choice(all_fids, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
             rnd_rdxs = np.random.randint(n_neg, size=n_pos)
             rnd_fdxs = np.random.randint(30, size=n_pos)
             for ni in range(n_pos):
-                rnd_read = copy(rds2bin[neg_rids[rnd_rdxs[ni]]])
-                rnd_read[rnd_fdxs[ni] % len(rnd_read)] = neg_fbdx[ni]
-                for bin_i in rnd_read:
-                    bkg_cvg[soi_bdx, bin_i] += 1
+                rnd_read = deepcopy(rds2bin[neg_rids[rnd_rdxs[ni]]])
+                rnd_read[rnd_fdxs[ni] % len(rnd_read)] = frg2bin[rnd_fdxs[ni]]
+                bkg_cvg[soi_bdx, flatten(rnd_read)] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
         # store the current epoch
@@ -264,16 +267,24 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
     n_read = np.max(frg_inf[:, 0])
 
     # convert fragments to bin-coverage
-    cfb_lst = [list() for i in range(n_read + 1)]
+    cfb_lst = [list() for _ in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        # if frg_inf[fi, 4] == 1:
+        #     bin_idx = [bin_idx[0]]
+        # else:
+        #     bin_idx = [bin_idx[-1]]
         cfb_lst[frg_inf[fi, 0]].append(list(bin_idx))
 
     # select positive/negative circles
     is_pos = np.where(hasOL(pos_crd, frg_inf[:, 1:4]))[0]
     frg_pos = frg_inf[ np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
     frg_neg = frg_inf[~np.isin(frg_inf[:, 0], frg_inf[is_pos, 0]), :]
+    # bin_idx = np.where(hasOL(pos_crd[1:], bin_bnd))[0]
+    # pos_ids = [rd_idx for rd_idx, rd_lst in enumerate(cfb_lst) if bin_idx[0] in flatten(rd_lst)]
+    # frg_pos = frg_inf[ np.isin(frg_inf[:, 0], pos_ids), :]
+    # frg_neg = frg_inf[~np.isin(frg_inf[:, 0], pos_ids), :]
     cfb_pos = [cfb_lst[i] for i in np.unique(frg_pos[:, 0])]
     cfb_neg = [cfb_lst[i] for i in np.unique(frg_neg[:, 0])]
     n_pos = len(cfb_pos)
@@ -305,7 +316,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=7, sigma=sigma, ndim=1)
+        kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
         prf_pos = np.convolve(prf_pos, kernel, mode='same')
         for ei in np.arange(n_perm):
             prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
