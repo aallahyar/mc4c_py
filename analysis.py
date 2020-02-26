@@ -70,6 +70,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
 
     # find covered bins for each fragment
     n_frg = frg_inf.shape[0]
+    n_bin = bin_bnd.shape[0]
     frg_bdx = np.zeros(n_frg, dtype=np.int64)
     is_fw = frg_inf[:, 4] == 1
     frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='left') - 1
@@ -79,7 +80,6 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     # reset read indices
     read_idxs = np.unique(frg_inf[:, 0], return_inverse=True)[1]
     n_read = np.max(read_idxs) + 1
-    n_bin = bin_bnd.shape[0]
 
     # convert fragments to bin-coverage
     print('Mapping fragments to bins, and bins to reads ...')
@@ -114,8 +114,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
 
     # estimate expected distributions
     print('Estimating expected distributions:')
-    all_rids = np.arange(n_read)
     all_fids = np.arange(n_frg)
+    all_rids = np.arange(n_read)
     exp_obj = []
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
@@ -123,6 +123,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         if ei % 50 == 0:
             print('\tEpoch #{:04d}/{:04d}: '.format(ei, n_perm))
 
+        # loop over each SOI
         bkg_cvg = np.zeros([n_bin, n_bin])
         for soi_bdx in range(n_bin):
 
@@ -138,10 +139,10 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
             # make background coverage
             rnd_fdxs = np.random.choice(all_fids, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
             rnd_rdxs = np.random.randint(n_neg, size=n_pos)
-            rnd_fdxs = np.random.randint(30, size=n_pos)
             for ni in range(n_pos):
                 rnd_read = deepcopy(rds2bin[neg_rids[rnd_rdxs[ni]]])
-                rnd_read[rnd_fdxs[ni] % len(rnd_read)] = frg2bin[rnd_fdxs[ni]]
+                rnd_idx = np.random.randint(len(rnd_read))
+                rnd_read[rnd_idx] = frg2bin[rnd_fdxs[ni]]
                 bkg_cvg[soi_bdx, flatten(rnd_read)] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
 
