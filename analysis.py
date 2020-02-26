@@ -739,27 +739,18 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
     # choose the model
-    print('Computing expected profile using "{:s}" model'.format(configs['test_method']))
+    print('Computing expected profile using "{:s}" model, '.format(configs['test_method']), end='')
     if configs['test_method'] == 'decayCorrector':
-        print('{:d} bins (required coverage: {:d} reads):'.format(n_bin, MIN_N_POS))
+        print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
         blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
-
-        # add axes labels
-        y_tick_lbl = [' '] * n_bin
-        for bi in range(n_bin):
-            ant_idx = np.where(hasOL(bin_bnd[bi, :], ant_bnd, offset=0))[0]
-            if len(ant_idx) > 0:
-                ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
-                y_tick_lbl[bi] = ant_name
     else:
-        print('{:d} blocks (required coverage: {:d} reads):'.format(n_blk, MIN_N_POS))
+        print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
 
         # compute score for annotations
         blk_zsr = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_obs = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_exp = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_std = np.full([n_blk, n_blk], fill_value=np.nan)
-        y_tick_lbl = [' '] * n_blk
         n_ignored = 0
         for bi in range(n_blk):
             showprogress(bi, n_blk, n_step=20)
@@ -788,70 +779,6 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
             blk_zsr[bi, is_nei] = np.nan
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
-    # set self scores to nan
-    # np.fill_diagonal(blk_scr, val=np.nan)
-
-    # clean up tick labels
-
-    # plotting the scores
-    plt.figure(figsize=(12, 12))
-    ax_scr = plt.subplot2grid((40, 40), (0, 0), rowspan=39, colspan=39)
-    ax_cmp = plt.subplot2grid((40, 40), (0, 39), rowspan=20, colspan=1)
-
-    # set up color bar
-    clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
-    clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
-    clr_map.set_bad('gray', 0.1)
-    norm = matplotlib.colors.Normalize(vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1])
-    cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
-    # cbar_h.ax.tick_params(labelsize=12)
-    cbar_h.ax.set_ylabel('z-score', rotation=90)
-    cbar_edge = np.round(cbar_h.cmap(norm(configs['zscr_lim'])), decimals=2)
-
-    # add score scatter matrix
-    x_lim = [configs['roi_start'], configs['roi_end']]
-    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map,
-                  vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1], interpolation='nearest', origin='lower')
-    ax_scr.set_xlim(x_lim)
-    ax_scr.set_ylim(x_lim)
-    ax_scr.invert_yaxis()
-
-    # add vp patches
-    ax_scr.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
-                                       linewidth=0, edgecolor='None', facecolor='orange'))
-    ax_scr.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
-                                       linewidth=0, edgecolor='None', facecolor='orange'))
-
-    # add score values to each box
-    # for bi in range(n_blk):
-    #     for bj in range(n_blk):
-    #         if np.isnan(blk_scr[bi, bj]):
-    #             continue
-    #         ant_clr = np.round(img_h.cmap(img_h.norm(blk_scr[bi, bj])), decimals=2)
-    #         if np.array_equal(ant_clr, cbar_edge[0]) or np.array_equal(ant_clr, cbar_edge[1]):
-    #             txt_clr = '#ffffff'
-    #         else:
-    #             txt_clr = '#000000'
-    #         ax_scr.text(bj + 0.5, bi + 0.5, '{:+0.1f}'.format(blk_scr[bi, bj]), color=txt_clr,
-    #                     horizontalalignment='center', verticalalignment='center', fontsize=12)
-
-    # final adjustments
-    ax_scr.set_xticks(ant_pd['ant_pos'])
-    ax_scr.set_yticks(ant_pd['ant_pos'])
-    ax_scr.set_xticklabels(ant_pd['ant_name'], rotation=35)
-    ax_scr.set_yticklabels(ant_pd['ant_name'])
-    ax_scr.set_xlabel('Coverage/profile')
-    ax_scr.set_ylabel('Selected SOIs')
-    # ax_scr.tick_params(length=0)
-    ax_scr.set_title('Association matrix from {:s}\n'.format(run_id) +
-                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, '.format(min_n_frg - 1, n_read) +
-                     'bin-w={:0.0f}; block-w={:0.0f}; '.format(bin_w, blk_w) +
-                     '#perm={:d}; sigma={:0.2f}; method={:s}'.format(n_perm, sigma, configs['test_method'])
-                     )
-    plt.savefig(configs['output_file'], bbox_inches='tight')
-    plt.close()
-    print('ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file']))
-
     # export to excel file
     if xls_export:
         import pandas as pd
@@ -871,7 +798,9 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
         zscr_pd = pd.DataFrame(blk_zsr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
         zscr_pd.to_excel(xls_fname, sheet_name='z-scores')
 
-    plt.figure(figsize=(16, 14))
+    # plotting the scores
+    plt.figure(figsize=(17, 14))
+    x_lim = [configs['roi_start'], configs['roi_end']]
     img_names = ['Observed', 'Expected', 'Standard deviation', 'z-score']
     zclr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('summer_r', 20),
@@ -919,7 +848,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
                  'method={:s}; sigma={:0.2f}\n'.format(configs['test_method'], sigma) +
                  'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                  )
-    plt.subplots_adjust(wspace=0.2, hspace=0.1, top=0.93)
-    plt.savefig(configs['output_file'].replace('.pdf', '_newUI.pdf'), bbox_inches='tight')
+    plt.subplots_adjust(wspace=0.25, hspace=0.15, top=0.91)
+    plt.savefig(configs['output_file'], bbox_inches='tight')
     plt.close()
     print('ROI-ROI z-scores are plotted in {:s}'.format(configs['output_file']))
