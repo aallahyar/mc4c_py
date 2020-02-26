@@ -764,19 +764,13 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
         for bi in range(n_blk):
             showprogress(bi, n_blk, n_step=20)
 
-            # add axes labels
-            ant_idx = np.where(hasOL(blk_crd[bi, 1:], ant_bnd, offset=0))[0]
-            if len(ant_idx) > 0:
-                ant_name = ','.join([ant_pd.loc[i, 'ant_name'] for i in ant_idx])
-                y_tick_lbl[bi] = ant_name
-
             # ignore if vp
             if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
                 continue
 
             # compute the observe and background
             blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
-                                                                 n_perm=n_perm, verbose=False, sigma=sigma)[:3]
+                                                                        n_perm=n_perm, verbose=False, sigma=sigma)[:3]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
                 n_ignored += 1
@@ -816,14 +810,13 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
 
     # add score scatter matrix
     x_lim = [configs['roi_start'], configs['roi_end']]
-    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map, aspect='auto',
+    ax_scr.imshow(blk_zsr, extent=x_lim + x_lim, cmap=clr_map,
                   vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1], interpolation='nearest', origin='lower')
     ax_scr.set_xlim(x_lim)
     ax_scr.set_ylim(x_lim)
     ax_scr.invert_yaxis()
 
     # add vp patches
-    vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
     ax_scr.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
                                        linewidth=0, edgecolor='None', facecolor='orange'))
     ax_scr.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
@@ -841,17 +834,6 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
     #             txt_clr = '#000000'
     #         ax_scr.text(bj + 0.5, bi + 0.5, '{:+0.1f}'.format(blk_scr[bi, bj]), color=txt_clr,
     #                     horizontalalignment='center', verticalalignment='center', fontsize=12)
-
-    # adjust ticks
-    for lbl in np.unique(y_tick_lbl):
-        if lbl == ' ':
-            continue
-        idx_lst = np.where(np.isin(y_tick_lbl, lbl))[0]
-        if len(idx_lst) > 1:
-            kpt_idx = np.mean(idx_lst, dtype=np.int)
-            for idx in idx_lst:
-                y_tick_lbl[idx] = 'l'
-            y_tick_lbl[kpt_idx] = lbl + ' '
 
     # final adjustments
     ax_scr.set_xticks(ant_pd['ant_pos'])
@@ -872,10 +854,20 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
 
     # export to excel file
     if xls_export:
+        import pandas as pd
+
         xls_fname = configs['output_file'][:-4] + '.xlsx'
         print('Exporting z-scores to excel sheet: {:s}'.format(xls_fname))
 
-        import pandas as pd
+        # adjust ticks
+        y_tick_lbl = [[] for _ in range(n_bin)]
+        for ai in range(ant_bnd.shape[0]):
+            ov_idxs = np.where(hasOL(ant_bnd[ai, :], bin_bnd))[0]
+            for ov_idx in ov_idxs:
+                y_tick_lbl[ov_idx].append(ant_pd.at[ai, 'ant_name'])
+        y_tick_lbl = [','.join(y_lbl) for y_lbl in y_tick_lbl]
+
+        # storing
         zscr_pd = pd.DataFrame(blk_zsr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
         zscr_pd.to_excel(xls_fname, sheet_name='z-scores')
 
@@ -903,11 +895,10 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
             plt.clim(configs['zscr_lim'])
 
         # add vp patches
-        vp_idx = np.where(hasOL(vp_crd, blk_crd, offset=blk_w))[0]
-        ax_scr.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
-                                           linewidth=0, edgecolor='None', facecolor='orange'))
-        ax_scr.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
-                                           linewidth=0, edgecolor='None', facecolor='orange'))
+        ax.add_patch(patches.Rectangle([x_lim[0], vp_crd[1]], roi_w, vp_crd[2] - vp_crd[1],
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
+        ax.add_patch(patches.Rectangle([vp_crd[1], x_lim[0]], vp_crd[2] - vp_crd[1], roi_w,
+                                       linewidth=0, edgecolor='None', facecolor='orange'))
 
         plt.colorbar(img_h, fraction=0.046, pad=0.04)  # , extend='both'
         ax.set_xticks(ant_pd['ant_pos'])
@@ -916,7 +907,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
         ax.set_yticklabels(ant_pd['ant_name'])
         # ax.set_xlabel('Coverage/profile')
         ax.set_ylabel('Selected SOIs')
-        ax.tick_params(length=0)
+        # ax.tick_params(length=0)
         ax.set_xlim(x_lim)
         ax.set_ylim(x_lim)
         ax.invert_yaxis()
