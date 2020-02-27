@@ -68,6 +68,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     # find covered bins for each fragment
     n_frg = frg_inf.shape[0]
     n_bin = bin_bnd.shape[0]
+    bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     frg_bdx = np.zeros(n_frg, dtype=np.int64)
     is_fw = frg_inf[:, 4] == 1
     frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='left') - 1
@@ -99,8 +100,11 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     # compute observed coverage
     print('Calculating observed coverage ...')
     obs_cvg = np.zeros([n_bin, n_bin])
+    pos_rids = [list() for _ in range(n_bin)]
     for soi_bdx in range(n_bin):
-        for rd_idx in bin2rds[soi_bdx]:
+        is_pos = hasOL(bin_bnd[soi_bdx, :], frg_inf[:, 2:4], offset=bin_w)
+        pos_rids[soi_bdx] = np.unique(read_idxs[is_pos]).tolist()
+        for rd_idx in pos_rids[soi_bdx]:
             obs_cvg[soi_bdx, flatten(rds2bin[rd_idx])] += 1
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
@@ -125,8 +129,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         for soi_bdx in range(n_bin):
 
             # select pos/neg reads
-            neg_rids = all_rids[~np.isin(all_rids, bin2rds[soi_bdx])]
-            n_pos = len(bin2rds[soi_bdx])
+            neg_rids = all_rids[~np.isin(all_rids, pos_rids[soi_bdx])]
+            n_pos = len(pos_rids[soi_bdx])
             n_neg = len(neg_rids)
 
             # assign probability to neg fragments
@@ -155,6 +159,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     # compute expected values
     blk_scr = np.full([n_bin, n_bin], fill_value=np.nan)
     for bi in range(n_bin):
+        if len(pos_rids[bi]) < 100:
+            continue
         for bj in range(n_bin):
             if np.abs(bi - bj) <= 3:
                 continue
@@ -769,7 +775,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
             showprogress(bi, n_blk, n_step=20)
 
             # ignore if vp
-            if hasOL(blk_crd[bi, :], vp_crd, offset=blk_w)[0]:
+            if hasOL(blk_crd[bi, :], vp_crd)[0]:
                 continue
 
             # compute the observe and background
@@ -858,7 +864,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
     # final adjustments
     plt.suptitle('Association matrix from {:s}\n'.format(run_id) +
                  '#read (#roiFrg>{:d}, ex. vp)={:,d}; '.format(min_n_frg - 1, n_read) +
-                 'method={:s}; sigma={:0.2f}\n'.format(configs['test_method'], sigma) +
+                 'sigma={:0.2f}; method={:s}\n'.format(sigma, configs['test_method']) +
                  'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                  )
     plt.subplots_adjust(wspace=0.25, hspace=0.15, top=0.91)
