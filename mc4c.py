@@ -97,9 +97,9 @@ def perform_analysis(args):
 
         for ant_name in ant_name_lst:
             print('Preparing VP-SOI for [{:s}]'.format(ant_name))
-            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, n_perm=args.n_perm, sigma=args.sigma)
+            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, min_n_frg=2, n_perm=args.n_perm, sigma=args.sigma)
     elif args.analysis_type == 'atSOISOI':
-        analysis.perform_soisoi_analysis(list(config_lst), n_perm=args.n_perm)
+        analysis.perform_soisoi_analysis(list(config_lst), min_n_frg=2, n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
         analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm,
                                        downsample=args.downsample, xls_export=args.to_xlsx, sigma=args.sigma)
@@ -270,7 +270,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--test_method=decayCorrector', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=default', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=200', '--sigma=1.0', '--test_method=decayCorrector', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=RB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
 
 
     args = parser.parse_args(sys.argv[1:])

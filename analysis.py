@@ -491,13 +491,14 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
 
     # add annotations
     for ai in range(n_ant):
+        cmap_normed = matplotlib.cm.ScalarMappable(norm=norm, cmap=clr_map)
         ax_prf.text(ant_pos[ai], y_lim[1], ant_pd.loc[ai, 'ant_name'],
                     horizontalalignment='center', verticalalignment='bottom', rotation=60)
         ax_prf.plot(ant_pos[[ai, ai]], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
         if not np.isnan(ant_scr[ai]):
             ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
-                                               edgecolor='None', facecolor=clr_map(ant_scr[ai]), zorder=10))
+                                               edgecolor='None', facecolor=cmap_normed.to_rgba(ant_scr[ai]), zorder=10))
             ax_prf.text(ant_pos[ai], y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
                         horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=6)
 
