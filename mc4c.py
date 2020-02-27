@@ -272,9 +272,10 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=200', '--sigma=1.0', '--test_method=decayCorrector', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=0.0', '--test_method=default', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=RB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_RB_WT']
 
 
     args = parser.parse_args(sys.argv[1:])

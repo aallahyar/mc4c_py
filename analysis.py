@@ -441,6 +441,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     ant_scr = np.full(shape=n_ant, fill_value=np.nan)
     for ai in range(n_ant):
         ov_idxs = np.where(hasOL(ant_bnd[ai, :], bin_bnd))[0]
+        ov_idxs = ov_idxs[~np.isnan(bin_scr[ov_idxs])]
         ov_sim = 1 / np.abs(np.mean(ant_bnd[ai, :]) - bin_cen[ov_idxs])
         ov_sim = ov_sim / np.sum(ov_sim)
         ant_scr[ai] = np.sum(bin_scr[ov_idxs] * ov_sim)
