@@ -515,7 +515,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI from {:s}, SOI={:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}, '.format(min_n_frg - 1, n_read, n_pos) +
-                     'method={:s}, sigma={:0.2f}\n'.format(configs['test_method'], sigma) +
+                     'method={:s}\nsigma={:0.2f}; '.format(configs['test_method'], sigma) +
                      'bin-w={:0.0f}; soi-w={:0.0f}; '.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0]) +
                      '#perm={:d}\n\n\n'.format(n_perm)
                      )
