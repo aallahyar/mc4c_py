@@ -348,7 +348,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     if configs['output_file'] is None:
         configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
                                  'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) + \
-                                 'zlm{:0.1f}.pdf'.format(configs['zscr_lim'][1])
+                                 'np{:0.1f}k_zlm{:0.1f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1])
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -450,6 +450,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     is_vp = hasOL(vp_bnd, ant_bnd)
     is_soi = hasOL(soi_crd[1:3], ant_bnd)
     ant_scr[is_vp | is_soi] = np.nan
+    ant_pd['zscore'] = ant_scr
 
     # plotting
     fig = plt.figure(figsize=(15, 3))
@@ -498,7 +499,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
         ax_prf.plot(ant_pos[[ai, ai]], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
 
         if not np.isnan(ant_scr[ai]):
-            ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1]-0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
+            ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1] - 0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
                                                edgecolor='None', facecolor=cmap_normed.to_rgba(ant_scr[ai]), zorder=10))
             ax_prf.text(ant_pos[ai], y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
                         horizontalalignment='center', verticalalignment='top', fontweight='bold', fontsize=6)
@@ -513,11 +514,13 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     ax_prf.set_yticklabels(y_tick_label)
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI from {:s}, SOI={:s}\n'.format(run_id, soi_name) +
-                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}\n'.format(min_n_frg - 1, n_read, n_pos) +
+                     '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}, '.format(min_n_frg - 1, n_read, n_pos) +
+                     'method={:s}, sigma={:0.2f}\n'.format(configs['test_method'], sigma) +
                      'bin-w={:0.0f}; soi-w={:0.0f}; '.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0]) +
-                     '#perm={:d}, sigma={:0.2f}\n\n\n'.format(n_perm, sigma)
+                     '#perm={:d}\n\n\n'.format(n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
+    return ant_pd
 
 
 def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
@@ -670,7 +673,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, downsample=None):
+def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, downsample=None):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -690,9 +693,8 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
         configs['output_file'] = configs['output_dir'] + \
                                  '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
                                  'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) + \
-                                 'np{:0.1f}k_'.format(n_perm / 1e3) + \
                                  'mth-{:s}_'.format(configs['test_method']) + \
-                                 'zlm{:0.0f}.pdf'.format(configs['zscr_lim'][1])
+                                 'np{:0.1f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1])
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -801,11 +803,11 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # export to excel file
-    if xls_export:
+    if tsv_export:
         import pandas as pd
 
-        xls_fname = configs['output_file'][:-4] + '.xlsx'
-        print('Exporting z-scores to excel sheet: {:s}'.format(xls_fname))
+        tsv_fname = configs['output_file'][:-4] + '.tsv'
+        print('Exporting z-scores to .tsv file: {:s}'.format(tsv_fname))
 
         # adjust ticks
         y_tick_lbl = [[] for _ in range(n_bin)]
@@ -817,7 +819,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, xls_export, sigma, down
 
         # storing
         zscr_pd = pd.DataFrame(blk_zsr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
-        zscr_pd.to_excel(xls_fname, sheet_name='z-scores')
+        zscr_pd.to_csv(tsv_fname, sep='\t', index=True, header=True)
 
     # plotting the scores
     plt.figure(figsize=(17, 14))

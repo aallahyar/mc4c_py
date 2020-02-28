@@ -69,9 +69,11 @@ def perform_qc(args):
 
 
 def perform_analysis(args):
+    from copy import deepcopy
+    import pandas as pd
+
     import analysis
     from utilities import load_configs
-    from copy import deepcopy
 
     config_lst = load_configs(args.config_file)
     if args.output_file is None:
@@ -95,14 +97,29 @@ def perform_analysis(args):
         else:
             ant_name_lst = args.ant_name.split(',')
 
+        zscr_pd = pd.DataFrame()
         for ant_name in ant_name_lst:
             print('Preparing VP-SOI for [{:s}]'.format(ant_name))
-            analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, min_n_frg=2, n_perm=args.n_perm, sigma=args.sigma)
+            ant_pd = analysis.perform_vpsoi_analysis(deepcopy(list(config_lst)), soi_name=ant_name, min_n_frg=2,
+                                                     n_perm=args.n_perm, sigma=args.sigma)
+            if len(zscr_pd) == 0:
+                zscr_pd = ant_pd[['ant_name', 'ant_chr', 'ant_pos']].copy()
+            assert zscr_pd[['ant_name', 'ant_chr', 'ant_pos']].equals(ant_pd[['ant_name', 'ant_chr', 'ant_pos']])
+            zscr_pd['from_' + ant_name] = ant_pd['zscore']
+
+        if args.to_tsv:
+            run_id = ','.join([config['run_id'] for config in config_lst])
+            soi_id = ','.join([config['run_id'] for config in ant_name_lst])
+            tsv_fname = config_lst[0]['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_id) + \
+                        'sig{:0.2f}_mth-{:s}_'.format(args.sigma, args.test_method) + \
+                        'np{:0.1f}k.tsv'.format(args.n_perm / 1e3)
+            zscr_pd.to_csv(tsv_fname, sep='\t', index=True, header=True)
+
     elif args.analysis_type == 'atSOISOI':
         analysis.perform_soisoi_analysis(list(config_lst), min_n_frg=2, n_perm=args.n_perm)
     elif args.analysis_type == 'atAcrossROI':
         analysis.perform_at_across_roi(list(config_lst), min_n_frg=2, n_perm=args.n_perm,
-                                       downsample=args.downsample, xls_export=args.to_xlsx, sigma=args.sigma)
+                                       downsample=args.downsample, tsv_export=args.to_tsv, sigma=args.sigma)
     else:
         raise Exception()
     print('[i] {:s} analysis is performed successfully.'.format(args.analysis_type))
@@ -218,7 +235,7 @@ def main():
     parser_analysis.add_argument('--sigma', default=0.0, type=float,
                                  help='Sigma for Gaussian smoothing (default=0, i.e. no smoothing)')
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
-    parser_analysis.add_argument('--to_xlsx', action="store_true", help='Store the z-scores to an excel sheet')
+    parser_analysis.add_argument('--to_tsv', action="store_true", help='Store the z-scores to a tab-separated file')
     parser_analysis.add_argument('--zscr_lim', default=6, type=float)
     parser_analysis.add_argument('--test_method', default='default', type=str)
     parser_analysis.set_defaults(func=perform_analysis)
@@ -264,18 +281,20 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=K', 'WPL-KOD,WPL-KOD2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', 'WPL-KOC']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=H', 'WPL-KOD,WPL-KOD2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_xlsx', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_tsv', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--test_method=decayCorrector', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=default', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=200', '--sigma=1.0', '--test_method=decayCorrector', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=0.0', '--test_method=default', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_RB_WT']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_LB_WT']
 
 
     args = parser.parse_args(sys.argv[1:])
