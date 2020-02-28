@@ -400,9 +400,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     assert len(is_in) == 1
     soi_pd = ant_pd.loc[is_in[0], :]
     soi_crd = [soi_pd['ant_cnum'], soi_pd['ant_pos'] - int(bin_w * 1.5), soi_pd['ant_pos'] + int(bin_w * 1.5)]
+    ant_pd['zscore'] = np.nan
     if hasOL(soi_crd, vp_crd)[0]:
         print('[w] Selected SOI coordinate overlaps with the view point. Ignoring the analysis')
-        return
+        return ant_pd
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
@@ -419,7 +420,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     if n_pos < MIN_N_POS:
         print('[w] #reads in the positive set is insufficient (n={:d}, required >{:d})'.format(n_pos, MIN_N_POS))
         print('Analysis is ignored ...')
-        return
+        return ant_pd
 
     # compute scores
     nrm_rnd = prf_rnd * 100.0 / n_pos

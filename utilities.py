@@ -430,9 +430,9 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
     header_lst = []
     for cfg_idx, configs in enumerate(config_lst):
         if unique_only:
-            inp_fname = data_path + '/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+            inp_fname = data_path + '/mc4c_{:s}_{:s}_uniq.hdf5'.format(configs['run_id'], configs['genome_build'])
         else:
-            inp_fname = data_path + '/mc4c_{:s}_all.hdf5'.format(configs['run_id'])
+            inp_fname = data_path + '/mc4c_{:s}_{:s}_all.hdf5'.format(configs['run_id'], configs['genome_build'])
         if verbose:
             print('Loading {:s} dataset ...'.format(inp_fname))
 

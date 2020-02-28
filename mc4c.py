@@ -295,7 +295,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_LB_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--ant-name=HS2,HS3', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=tmp', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=tmp', 'Prdm14_Slc_LB-INV']
 
 
     args = parser.parse_args(sys.argv[1:])

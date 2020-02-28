@@ -475,7 +475,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
         configs['output_file'] = configs['output_dir'] + '/qc_seqSaturation_{:s}.pdf'.format(configs['run_id'])
 
     # load duplication info
-    raw_fname = './datasets/mc4c_{:s}_uniq.hdf5'.format(configs['run_id'])
+    raw_fname = './datasets/mc4c_{:s}_{:s}_uniq.hdf5'.format(configs['run_id'], configs['genome_build'])
     print('Loading UMI details from: {:s} ...'.format(raw_fname))
     h5_fid = h5py.File(raw_fname, 'r')
     umi_info = h5_fid['duplicate_info'][()]

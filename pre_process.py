@@ -181,7 +181,7 @@ def mapFragments(args):
     if args.input_file is None:
         args.input_file = './fragments/frg_' + configs['run_id'] + '.fasta.gz'
     if args.output_file is None:
-        args.output_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
+        args.output_file = './bams/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     if not args.return_command:
@@ -221,9 +221,9 @@ def processMappedFragments(args):
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
-        args.input_file = './bams/bam_{:s}.bam'.format(configs['run_id'])
+        args.input_file = './bams/bam_{:s}_{:s}.bam'.format(configs['run_id'], configs['genome_build'])
     if args.output_file is None:
-        args.output_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
+        args.output_file = './datasets/mc4c_{:s}_{:s}_all.hdf5'.format(configs['run_id'], configs['genome_build'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     # assert not path.isfile(args.output_file), '[e] Output file already exists: {:s}'.format(args.output_file)
@@ -238,7 +238,7 @@ def processMappedFragments(args):
     re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
     if not path.isfile(re_pos_fname):
         from utilities import extract_re_positions
-        print('Database of restriction enzyme cut sites is not found. ' + \
+        print('Database of restriction enzyme cut sites is not found. ' +
               'Scanning the reference genome to create this database ...')
         extract_re_positions(genome_str=configs['genome_build'], re_name_lst=configs['re_name'],
                              ref_fasta=configs['reference_fasta'])
@@ -438,9 +438,9 @@ def removeDuplicates(args):
     configs = load_configs(args.config_file, max_n_configs=1)[0]
 
     if args.input_file is None:
-        args.input_file = './datasets/mc4c_' + configs['run_id'] + '_all.hdf5'
+        args.input_file = './datasets/mc4c_{:s}_{:s}_all.hdf5'.format(configs['run_id'], configs['genome_build'])
     if args.output_file is None:
-        args.output_file = './datasets/mc4c_' + configs['run_id'] + '_uniq.hdf5'
+        args.output_file = './datasets/mc4c_{:s}_{:s}_uniq.hdf5'.format(configs['run_id'], configs['genome_build'])
     if not path.isdir(path.dirname(args.output_file)):
         makedirs(path.dirname(args.output_file))
     print('Reading MC4C dataset from: {:s}'.format(args.input_file))
