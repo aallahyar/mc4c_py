@@ -2,25 +2,30 @@
 
 import sys
 
-import numpy as np
-
 sys.path.insert(0, '../../')
 from utilities import load_configs
 
 from utilities import get_fasta_sequence, seq_rev_comp as rc
 
 # initialization
-run_id = 'Prdm14_RB_LB-DEL'
+# run_id = 'Prdm14_RB_LB-DEL'
+run_id = 'Prdm14_LB_LB-INV'
 cfg_fname = '../../configs/cfg_' + run_id + '.cfg'
 configs = load_configs(cfg_fname)[0]
+print('Run is: {:s}'.format(run_id))
+
+# get ROI sequence
 # roi_seq_mm9 = get_fasta_sequence('mm9', configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']).upper()
 with open('./roi_seq_mm9.txt', 'r') as file:
 	roi_seq_mm9 = file.read().replace('\n', '')
+
+# get vp fragment sequence
 mm9_prm_fwSIdx = roi_seq_mm9.find(configs['prm_seq'][0])
-mm9_vpf_endIdx = roi_seq_mm9.find(configs['re_seq'][0], mm9_prm_fwSIdx) + len(configs['re_seq'][0])
 mm9_vpf_begIdx = roi_seq_mm9.rfind(configs['re_seq'][0], 0, mm9_prm_fwSIdx)
+mm9_vpf_endIdx = roi_seq_mm9.find(configs['re_seq'][0], mm9_prm_fwSIdx) + len(configs['re_seq'][0])
 mm9_vpf_seq = roi_seq_mm9[mm9_vpf_begIdx:mm9_vpf_endIdx]
 assert mm9_vpf_seq[5:-5].find(configs['re_seq'][0]) == -1
+
 mm9_prm_fwSeq = roi_seq_mm9[mm9_prm_fwSIdx:mm9_vpf_endIdx]
 print('=== mm9: {:s}:{:,d}-{:,d}'.format(configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']))
 print('FW:\n{:s}\n{:s}\n'.format(configs['prm_seq'][0][:30], mm9_prm_fwSeq[:30]))
