@@ -8,8 +8,8 @@ from utilities import load_configs
 from utilities import get_fasta_sequence, seq_rev_comp as rc
 
 # initialization
-run_id = 'Prdm14_RB_LB-DEL'
-# run_id = 'Prdm14_LB_WT'
+# run_id = 'Prdm14_RB_LB-DEL'
+run_id = 'Prdm14_LB_LB-INV'
 # run_id = 'LVR-BMaj-96x'
 cfg_fname = '../../configs/cfg_' + run_id + '.cfg'
 configs = load_configs(cfg_fname)[0]
@@ -39,7 +39,9 @@ print('Rev:\nOld: {:s}\nNew: {:s}'.format(mm9_tmp[-30:], mm9_prm_rvSeq[-30:]))
 mm9_prm_fwSeq = roi_seq_mm9[mm9_prm_fwSIdx:mm9_vpf_endIdx]
 print('=== mm9: {:s}:{:,d}-{:,d}'.format(configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']))
 print('FW:\nOld: {:s}\nNew: {:s}'.format(configs['prm_seq'][1][:30], mm9_prm_fwSeq[:30]))
-
+print('\tRv: {:d} - {:d}'.format(configs['prm_start'][0], configs['prm_end'][0]))
+print('\tFw: {:d} - {:d}'.format(configs['prm_start'][1], configs['prm_end'][0]))
+print('{:0.1f}kb'.format((configs['prm_start'][1] - configs['prm_start'][0]) / 1e3))
 
 # switch to mm10
 mm10_bnd = [12840000, 13185000]
@@ -72,4 +74,4 @@ assert configs['prm_seq'][1] == get_fasta_sequence('mm10', configs['vp_chr'][3:]
 print('\n\n\n=== mm10: {:s}:{:,d}-{:,d}'.format(configs['vp_chr'][3:], mm10_bnd[0], mm10_bnd[1]))
 print('\tRv: {:d} - {:d}'.format(mm10_prm_rvPosBeg, mm10_prm_rvPosEnd))
 print('\tFw: {:d} - {:d}'.format(mm10_prm_fwPosBeg, mm10_prm_fwPosEnd))
-
+print('{:0.1f}kb'.format((mm10_prm_rvPosBeg - mm10_prm_fwPosBeg) / 1e3))
