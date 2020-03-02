@@ -602,7 +602,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
         print('Computing expected profile for {:s}:'.format(soi_pd['ant_name']))
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
         ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
-        ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm)[:3]
+        ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm, sigma=0)[:3]
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
         x_tick_lbl.append('{:s}\n#{:,d}'.format(ant_name_lst[ai], n_pos[ai]))
         del frg_pos
@@ -784,8 +784,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
                 continue
 
             # compute the observe and background
-            blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:],
-                                                                        n_perm=n_perm, verbose=False, sigma=sigma)[:3]
+            blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:], n_perm=n_perm, sigma=sigma, verbose=False)[:3]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
                 n_ignored += 1

@@ -27,4 +27,3 @@ for cfg_fname in file_lst:
 
     print(configs['prm_start'][1] - configs['prm_start'][0])
 
-    
