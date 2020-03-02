@@ -134,6 +134,7 @@ def extract_re_positions(genome_str, re_name_lst, output_fname=None, ref_fasta=N
 def get_fasta_sequence(genome, chromosome, pos_start, pos_end):
     import urllib2
     from xml.etree import ElementTree
+    # example: 'mm9', '1', 13052650, 13052691
 
     message = 'http://genome.ucsc.edu/cgi-bin/das/{:s}/dna?segment={:s}:{:d},{:d}'.format(
             genome, chromosome, pos_start, pos_end)
