@@ -16,14 +16,14 @@ configs = load_configs(cfg_fname)[0]
 # roi_seq_mm9 = get_fasta_sequence('mm9', configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']).upper()
 with open('./roi_seq_mm9.txt', 'r') as file:
 	roi_seq_mm9 = file.read().replace('\n', '')
-prm_fwSIdx = roi_seq_mm9.find(configs['prm_seq'][0])
-vpf_endIdx = roi_seq_mm9.find(configs['re_seq'][0], prm_fwSIdx) + len(configs['re_seq'][0])
-vpf_begIdx = roi_seq_mm9.rfind(configs['re_seq'][0], 0, prm_fwSIdx)
-mm9_vpf_seq = roi_seq_mm9[vpf_begIdx:vpf_endIdx]
+mm9_prm_fwSIdx = roi_seq_mm9.find(configs['prm_seq'][0])
+mm9_vpf_endIdx = roi_seq_mm9.find(configs['re_seq'][0], mm9_prm_fwSIdx) + len(configs['re_seq'][0])
+mm9_vpf_begIdx = roi_seq_mm9.rfind(configs['re_seq'][0], 0, mm9_prm_fwSIdx)
+mm9_vpf_seq = roi_seq_mm9[mm9_vpf_begIdx:mm9_vpf_endIdx]
 assert mm9_vpf_seq[5:-5].find(configs['re_seq'][0]) == -1
-prm_fwSeq = roi_seq_mm9[prm_fwSIdx:vpf_endIdx]
+mm9_prm_fwSeq = roi_seq_mm9[mm9_prm_fwSIdx:mm9_vpf_endIdx]
 print('=== mm9: {:s}:{:,d}-{:,d}'.format(configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']))
-print('FW:\n{:s}\n{:s}\n'.format(configs['prm_seq'][0][:30], prm_fwSeq[:30]))
+print('FW:\n{:s}\n{:s}\n'.format(configs['prm_seq'][0][:30], mm9_prm_fwSeq[:30]))
 
 mm9_prm_rvSIdx = mm9_vpf_seq.find(rc(configs['prm_seq'][1])) + len(configs['prm_seq'][1])
 mm9_prm_rvSeq = mm9_vpf_seq[:mm9_prm_rvSIdx]
