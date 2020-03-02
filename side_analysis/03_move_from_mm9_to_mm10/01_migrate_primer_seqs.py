@@ -9,10 +9,12 @@ from utilities import get_fasta_sequence, seq_rev_comp as rc
 
 # initialization
 # run_id = 'Prdm14_RB_LB-DEL'
-run_id = 'Prdm14_LB_LB-INV'
+run_id = 'Prdm14_LB_WT'
 cfg_fname = '../../configs/cfg_' + run_id + '.cfg'
 configs = load_configs(cfg_fname)[0]
 print('Run is: {:s}'.format(run_id))
+assert configs['prm_seq'][0] == get_fasta_sequence('mm9', configs['vp_chr'][3:], configs['prm_start'][0], configs['prm_end'][0]).upper()
+assert rc(configs['prm_seq'][1]) == get_fasta_sequence('mm9', configs['vp_chr'][3:], configs['prm_start'][1], configs['prm_end'][1]).upper()
 
 # get ROI sequence
 # roi_seq_mm9 = get_fasta_sequence('mm9', configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']).upper()
@@ -30,6 +32,8 @@ mm9_prm_fwSeq = roi_seq_mm9[mm9_prm_fwSIdx:mm9_vpf_endIdx]
 print('=== mm9: {:s}:{:,d}-{:,d}'.format(configs['vp_chr'][3:], configs['roi_start'], configs['roi_end']))
 print('FW:\n{:s}\n{:s}\n'.format(configs['prm_seq'][0][:30], mm9_prm_fwSeq[:30]))
 
+if mm9_vpf_seq.find(rc(configs['prm_seq'][1])) == -1:
+	print('[w] Could not find Prm-rev sequence in VP sequence ' + rc(configs['prm_seq'][1]))
 mm9_prm_rvSIdx = mm9_vpf_seq.find(rc(configs['prm_seq'][1])) + len(configs['prm_seq'][1])
 mm9_prm_rvSeq = mm9_vpf_seq[:mm9_prm_rvSIdx]
 mm9_tmp = ' ' * (len(mm9_prm_rvSeq) - len(configs['prm_seq'][1])) + rc(configs['prm_seq'][1])
