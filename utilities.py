@@ -462,6 +462,8 @@ def load_mc4c(config_lst, target_field='frg_np', data_path='./datasets/', verbos
             print('\tGot [{:,d}] reads and [{:,d}] fragments.'.format(len(np.unique(part_pd['ReadID'])), part_pd.shape[0]))
 
         # Append the part
+        if cfg_idx != 0:
+            assert np.array_equal(out_pd.columns, part_pd.columns), '[e] Merged datasets do not have identical headers.'
         out_pd = out_pd.append(part_pd, ignore_index=True)
     out_pd = out_pd[header_lst]
 

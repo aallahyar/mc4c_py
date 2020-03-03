@@ -49,13 +49,13 @@ def perform_qc(args):
 
     # call the requested function
     if args.report_type == 'readSizeDist':
-        quality_check.plot_readSizeDistribution(config_lst[0])
+        quality_check.plot_readSizeDistribution(config_lst)
     elif args.report_type == 'frgSizeDist':
-        quality_check.plot_frg_size_distribution(config_lst[0])
+        quality_check.plot_frg_size_distribution(config_lst)
     elif args.report_type == 'chrCvg':
-        quality_check.plot_chrCvg(config_lst[0])
+        quality_check.plot_chrCvg(config_lst)
     elif args.report_type == 'cirSizeDist':
-        quality_check.plot_cirSizeDistribution(config_lst[0], roi_only=args.roi_only, uniq_only=args.uniq_only)
+        quality_check.plot_cirSizeDistribution(config_lst, roi_only=args.roi_only, uniq_only=args.uniq_only)
     elif args.report_type == 'overallProfile':
         quality_check.plot_overallProfile(config_lst, min_n_frg=2)
     elif args.report_type == 'seqSaturation':
@@ -252,8 +252,8 @@ def main():
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
-        # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test,BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
 
@@ -297,7 +297,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=Prdm', 'Prdm14_LB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=tmp', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=tmp', 'Prdm14_Slc_LB-INV']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=tmp', 'Prdm14_Slc_LB-INV']
 
 
     args = parser.parse_args(sys.argv[1:])

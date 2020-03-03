@@ -2,15 +2,17 @@ import numpy as np
 from os import path
 
 
-def plot_readSizeDistribution(configs):
+def plot_readSizeDistribution(config_lst):
     from matplotlib import pyplot as plt
     import pysam
 
     # initializations
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['input_file'] is None:
         configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_ReadSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_ReadSizeDistribution_' + run_id + '.pdf'
     if not path.isfile(configs['input_file']):
         raise Exception('[e] Source FASTQ file is not found: {:s}'.format(configs['input_file']))
     MAX_SIZE = 8000
@@ -23,23 +25,25 @@ def plot_readSizeDistribution(configs):
     nbp_lrg = 0
     nrd_lrg = 0
     size_dist = np.zeros(n_bin, dtype=np.int64)
-    print('Calculating read size distribution for: {:s}'.format(configs['input_file']))
-    with pysam.FastxFile(configs['input_file']) as gz_fid:
-        for rd_idx, read in enumerate(gz_fid):
-            if rd_idx % 50000 == 0:
-                print('{:,d} reads are processed.'.format(rd_idx))
-            seq_size = len(read.sequence)
+    for cfg_item in config_lst:
+        input_file = './reads/rd_' + cfg_item['run_id'] + '.fasta.gz'
+        print('Calculating read size distribution for: {:s}'.format(input_file))
+        with pysam.FastxFile(input_file) as gz_fid:
+            for rd_idx, read in enumerate(gz_fid):
+                if rd_idx % 50000 == 0:
+                    print('{:,d} reads are processed.'.format(rd_idx))
+                seq_size = len(read.sequence)
 
-            nrd_all += 1
-            nbp_total = nbp_total + seq_size
-            if seq_size > 1500:
-                nrd_lrg += 1
-                nbp_lrg = nbp_lrg + seq_size
+                nrd_all += 1
+                nbp_total = nbp_total + seq_size
+                if seq_size > 1500:
+                    nrd_lrg += 1
+                    nbp_lrg = nbp_lrg + seq_size
 
-            if seq_size >= MAX_SIZE:
-                seq_size = MAX_SIZE - 1
-            bin_idx = np.digitize(seq_size, edge_lst) - 1
-            size_dist[bin_idx] += 1
+                if seq_size >= MAX_SIZE:
+                    seq_size = MAX_SIZE - 1
+                bin_idx = np.searchsorted(edge_lst, seq_size, size='right') - 1
+                size_dist[bin_idx] += 1
 
     # plotting
     plt.figure(figsize=(7, 5))
@@ -55,7 +59,7 @@ def plot_readSizeDistribution(configs):
     plt.yticks(y_ticks, y_tick_lbl)
     plt.ylabel('#reads')
 
-    plt.title('Read size distribution, {:s}\n'.format(configs['run_id']) +
+    plt.title('Read size distribution, {:s}\n'.format(run_id) +
               '#read={:,d}; #read (>1.5kb)={:,d}\n'.format(nrd_all, nrd_lrg) +
               '#bases={:,d}; #bases (>1.5kb)={:,d}'.format(nbp_total, nbp_lrg)
               )
@@ -63,7 +67,7 @@ def plot_readSizeDistribution(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_frg_size_distribution(configs):
+def plot_frg_size_distribution(config_lst):
     import numpy as np
     import gzip
     from os import path
@@ -72,15 +76,16 @@ def plot_frg_size_distribution(configs):
     from utilities import load_mc4c, get_chr_info, get_re_info
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_frgSizeDistribution_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_frgSizeDistribution_' + run_id + '.pdf'
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
 
     # get chr info
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
-    n_chr = len(chr_lst)
 
     # Read res-enz positions
     re_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
@@ -100,11 +105,11 @@ def plot_frg_size_distribution(configs):
     re_size = np.diff(re_pos) + 1
     n_re_ref = len(re_size)
     re_size[re_size >= MAX_SIZE] = MAX_SIZE - 1
-    bin_idx = np.digitize(re_size, edge_lst) - 1
+    bin_idx = np.searchsorted(edge_lst, re_size, side='right') - 1
     dist_ref = np.bincount(bin_idx, minlength=n_bin)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
+    frg_dp = load_mc4c(config_lst, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
     print('Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0]))
@@ -128,30 +133,29 @@ def plot_frg_size_distribution(configs):
     # del frg_size
 
     # calculate raw fragment size
-    frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print('Scanning raw fragments in {:s}'.format(frg_fname))
     dist_mq00 = np.zeros(n_bin, dtype=np.int64)
     n_bp_mq00 = 0
     n_frg_mq00 = 0
-    # seq_size_lst = []
-    with gzip.open(frg_fname, 'r') as splt_fid:
-        while True:
-            frg_sid = splt_fid.readline()
-            frg_seq = splt_fid.readline().rstrip('\n')
-            if frg_sid == '':
-                break
-            if n_frg_mq00 % 250000 == 0:
-                print('{:,d} fragments are processed.'.format(n_frg_mq00))
+    for cfg_item in config_lst:
+        frg_fname = './fragments/frg_{:s}.fasta.gz'.format(cfg_item['run_id'])
+        print('Scanning raw fragments in {:s}'.format(frg_fname))
+        with gzip.open(frg_fname, 'r') as splt_fid:
+            while True:
+                frg_sid = splt_fid.readline()
+                frg_seq = splt_fid.readline().rstrip('\n')
+                if frg_sid == '':
+                    break
+                if n_frg_mq00 % 250000 == 0:
+                    print('{:,d} fragments are processed.'.format(n_frg_mq00))
 
-            seq_size = len(frg_seq)
-            n_bp_mq00 += seq_size
-            # seq_size_lst.append(seq_size)
-            if seq_size >= MAX_SIZE:
-                seq_size = MAX_SIZE - 1
+                seq_size = len(frg_seq)
+                n_bp_mq00 += seq_size
+                if seq_size >= MAX_SIZE:
+                    seq_size = MAX_SIZE - 1
 
-            bin_idx = np.digitize(seq_size, edge_lst) - 1
-            dist_mq00[bin_idx] += 1
-            n_frg_mq00 += 1
+                bin_idx = np.searchsorted(edge_lst, seq_size, side='right') - 1
+                dist_mq00[bin_idx] += 1
+                n_frg_mq00 += 1
 
     # Plotting
     plt.figure(figsize=(7, 5))
@@ -173,7 +177,7 @@ def plot_frg_size_distribution(configs):
     plt.yticks(y_ticks, y_tick_lbl)
     plt.ylabel('#Fragments')
 
-    plt.title('Fragment size distribution, {:s}\n'.format(configs['run_id']) +
+    plt.title('Fragment size distribution, {:s}\n'.format(run_id) +
               '#bp mapped ' +
               'MQ1={:0,.1f}m ({:0.1f}%); '.format(n_bp_mq01 / 1e6, n_bp_mq01 * 1e2 / n_bp_mq00) +
               'MQ20={:0,.1f}m ({:0.1f}%)\n'.format(n_bp_mq20 / 1e6, n_bp_mq20 * 1e2 / n_bp_mq00) +
@@ -199,7 +203,7 @@ def plot_frg_size_distribution(configs):
     # map_h[0].remove()
 
 
-def plot_chrCvg(configs):
+def plot_chrCvg(config_lst):
     import numpy as np
     import gzip
     from matplotlib import pyplot as plt
@@ -207,15 +211,17 @@ def plot_chrCvg(configs):
     from utilities import load_mc4c, get_chr_info
 
     # initialization
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_chrCoverage_' + configs['run_id'] + '.pdf'
+        configs['output_file'] = configs['output_dir'] + '/qc_chrCoverage_' + run_id + '.pdf'
 
     # get chr info
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
     n_chr = len(chr_lst)
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
+    frg_dp = load_mc4c(config_lst, min_mq=0, reindex_reads=False, unique_only=False, valid_only=True)
     frg_np = frg_dp[['Chr', 'MapStart', 'MapEnd', 'MQ']].values
     del frg_dp
     print('Total of {:,d} mapped fragments are loaded:'.format(frg_np.shape[0]))
@@ -234,21 +240,22 @@ def plot_chrCvg(configs):
     del frg_np
 
     # calculate raw fragment size
-    frg_fname = './fragments/frg_{:s}.fasta.gz'.format(configs['run_id'])
-    print('Scanning raw fragments in {:s}'.format(frg_fname))
     n_bp_mq00 = 0
     n_frg_mq00 = 0
-    with gzip.open(frg_fname, 'r') as splt_fid:
-        while True:
-            frg_sid = splt_fid.readline()
-            frg_seq = splt_fid.readline().rstrip('\n')
-            if frg_sid == '':
-                break
-            if n_frg_mq00 % 250000 == 0:
-                print('{:,d} fragments are processed.'.format(n_frg_mq00))
+    for cfg_item in config_lst:
+        frg_fname = './fragments/frg_{:s}.fasta.gz'.format(cfg_item['run_id'])
+        print('Scanning raw fragments in {:s}'.format(frg_fname))
+        with gzip.open(frg_fname, 'r') as splt_fid:
+            while True:
+                frg_sid = splt_fid.readline()
+                frg_seq = splt_fid.readline().rstrip('\n')
+                if frg_sid == '':
+                    break
+                if n_frg_mq00 % 250000 == 0:
+                    print('{:,d} fragments are processed.'.format(n_frg_mq00))
 
-            n_bp_mq00 += len(frg_seq)
-            n_frg_mq00 += 1
+                n_bp_mq00 += len(frg_seq)
+                n_frg_mq00 += 1
 
     # Plotting
     plt.figure(figsize=(7, 5))
@@ -261,7 +268,7 @@ def plot_chrCvg(configs):
     y_tick_lbl = ['{:0,.1f}k'.format(y / 1e3) for y in y_ticks]
     plt.yticks(y_ticks, y_tick_lbl)
     plt.ylabel('#Fragments')
-    plt.title('Chromosome coverage, {:s}\n'.format(configs['run_id']) +
+    plt.title('Chromosome coverage, {:s}\n'.format(run_id) +
               '#bp mapped ' +
               'MQ1={:0,.1f}m ({:0.1f}%); '.format(n_bp_mq01 / 1e6, n_bp_mq01 * 1e2 / n_bp_mq00) +
               'MQ20={:0,.1f}m ({:0.1f}%)\n'.format(n_bp_mq20 / 1e6, n_bp_mq20 * 1e2 / n_bp_mq00) +
@@ -272,7 +279,7 @@ def plot_chrCvg(configs):
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 
-def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
+def plot_cirSizeDistribution(config_lst, roi_only=True, uniq_only=True):
     from matplotlib import pyplot as plt, cm
 
     from utilities import accum_array, load_mc4c
@@ -281,9 +288,11 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     MAX_SIZE = 8
     edge_lst = np.linspace(1, MAX_SIZE, num=MAX_SIZE)
     n_edge = len(edge_lst)
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    configs = config_lst[0]
 
     # Load MC-HC data
-    frg_dp = load_mc4c(configs, min_mq=20, reindex_reads=True, unique_only=uniq_only)
+    frg_dp = load_mc4c(config_lst, min_mq=20, reindex_reads=True, unique_only=uniq_only)
     frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'MQ', 'ReadLength']].values
     del frg_dp
 
@@ -346,7 +355,7 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     plt.xlabel('Read size (#fragment)')
     plt.ylabel('Frequency (%)')
     # plt.ylim([0, 70])
-    title_msg = configs['run_id']
+    title_msg = run_id
     if len(filter_lst) != 0:
         title_msg += ' ({:s})'.format(', '.join(filter_lst))
     title_msg += '\n#map>0={:,d};\n'.format(n_map0) + \
@@ -361,9 +370,9 @@ def plot_cirSizeDistribution(configs, roi_only=True, uniq_only=True):
     ])
 
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_CirSizeDistribution_' + configs['run_id']
+        configs['output_file'] = configs['output_dir'] + '/qc_CirSizeDistribution_' + run_id
         if roi_only or uniq_only:
-             configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
+            configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
         else:
             configs['output_file'] += '.pdf'
     plt.savefig(configs['output_file'], bbox_inches='tight')
