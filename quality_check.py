@@ -12,7 +12,7 @@ def plot_readSizeDistribution(config_lst):
     if configs['input_file'] is None:
         configs['input_file'] = './reads/rd_' + configs['run_id'] + '.fasta.gz'
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_ReadSizeDistribution_' + run_id + '.pdf'
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_ReadSizeDistribution_' + run_id + '.pdf')
     if not path.isfile(configs['input_file']):
         raise Exception('[e] Source FASTQ file is not found: {:s}'.format(configs['input_file']))
     MAX_SIZE = 8000
@@ -42,7 +42,7 @@ def plot_readSizeDistribution(config_lst):
 
                 if seq_size >= MAX_SIZE:
                     seq_size = MAX_SIZE - 1
-                bin_idx = np.searchsorted(edge_lst, seq_size, size='right') - 1
+                bin_idx = np.searchsorted(edge_lst, seq_size, side='right') - 1
                 size_dist[bin_idx] += 1
 
     # plotting
@@ -79,7 +79,7 @@ def plot_frg_size_distribution(config_lst):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_frgSizeDistribution_' + run_id + '.pdf'
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_frgSizeDistribution_' + run_id + '.pdf')
     MAX_SIZE = 1500
     edge_lst = np.linspace(0, MAX_SIZE, 31)
     n_bin = len(edge_lst) - 1
@@ -214,7 +214,7 @@ def plot_chrCvg(config_lst):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_chrCoverage_' + run_id + '.pdf'
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_chrCoverage_' + run_id + '.pdf')
 
     # get chr info
     chr_lst = get_chr_info(genome_str=configs['genome_build'], property='chr_name')
@@ -370,7 +370,7 @@ def plot_cirSizeDistribution(config_lst, roi_only=True, uniq_only=True):
     ])
 
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_CirSizeDistribution_' + run_id
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_CirSizeDistribution_' + run_id)
         if roi_only or uniq_only:
             configs['output_file'] += '_{:s}.pdf'.format('-'.join(filter_lst))
         else:
@@ -388,9 +388,9 @@ def plot_overallProfile(config_lst, min_n_frg=2):
     configs = config_lst[0]
     if configs['output_file'] is None:
         roi_w = configs['roi_end'] - configs['roi_start']
-        configs['output_file'] = configs['output_dir'] + \
-                                 '/qc_OverallProfile_{:s}_'.format(run_id) + \
-                                 'rw{:0.1f}kb.pdf'.format(roi_w / 1e3)
+        configs['output_file'] = path.join(configs['output_dir'],
+                                           'qc_OverallProfile_{:s}_'.format(run_id) +
+                                           'rw{:0.1f}kb.pdf'.format(roi_w / 1e3))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -481,7 +481,7 @@ def plot_sequencing_saturation(configs, n_perm=100):
 
     # initialization
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/qc_seqSaturation_{:s}.pdf'.format(configs['run_id'])
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_seqSaturation_{:s}.pdf'.format(configs['run_id']))
 
     # load duplication info
     raw_fname = './datasets/mc4c_{:s}_{:s}_uniq.hdf5'.format(configs['run_id'], configs['genome_build'])
@@ -605,8 +605,7 @@ def plot_reads_per_category(config_lst):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + \
-                                 '/qc_readCategories_{:s}.pdf'.format(run_id)
+        configs['output_file'] = path.join(configs['output_dir'], 'qc_readCategories_{:s}.pdf'.format(run_id))
 
     # load number of sequenced reads
     n_seq = 0
