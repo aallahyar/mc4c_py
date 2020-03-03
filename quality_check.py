@@ -381,16 +381,17 @@ def plot_cirSizeDistribution(config_lst, roi_only=True, uniq_only=True):
 def plot_overallProfile(config_lst, min_n_frg=2):
     from matplotlib import pyplot as plt, patches
 
-    from utilities import hasOL, load_mc4c, load_annotation
+    from utilities import hasOL, load_mc4c, load_annotation, get_gauss_kernel
 
     # initialization
-    run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
+    run_id = ','.join([config['run_id'] for config in config_lst])
+    kernel = get_gauss_kernel(size=11, sigma=configs['sigma'], ndim=1)
     if configs['output_file'] is None:
         roi_w = configs['roi_end'] - configs['roi_start']
         configs['output_file'] = path.join(configs['output_dir'],
                                            'qc_OverallProfile_{:s}_'.format(run_id) +
-                                           'rw{:0.1f}kb.pdf'.format(roi_w / 1e3))
+                                           'rw{:0.1f}kb_sig{:0.1f}.pdf'.format(roi_w / 1e3, configs['sigma']))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_width = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -436,25 +437,29 @@ def plot_overallProfile(config_lst, min_n_frg=2):
     # plotting
     plt.figure(figsize=(15, 3))
     plt_h = [None] * 2
-    clr_map = ['#d0d0d0', '#43ff14']
+    bar_clr = ['#d0d0d0', '#43ff14']
+    prf_clr = ['#969696', '#29cc00']
     bin_nrm = np.zeros([2, n_bin])
+    bin_smt = np.zeros([2, n_bin])
     for di in range(2):
         bin_nrm[di, :] = bin_frq[di, :] * 100.0 / n_read[di]
+        bin_smt[di, :] = np.convolve(bin_nrm[di, :], kernel, mode='same')
         bin_nrm[di, vpb_idx] = np.nan
 
-        plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=clr_map[di], alpha=0.7)
+        plt_h[di] = plt.bar(bin_cen, bin_nrm[di, :], width=bin_width, color=bar_clr[di], alpha=0.7)
+        plt.plot(bin_cen, bin_smt[di, :], linewidth=1, color=prf_clr[di], alpha=0.7)
 
     # add vp area
     y_lim = [0, np.nanmax(bin_nrm) * 1.1]
     plt.gca().add_patch(patches.Rectangle([vpd_bnd[0], 0], vpd_bnd[1] - vpd_bnd[0], y_lim[1],
-                                          linewidth=0, edgecolor='None', facecolor='orange'))
+                                          linewidth=0, edgecolor='None', facecolor='orange', zorder=10))
 
     # add annotations
     ant_pd = load_annotation(configs['genome_build'], roi_crd=roi_crd).reset_index(drop=True)
     for ai in range(ant_pd.shape[0]):
         ant_pos = ant_pd.loc[ai, 'ant_pos']
         plt.text(ant_pos, y_lim[1], ant_pd.loc[ai, 'ant_name'],
-                 horizontalalignment='center', verticalalignment='bottom')
+                 horizontalalignment='left', verticalalignment='bottom', rotation=45)
         plt.plot([ant_pos, ant_pos], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.5)
 
     # final adjustments
@@ -468,7 +473,7 @@ def plot_overallProfile(config_lst, min_n_frg=2):
         'All reads (n={:0,.0f})'.format(n_read[0]),
         'Unique reads (n={:0,.0f})'.format(n_read[1])
     ])
-    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n'.format(min_n_frg - 1, run_id))
+    plt.title('Overall profile (#roiFrg>{:d}, ex. vp), {:s}\n\n\n'.format(min_n_frg - 1, run_id))
     plt.savefig(configs['output_file'], bbox_inches='tight')
 
 

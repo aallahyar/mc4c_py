@@ -46,6 +46,7 @@ def perform_qc(args):
         makedirs(config_lst[0]['output_dir'])
     config_lst[0]['input_file'] = args.input_file
     config_lst[0]['output_file'] = args.output_file
+    config_lst[0]['sigma'] = args.sigma
 
     # call the requested function
     if args.report_type == 'readSizeDist':
@@ -213,6 +214,8 @@ def main():
     parser_qc.add_argument('--min-cvg', default=2, type=int,
                            help='Minimum chromosome coverage (%) used for automatic detection of ' +
                                 'Region Of Interest (ROI). Default is 2.')
+    parser_qc.add_argument('--sigma', default=0.0, type=float,
+                           help='Sigma for Gaussian smoothing (default=0, i.e. no smoothing)')
     parser_qc.set_defaults(func=perform_qc)
 
     # perform basic analysis
@@ -255,7 +258,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test,BMaj-test']
 
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'BMaj-test,BMaj-test', '--ant-name', 'HS2']
@@ -266,7 +269,7 @@ def main():
 
         # sys.argv = ['./mc4c.py', 'QC', 'categorizeReads', 'BMaj-test']
 
-        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'asMC4C_INV_C']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'asMC4C_WT_B'] # , '--ant-name', 'HS2'
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', 'K562_C11-Enh-3769_WT']
