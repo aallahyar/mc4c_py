@@ -71,8 +71,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     frg_bdx = np.zeros(n_frg, dtype=np.int64)
     is_fw = frg_inf[:, 4] == 1
-    frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='left') - 1
-    frg_bdx[~is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[~is_fw, 3], side='left') - 1
+    frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='right') - 1
+    frg_bdx[~is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[~is_fw, 3], side='right') - 1
     frg_bdx[frg_bdx == -1] = 0  # TODO: Better correction for out of bounds fragments
 
     # reset read indices
@@ -233,7 +233,7 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
 
     # assign probability to neg fragments
     soi_bdx = int(np.mean(np.where(hasOL(pos_crd[1:], bin_bnd))[0]))
-    frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='left') - 1  # selection from all reads, should be from neg reads
+    frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='right') - 1  # selection from all reads, should be from neg reads
     frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
     frg_prob = frg_prob / np.sum(frg_prob)
 

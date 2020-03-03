@@ -232,7 +232,7 @@ def processMappedFragments(args):
     # get chromosome information
     chr_lst = get_chr_info(configs['genome_build'], 'chr_name')
     chr_size = get_chr_info(configs['genome_build'], 'chr_size')
-    chr_map = dict(zip(chr_lst, np.arange(len(chr_lst)) + 1))
+    chr2idx = dict(zip(chr_lst, np.arange(len(chr_lst))))
 
     # loading corresponding restriction fragment positions
     re_pos_fname = './renzs/{:s}_{:s}.npz'.format(configs['genome_build'], '-'.join(configs['re_name']))
@@ -250,7 +250,7 @@ def processMappedFragments(args):
 
     # identify vp_fragment coordinates
     idx_lft = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.min(configs['prm_start']), side='right') - 1
-    idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='left')
+    idx_rgt = np.searchsorted(re_pos[configs['vp_cnum'] - 1], np.max(configs['prm_end']) - len(configs['re_seq'][0]), side='right')
     vp_frg = [configs['vp_cnum'], re_pos[configs['vp_cnum'] - 1][idx_lft], re_pos[configs['vp_cnum'] - 1][idx_rgt]]
     if idx_lft + 1 != idx_rgt:
         print('[w] Can not map primer positions on a single fragment.')
@@ -280,7 +280,7 @@ def processMappedFragments(args):
                 continue
             FileID, ReadID, ReadLength, FrgID, SeqStart, SeqEnd = \
                 [int(x.split(':')[1]) for x in que_line.query_name.split(';')]
-            MapChrNum = chr_map[que_line.reference_name]
+            MapChrIdx = chr2idx[que_line.reference_name]
             MapStart = que_line.reference_start
             MapEnd = que_line.reference_end
             MapStrand = 1 - (que_line.is_reverse * 2)
@@ -290,28 +290,28 @@ def processMappedFragments(args):
             # TODO: Note that unmapped fragments are ignored here
 
             # extending coordinates to nearby restriction site
-            n_re = len(re_pos[MapChrNum - 1])
-            nei_left = np.searchsorted(re_pos[MapChrNum - 1], MapStart, side='left') - 1
-            if (nei_left < n_re - 1) and (np.abs(re_pos[MapChrNum - 1][nei_left + 1] - MapStart) < 10):
+            n_re = len(re_pos[MapChrIdx])
+            nei_left = np.searchsorted(re_pos[MapChrIdx], MapStart, side='right') - 1
+            if (nei_left < n_re - 1) and (re_pos[MapChrIdx][nei_left] != MapStart) and (np.abs(re_pos[MapChrIdx][nei_left + 1] - MapStart) < 10):
                 nei_left = nei_left + 1
-            nei_right = np.searchsorted(re_pos[MapChrNum - 1], MapEnd, side='left')
-            if (nei_right > 0) and (np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right - 1]) < 10):
-                nei_right = nei_right - 1
+            nei_right = np.searchsorted(re_pos[MapChrIdx], MapEnd, side='right') - 1
+            if (nei_right < n_re - 1) and (re_pos[MapChrIdx][nei_right] != MapEnd) and (np.abs(MapEnd - re_pos[MapChrIdx][nei_right]) > 10):
+                nei_right = nei_right + 1
 
             if nei_left == nei_right:
-                dist_left = np.abs(MapStart - re_pos[MapChrNum - 1][nei_left])
-                dist_right = np.abs(MapEnd - re_pos[MapChrNum - 1][nei_right])
+                dist_left = np.abs(MapStart - re_pos[MapChrIdx][nei_left])
+                dist_right = np.abs(MapEnd - re_pos[MapChrIdx][nei_right])
                 if dist_right < dist_left:
                     nei_left = nei_left - 1
                 else:
                     nei_right = nei_right + 1
 
-            ExtStart = re_pos[MapChrNum - 1][nei_left]
+            ExtStart = re_pos[MapChrIdx][nei_left]
             try:
-                ExtEnd = re_pos[MapChrNum - 1][nei_right] - 1  # Adjacent fragments in ref should not overlap with 1bp
+                ExtEnd = re_pos[MapChrIdx][nei_right] - 1  # Adjacent fragments in ref should not overlap with 1bp
             except:
-                if nei_right == len(re_pos[MapChrNum - 1]):
-                    ExtEnd = re_pos[MapChrNum - 1][-1] + 100
+                if nei_right == len(re_pos[MapChrIdx]):
+                    ExtEnd = re_pos[MapChrIdx][-1] + 100
                 else:
                     raise Exception('Error in: {:s}'.format(que_line.query_name))
             # TODO: Why the mapped coordinates are after end of chromosome
@@ -330,7 +330,7 @@ def processMappedFragments(args):
 
             # combine into an array
             frg_info = np.array([
-                ReadID, MapChrNum, ExtStart, ExtEnd, MapStrand, MapStart, MapEnd, que_line.mapping_quality,
+                ReadID, MapChrIdx + 1, ExtStart, ExtEnd, MapStrand, MapStart, MapEnd, que_line.mapping_quality,
                 FileID, FrgID, SeqStart, SeqEnd, ReadLength, 0]).reshape([1, -1])
 
             # Check order of fragments

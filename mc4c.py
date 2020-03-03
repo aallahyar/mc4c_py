@@ -248,11 +248,11 @@ def main():
         # sys.argv = ['./mc4c.py', 'setReadIds', './cnf_files/cfg_LVR-BMaj.cnf']
         # sys.argv = ['./mc4c.py', 'splitReads', 'LVR-BMaj']
         # sys.argv = ['./mc4c.py', 'mapFragments', 'BMaj-test']
-        # sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
+        sys.argv = ['./mc4c.py', 'makeDataset', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'selectROI', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'removeDuplicates', 'BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'readSizeDist', 'Prdm14-WTC']
-        sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test,BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
         # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test']
