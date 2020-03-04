@@ -63,7 +63,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     import scipy.ndimage as ndimage
 
-    from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten
+    from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
 
     # find covered bins for each fragment
     n_frg = frg_inf.shape[0]
@@ -109,6 +109,10 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
     obs_smt = ndimage.convolve(obs_cvg, kernel_2d, mode='reflect')
 
+    print('Sum(Row/Col)=1 normalization')
+    # obs_org = normalize_matrix(obs_smt, method='KR')
+    obs_nrm = normalize_matrix(obs_smt, method='iterative')
+
     # estimate decay profile
     print('Estimating decay profile ...')
     decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=sigma)
@@ -150,11 +154,12 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
                     else:
                         bkg_cvg[soi_bdx, rnd_read[fi]] += 1
         bkg_smt = ndimage.convolve(bkg_cvg, kernel_2d, mode='reflect')
+        bkg_nrm = normalize_matrix(bkg_smt, method='iterative')
 
         # store the current epoch
         for bi in range(n_bin):
             for bj in range(n_bin):
-                exp_obj[bi][bj].include(bkg_smt[bi, bj])
+                exp_obj[bi][bj].include(bkg_nrm[bi, bj])
 
     # compute expected values
     blk_scr = np.full([n_bin, n_bin], fill_value=np.nan)
@@ -165,7 +170,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
             if np.abs(bi - bj) <= 3:
                 continue
             if exp_obj[bi][bj].std != 0:
-                blk_scr[bi, bj] = (obs_smt[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
+                blk_scr[bi, bj] = (obs_nrm[bi, bj] - exp_obj[bi][bj].mean) / exp_obj[bi][bj].std
 
     # plot
     exp_avg = np.zeros([n_bin, n_bin])
@@ -193,7 +198,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     #             'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
     # plt.savefig(out_fname, bbox_inches='tight')
 
-    return obs_smt, exp_avg, exp_std, blk_scr
+    return obs_cvg, obs_smt, obs_nrm, exp_avg, exp_std, blk_scr
 
 
 def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
@@ -301,10 +306,10 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
         print('#reads in sets: pos={:,d} vs. neg={:,d}'.format(n_pos, n_neg))
 
     # make positive profile
-    prf_pos = np.zeros(n_bin)
+    prf_org = np.zeros(n_bin)
     for pi in range(n_pos):
         bin_lst = flatten(cfb_pos[pi])
-        prf_pos[bin_lst] += 1
+        prf_org[bin_lst] += 1
 
     # make background profile from negative set
     prf_rnd = np.zeros([n_perm, n_bin])
@@ -325,11 +330,13 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
         kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
-        prf_pos = np.convolve(prf_pos, kernel, mode='same')
+        prf_smt = np.convolve(prf_org, kernel, mode='same')
         for ei in np.arange(n_perm):
             prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
+    else:
+        prf_smt = prf_org.copy()
 
-    return prf_pos, prf_rnd, frg_pos, frg_neg
+    return prf_org, prf_smt, prf_rnd, frg_pos, frg_neg
 
 
 def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
@@ -410,7 +417,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     if configs['test_method'] == 'decayCorrector':
         prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     else:
-        prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
     print('{:,d} reads are found to cover '.format(n_pos) +
@@ -602,7 +609,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
         print('Computing expected profile for {:s}:'.format(soi_pd['ant_name']))
         ant_pos = ant_pd['ant_pos'].values.reshape(-1, 1)
         ant_bnd = np.hstack([ant_pos - int(bin_w * 1.5), ant_pos + int(bin_w * 1.5)])
-        ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm, sigma=0)[:3]
+        ant_org, ant_obs, soi_rnd, frg_pos = compute_mc_associations(frg_inf, soi_crd, ant_bnd, n_perm=n_perm, sigma=0)[:3]
         n_pos[ai] = len(np.unique(frg_pos[:, 0]))
         x_tick_lbl.append('{:s}\n#{:,d}'.format(ant_name_lst[ai], n_pos[ai]))
         del frg_pos
@@ -766,15 +773,16 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     print('Computing expected profile using "{:s}" model, '.format(configs['test_method']), end='')
     if configs['test_method'] == 'decayCorrector':
         print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-        blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
+        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
     else:
         print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
 
         # compute score for annotations
-        blk_zsr = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_org = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_obs = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_exp = np.full([n_blk, n_blk], fill_value=np.nan)
         blk_std = np.full([n_blk, n_blk], fill_value=np.nan)
+        blk_zsr = np.full([n_blk, n_blk], fill_value=np.nan)
         n_ignored = 0
         for bi in range(n_blk):
             showprogress(bi, n_blk, n_step=20)
@@ -784,7 +792,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
                 continue
 
             # compute the observe and background
-            blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:], n_perm=n_perm, sigma=sigma, verbose=False)[:3]
+            blk_org[bi, :], blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], blk_crd[:, 1:], n_perm=n_perm, sigma=sigma, verbose=False)[:3]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
                 n_ignored += 1
@@ -801,6 +809,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
             is_nei = hasOL(blk_crd[bi, 1:], blk_crd[:, 1:], offset=blk_w)
             blk_zsr[bi, is_nei] = np.nan
         print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
+        blk_smt = blk_obs.copy()
 
     # export to excel file
     if tsv_export:
@@ -822,16 +831,14 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
         zscr_pd.to_csv(tsv_fname, sep='\t', index=True, header=True)
 
     # plotting the scores
-    plt.figure(figsize=(17, 14))
+    plt.figure(figsize=(25, 14))
     x_lim = [configs['roi_start'], configs['roi_end']]
-    img_names = ['Observed', 'Expected', 'Standard deviation', 'z-score']
+    img_names = ['Original', 'Smoothed', 'Normalized/Observed', 'Expected', 'Standard deviation', 'z-score']
     zclr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
-    cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('summer_r', 20),
-                LinearSegmentedColormap.from_list('bwwr', zclr_lst, 9)]
-    obs_clim = [np.nanpercentile(blk_obs, 20), np.nanpercentile(blk_obs, 95)]
-    print('Maximum colored value is set at {:0.2f}'.format(obs_clim[1]))
-    for img_idx, img in enumerate([blk_obs, blk_exp, blk_std, blk_zsr]):
-        ax = plt.subplot(2, 2, img_idx + 1)
+    cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
+                cm.get_cmap('summer_r', 20), LinearSegmentedColormap.from_list('bwwr', zclr_lst, 9)]
+    for img_idx, img in enumerate([blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr]):
+        ax = plt.subplot(2, 3, img_idx + 1)
 
         # plot the image
         cmap = cmap_lst[img_idx]
@@ -839,11 +846,13 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
         img_h = plt.imshow(img, interpolation=None, cmap=cmap, extent=x_lim + x_lim, origin='lower')
 
         # adjustments
-        if img_idx < 2:
-            plt.clim(obs_clim)
-        elif img_idx == 2:
+        if img_names[img_idx] in ['Original', 'Smoothed']:
+            plt.clim(np.nanpercentile(blk_smt, [20, 95]))
+        elif img_names[img_idx] in ['Normalized/Observed', 'Expected']:
+            plt.clim([np.nanpercentile(blk_obs, 20), np.nanpercentile(blk_obs, 95)])
+        elif img_names[img_idx] in ['Standard deviation']:
             plt.clim(np.nanpercentile(blk_std, [60, 95]))
-        elif img_idx == 3:
+        elif img_names[img_idx] in ['z-score']:
             plt.clim(configs['zscr_lim'])
 
         # add vp patches
@@ -855,7 +864,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
         plt.colorbar(img_h, fraction=0.046, pad=0.04)  # , extend='both'
         ax.set_xticks(ant_pd['ant_pos'])
         ax.set_yticks(ant_pd['ant_pos'])
-        ax.set_xticklabels(ant_pd['ant_name'], rotation=35)
+        ax.set_xticklabels(ant_pd['ant_name'], rotation=45)
         ax.set_yticklabels(ant_pd['ant_name'])
         # ax.set_xlabel('Coverage/profile')
         ax.set_ylabel('Selected SOIs')

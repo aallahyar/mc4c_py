@@ -304,6 +304,35 @@ class OnlineStats(object):
         return np.sqrt(self.variance)
 
 
+def normalize_matrix(mat, method):
+    if method == 'KR':
+        from krbalancing import kr_balancing
+        from scipy import sparse
+        mat_nrm = sparse.csr_matrix(mat.copy())
+        kr = kr_balancing(mat_nrm.shape[0],
+                          mat_nrm.shape[1],
+                          mat_nrm.count_nonzero(),
+                          mat_nrm.indptr.astype(np.int64, copy=False),
+                          mat_nrm.indices.astype(np.int64, copy=False),
+                          mat_nrm.data.astype(np.float64, copy=False))
+        kr.computeKR()
+        mat_nrm = kr.get_normalised_matrix(True).toarray()
+        mat_nrm += np.triu(mat_nrm, 1).T
+    elif method == 'iterative':
+        n_epoch = 100
+        # p = np.ones(n_epoch, dtype=np.float)
+        # p = np.linspace(0, 1, n_epoch, dtype=np.float)
+        # p = np.logspace(np.log10(1.0 / n_epoch), 0, n_epoch, dtype=np.float)
+        mat_nrm = mat.copy()
+        for ei in range(n_epoch):
+            row_sum = np.sum(mat_nrm, axis=0)
+            mat_nrm = mat_nrm / row_sum.reshape(1, -1)
+            col_sum = np.sum(mat_nrm, axis=1)
+            mat_nrm = mat_nrm / col_sum.reshape(-1, 1)
+            # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / row_sum.reshape(1, -1)
+            # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / col_sum.reshape(-1, 1)
+    return mat_nrm
+
 ################### MC-4C related functions #########################
 
 def load_annotation(genome_str, roi_crd=None):

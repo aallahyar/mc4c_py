@@ -258,7 +258,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'QC', 'frgSizeDist', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'chrCvg', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'QC', 'cirSizeDist', 'LVR-BMaj-96x'] # , '--roi-only', '--uniq-only'
-        sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test,BMaj-test']
+        # sys.argv = ['./mc4c.py', 'QC', 'overallProfile', 'BMaj-test,BMaj-test']
 
         # sys.argv = ['./mc4c.py', 'analysis', 'mcTest', 'K562-WplD-10x']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', 'BMaj-test,BMaj-test', '--ant-name', 'HS2']
@@ -291,7 +291,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=default', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', '--zscr_lim=10', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
