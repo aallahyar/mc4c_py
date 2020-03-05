@@ -304,7 +304,7 @@ class OnlineStats(object):
         return np.sqrt(self.variance)
 
 
-def normalize_matrix(mat, method):
+def normalize_matrix(mat, method, scale=False):
     if method == 'KR':
         from krbalancing import kr_balancing
         from scipy import sparse
@@ -331,6 +331,12 @@ def normalize_matrix(mat, method):
             mat_nrm = mat_nrm / col_sum.reshape(-1, 1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / row_sum.reshape(1, -1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / col_sum.reshape(-1, 1)
+    else:
+        raise
+
+    if scale:
+        mat_nrm = mat_nrm / np.nanpercentile(mat_nrm, 95) * np.nanpercentile(mat, 95)
+
     return mat_nrm
 
 ################### MC-4C related functions #########################
