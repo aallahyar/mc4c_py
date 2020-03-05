@@ -325,9 +325,9 @@ def normalize_matrix(mat, method):
         # p = np.logspace(np.log10(1.0 / n_epoch), 0, n_epoch, dtype=np.float)
         mat_nrm = mat.copy()
         for ei in range(n_epoch):
-            row_sum = np.sum(mat_nrm, axis=0)
+            row_sum = np.nansum(mat_nrm, axis=0)
             mat_nrm = mat_nrm / row_sum.reshape(1, -1)
-            col_sum = np.sum(mat_nrm, axis=1)
+            col_sum = np.nansum(mat_nrm, axis=1)
             mat_nrm = mat_nrm / col_sum.reshape(-1, 1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / row_sum.reshape(1, -1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / col_sum.reshape(-1, 1)
