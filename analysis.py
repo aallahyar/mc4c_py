@@ -1,5 +1,9 @@
+
 from __future__ import print_function
+from os import path
+
 import numpy as np
+
 from utilities import showprogress
 
 MIN_N_POS = 100
@@ -108,12 +112,17 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
     print('Smoothing observed profiles using sig={:0.1f}'.format(sigma))
+    kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
     kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
-    obs_smt = ndimage.convolve(obs_org, kernel_2d, mode='reflect')
+    # obs_smt = ndimage.convolve(obs_org, kernel_2d, mode='constant')
+    obs_smt = np.zeros([n_bin, n_bin])
+    for bi in range(n_bin):
+        obs_smt[bi, :] = np.convolve(obs_org[bi, :], kernel, mode='same')
 
     print('Sum(Row/Col)=1 normalization')
     # obs_org = normalize_matrix(obs_smt, method='KR')
-    obs_nrm = normalize_matrix(obs_smt, method='iterative', scale=False)
+    # obs_nrm = normalize_matrix(obs_smt, method='iterative', scale=True)
+    obs_nrm = obs_smt.copy()
 
     # estimate decay profile
     print('Estimating decay profile ...')
@@ -155,8 +164,12 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
                         bkg_org[soi_bdx, frg2bin[rnd_frgs[ni]]] += 1
                     else:
                         bkg_org[soi_bdx, rnd_read[fi]] += 1
-        bkg_smt = ndimage.convolve(bkg_org, kernel_2d, mode='reflect')
-        bkg_nrm = normalize_matrix(bkg_smt, method='iterative', scale=False)
+        # bkg_smt = ndimage.convolve(bkg_org, kernel_2d, mode='constant')
+        bkg_smt = np.zeros([n_bin, n_bin])
+        for bi in range(n_bin):
+            bkg_smt[bi, :] = np.convolve(bkg_org[bi, :], kernel, mode='same')
+        # bkg_nrm = normalize_matrix(bkg_smt, method='iterative', scale=True)
+        bkg_nrm = bkg_smt.copy()
 
         # store the current epoch
         for bi in range(n_bin):
@@ -360,9 +373,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     run_id = ','.join([config['run_id'] for config in config_lst])
     configs = config_lst[0]
     if configs['output_file'] is None:
-        configs['output_file'] = configs['output_dir'] + '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) + \
-                                 'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) + \
-                                 'np{:0.1f}k_zlm{:0.1f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1])
+        configs['output_file'] = path.join(configs['output_dir'],
+                                           'analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) +
+                                           'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) +
+                                           'np{:0.1f}k_zlm{:0.1f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -551,7 +565,8 @@ def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
     # initialization
     run_id = ','.join([config['run_id'] for config in config_lst])
     if config_lst[0]['output_file'] is None:
-        config_lst[0]['output_file'] = config_lst[0]['output_dir'] + '/analysis_atSOI-SOI_{:s}.pdf'.format(run_id)
+        config_lst[0]['output_file'] = path.join(config_lst[0]['output_dir'],
+                                                 'analysis_atSOI-SOI_{:s}.pdf'.format(run_id))
     edge_lst = np.linspace(config_lst[0]['roi_start'], config_lst[0]['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
@@ -705,11 +720,11 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     if configs['output_file'] is None:
         if downsample:
             run_id += '_ds{:d}'.format(downsample)
-        configs['output_file'] = configs['output_dir'] + \
-                                 '/analysis_atAcrossROI_{:s}_'.format(run_id) + \
-                                 'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) + \
-                                 'mth-{:s}_'.format(configs['test_method']) + \
-                                 'np{:0.1f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1])
+        configs['output_file'] = path.join(configs['output_dir'],
+                                           'analysis_atAcrossROI_{:s}_'.format(run_id) +
+                                           'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) +
+                                           'mth-{:s}_'.format(configs['test_method']) +
+                                           'np{:0.1f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
