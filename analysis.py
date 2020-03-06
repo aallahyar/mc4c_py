@@ -64,7 +64,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
     return decay_prob
 
 
-def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
+def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, args):
     import scipy.ndimage as ndimage
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
@@ -111,22 +111,29 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         for rd_idx in pos_rids[soi_bdx]:
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
-    print('Smoothing observed profiles using sig={:0.1f}'.format(sigma))
-    kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
-    kernel_2d = get_gauss_kernel(size=11, sigma=sigma, ndim=2)
+    print('Smoothing observed profiles using sig={:0.1f}'.format(args.sigma))
+    # kernel_2d = get_gauss_kernel(size=11, sigma=args.sigma, ndim=2)
     # obs_smt = ndimage.convolve(obs_org, kernel_2d, mode='constant')
+    kernel = get_gauss_kernel(size=11, sigma=args.sigma, ndim=1)
     obs_smt = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         obs_smt[bi, :] = np.convolve(obs_org[bi, :], kernel, mode='same')
 
-    print('Sum(Row/Col)=1 normalization')
-    # obs_org = normalize_matrix(obs_smt, method='KR')
-    # obs_nrm = normalize_matrix(obs_smt, method='iterative', scale=True)
-    obs_nrm = obs_smt.copy()
+    if args.cvg_norm == 'none':
+        def norm_func(x): return x.copy()
+    else:
+        print('Coverage normalization using: {:s}'.format(args.cvg_norm))
+        if args.cvg_norm == 'iter':
+            def norm_func(x): return normalize_matrix(x, method='iterative', scale=True)
+        elif args.cvg_norm == 'KR':
+            def norm_func(x): return normalize_matrix(x, method='KR', scale=True)
+        else:
+            raise ValueError('Unknown normalization method')
+    obs_nrm = norm_func(obs_smt)
 
     # estimate decay profile
     print('Estimating decay profile ...')
-    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=sigma)
+    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=args.sigma)
 
     # estimate expected distributions
     print('Estimating expected distributions:')
@@ -135,9 +142,9 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
     exp_obj = []
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
-    for ei in range(n_perm):
+    for ei in range(args.n_perm):
         if ei % 50 == 0:
-            print('\tEpoch #{:04d}/{:04d}: '.format(ei, n_perm))
+            print('\tEpoch #{:04d}/{:04d}: '.format(ei, args.n_perm))
 
         # loop over each SOI
         bkg_org = np.zeros([n_bin, n_bin])
@@ -168,8 +175,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         bkg_smt = np.zeros([n_bin, n_bin])
         for bi in range(n_bin):
             bkg_smt[bi, :] = np.convolve(bkg_org[bi, :], kernel, mode='same')
-        # bkg_nrm = normalize_matrix(bkg_smt, method='iterative', scale=True)
-        bkg_nrm = bkg_smt.copy()
+        bkg_nrm = norm_func(bkg_smt)
 
         # store the current epoch
         for bi in range(n_bin):
@@ -183,7 +189,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         for bj in range(n_bin):
             exp_avg[bi, bj] = exp_obj[bi][bj].mean
             exp_std[bi, bj] = exp_obj[bi][bj].std
-    # del exp_obj
+    del exp_obj
 
     # compute z-scores
     zscr_mat = np.full([n_bin, n_bin], fill_value=np.nan)
@@ -193,7 +199,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, n_perm, sigma):
         for bj in range(n_bin):
             if np.abs(bi - bj) <= 3:
                 continue
-            if exp_obj[bi][bj].std != 0:
+            if exp_std[bi, bj] != 0:
                 zscr_mat[bi, bj] = (obs_nrm[bi, bj] - exp_avg[bi, bj]) / exp_std[bi, bj]
 
     # plot
@@ -723,8 +729,8 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
         configs['output_file'] = path.join(configs['output_dir'],
                                            'analysis_atAcrossROI_{:s}_'.format(run_id) +
                                            'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) +
-                                           'mth-{:s}_'.format(configs['test_method']) +
-                                           'np{:0.1f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
+                                           'nrm-{:s}_mth-{:s}_'.format(configs['cmd_args'].cvg_norm, configs['test_method']) +
+                                           'np{:0.2f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -776,10 +782,10 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     read_inf = read_inf[np.isin(read_inf[:, 0], valid_lst), :]
 
     # subsample reads
-    if downsample:
+    if configs['cmd_args'].downsample:
         n_read = len(np.unique(read_inf[:, 0]))
-        print('[i] Downsampling {:,d} informative reads to {:d} reads.'.format(n_read, downsample))
-        rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), downsample, replace=False)
+        print('[i] Downsampling {:,d} informative reads to {:d} reads.'.format(n_read, configs['cmd_args'].downsample))
+        rnd_ids = np.random.choice(np.unique(read_inf[:, 0]), configs['cmd_args'].downsample, replace=False)
         read_inf = read_inf[np.isin(read_inf[:, 0], rnd_ids), :]
 
     # reindexing reads
@@ -793,9 +799,9 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
 
     # choose the model
     print('Computing expected profile using "{:s}" model, '.format(configs['test_method']), end='')
-    if configs['test_method'] == 'decayCorrector':
+    if configs['cmd_args'].test_method == 'decayCorrector':
         print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, n_perm=n_perm, sigma=sigma)
+        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, args=configs['cmd_args'])
     else:
         print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
 
@@ -814,7 +820,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
                 continue
 
             # compute the observe and background
-            blk_org[bi, :], blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], bin_bnd, n_perm=n_perm, sigma=sigma, verbose=False)[:4]
+            blk_org[bi, :], blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma, verbose=False)[:4]
             n_pos = len(np.unique(read_pos[:, 0]))
             if n_pos < MIN_N_POS:
                 n_ignored += 1
@@ -899,7 +905,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     # final adjustments
     plt.suptitle('Association matrix from {:s}\n'.format(run_id) +
                  '#read (#roiFrg>{:d}, ex. vp)={:,d}; '.format(min_n_frg - 1, n_read) +
-                 'sigma={:0.2f}; method={:s}\n'.format(sigma, configs['test_method']) +
+                 'sigma={:0.2f}; cvg_norm={:s}, corr_method={:s}\n'.format(sigma, configs['cmd_args'].cvg_norm, configs['test_method']) +
                  'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
                  )
     plt.subplots_adjust(wspace=0.25, hspace=0.15, top=0.91)

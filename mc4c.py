@@ -87,6 +87,7 @@ def perform_analysis(args):
     config_lst[0]['output_file'] = args.output_file
     config_lst[0]['zscr_lim'] = [-args.zscr_lim, args.zscr_lim]
     config_lst[0]['test_method'] = args.test_method
+    config_lst[0]['cmd_args'] = args
 
     # call the requested function
     if args.analysis_type == 'atVpSoi':
@@ -110,10 +111,10 @@ def perform_analysis(args):
 
         if args.to_tsv:
             run_id = ','.join([config['run_id'] for config in config_lst])
-            tsv_fname = config_lst[0]['output_dir'] + \
-                        '/analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, ','.join(ant_name_lst)) + \
-                        'sig{:0.2f}_mth-{:s}_'.format(args.sigma, args.test_method) + \
-                        'np{:0.1f}k.tsv'.format(args.n_perm / 1e3)
+            tsv_fname = path.join(config_lst[0]['output_dir'],
+                                  'analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, ','.join(ant_name_lst)) +
+                                  'sig{:0.2f}_mth-{:s}_'.format(args.sigma, args.test_method) +
+                                  'np{:0.1f}k.tsv'.format(args.n_perm / 1e3))
             zscr_pd.to_csv(tsv_fname, sep='\t', index=False, header=True)
 
     elif args.analysis_type == 'atSOISOI':
@@ -241,6 +242,7 @@ def main():
     parser_analysis.add_argument('--to_tsv', action="store_true", help='Store the z-scores to a tab-separated file')
     parser_analysis.add_argument('--zscr_lim', default=6, type=float)
     parser_analysis.add_argument('--test_method', default='default', type=str)
+    parser_analysis.add_argument('--cvg_norm', default='none', type=str, choices=['none', 'iter', 'KR'])
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
@@ -287,12 +289,12 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--downsample=10000', '--to_tsv', 'LVR-BMaj-96x,LVR-BMaj-NP'] # BRN-BMaj-96x,BRN-BMaj-96x2
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--test_method=decayCorrector', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--test_method=decayCorrector', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--test_method=decayCorrector', '--zscr_lim=6', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=default', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=1000', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=0.0', '--test_method=decayCorrector', 'BRN-BMaj-96x,BRN-BMaj-96x2']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=2', '--cvg_norm=iter', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=1.0', '--test_method=decayCorrector', 'LVR-HS2-96x,LVR-HS2-NP,LVR-HS2-NP2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--to_tsv', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--test_method=decayCorrector', '--ant-name=LB', 'Prdm14_RB_WT']
