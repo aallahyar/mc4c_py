@@ -43,11 +43,11 @@ echo "submitting jobs for plotting statistics"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_13-SeqSatur     -l h_rt=10:00:00 -l h_vmem=15G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py QC seqSaturation ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi        -l h_rt=10:00:00 -l h_vmem=25G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi --sigma=0.0 ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi-Smt    -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi --sigma=1.0 ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi-Dec    -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi --sigma=1.0 --test_method=decayCorrector ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_14-VpSoi-Dec    -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atVpSoi --sigma=1.0 --correction=decay ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_15-SOISOI       -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atSOISOI ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI     -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --sigma=0.0 --to_tsv ${cfg_name}"
     qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI-Smt -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --sigma=1.0 --to_tsv ${cfg_name}"
-    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI-Dec -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --sigma=1.0 --test_method=decayCorrector --to_tsv ${cfg_name}"
+    qsub -hold_jid $jid_dup -P compgen -N mc4c_${cfg_name}_16-CrossROI-Dec -l h_rt=10:00:00 -l h_vmem=10G -pe threaded 1 ~/bulk/bin/run_script.sh "python2 -u mc4c.py analysis atAcrossROI --sigma=1.0 --correction=decay --to_tsv ${cfg_name}"
 fi
 
 #set +x

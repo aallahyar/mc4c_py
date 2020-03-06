@@ -64,7 +64,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
     return decay_prob
 
 
-def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, args):
+def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
     import scipy.ndimage as ndimage
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
@@ -111,21 +111,21 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, args):
         for rd_idx in pos_rids[soi_bdx]:
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
-    print('Smoothing observed profiles using sig={:0.1f}'.format(args.sigma))
+    print('Smoothing observed profiles using sig={:0.1f}'.format(cmd_args.sigma))
     # kernel_2d = get_gauss_kernel(size=11, sigma=args.sigma, ndim=2)
     # obs_smt = ndimage.convolve(obs_org, kernel_2d, mode='constant')
-    kernel = get_gauss_kernel(size=11, sigma=args.sigma, ndim=1)
+    kernel = get_gauss_kernel(size=11, sigma=cmd_args.sigma, ndim=1)
     obs_smt = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         obs_smt[bi, :] = np.convolve(obs_org[bi, :], kernel, mode='same')
 
-    if args.cvg_norm == 'none':
+    if cmd_args.cvg_norm == 'none':
         def norm_func(x): return x.copy()
     else:
-        print('Coverage normalization using: {:s}'.format(args.cvg_norm))
-        if args.cvg_norm == 'iter':
+        print('Coverage normalization using: {:s}'.format(cmd_args.cvg_norm))
+        if cmd_args.cvg_norm == 'iter':
             def norm_func(x): return normalize_matrix(x, method='iterative', scale=True)
-        elif args.cvg_norm == 'KR':
+        elif cmd_args.cvg_norm == 'KR':
             def norm_func(x): return normalize_matrix(x, method='KR', scale=True)
         else:
             raise ValueError('Unknown normalization method')
@@ -133,7 +133,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, args):
 
     # estimate decay profile
     print('Estimating decay profile ...')
-    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=args.sigma)
+    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=cmd_args.sigma)
 
     # estimate expected distributions
     print('Estimating expected distributions:')
@@ -142,9 +142,9 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, args):
     exp_obj = []
     for bi in range(n_bin):
         exp_obj.append([OnlineStats() for _ in range(n_bin)])
-    for ei in range(args.n_perm):
+    for ei in range(cmd_args.n_perm):
         if ei % 50 == 0:
-            print('\tEpoch #{:04d}/{:04d}: '.format(ei, args.n_perm))
+            print('\tEpoch #{:04d}/{:04d}: '.format(ei, cmd_args.n_perm))
 
         # loop over each SOI
         bkg_org = np.zeros([n_bin, n_bin])
@@ -365,7 +365,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
     return prf_org, prf_smt, prf_rnd, frg_pos, frg_neg
 
 
-def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
+def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -381,8 +381,8 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     if configs['output_file'] is None:
         configs['output_file'] = path.join(configs['output_dir'],
                                            'analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) +
-                                           'sig{:0.2f}_mth-{:s}_'.format(sigma, configs['test_method']) +
-                                           'np{:0.1f}k_zlm{:0.1f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
+                                           'sig{:0.2f}_corr-{:s}_'.format(configs['cmd_args'].sigma, configs['cmd_args'].correction) +
+                                           'np{:0.1f}k_zlm{:0.1f}.pdf'.format(configs['cmd_args'].n_perm / 1e3, configs['cmd_args'].zscr_lim))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -441,10 +441,10 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
-    if configs['test_method'] == 'decayCorrector':
-        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+    if configs['cmd_args'].correction == 'decay':
+        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma)
     else:
-        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=n_perm, sigma=sigma)
+        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
     print('{:,d} reads are found to cover '.format(n_pos) +
@@ -497,7 +497,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     clr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     clr_map = LinearSegmentedColormap.from_list('test', clr_lst, N=9)
     clr_map.set_bad('gray', 0.05)
-    norm = matplotlib.colors.Normalize(vmin=configs['zscr_lim'][0], vmax=configs['zscr_lim'][1])
+    norm = matplotlib.colors.Normalize(vmin=-configs['cmd_args'].zscr_lim, vmax=configs['cmd_args'].zscr_lim)
     cbar_h = matplotlib.colorbar.ColorbarBase(ax_cmp, cmap=clr_map, norm=norm)
     # cbar_h.ax.tick_params(labelsize=12)
     cbar_h.ax.set_ylabel('z-score', rotation=90)
@@ -505,7 +505,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     # profile plot
     ax_prf.plot(bin_cen, prf_obs, color='#5757ff', linewidth=1, zorder=3)
     ax_prf.plot(bin_cen, prf_exp, color='#cccccc', linewidth=1, zorder=2)
-    if configs['test_method'] == 'decayCorrector':
+    if configs['cmd_args'].correction == 'decay':
         soi_cen = np.mean(soi_crd[1:])
         ax_prf.plot(bin_cen + (soi_cen - bin_cen[0]), decay_prob * 100, color='#377d22', linewidth=0.5, alpha=0.5, zorder=200)
         ax_prf.plot(bin_cen - (bin_cen[-1] - soi_cen), decay_prob[::-1] * 100, color='#377d22', linewidth=0.5, alpha=0.5, zorder=200)
@@ -550,9 +550,9 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg, n_perm, sigma):
     ax_prf.set_ylabel('Percentage of reads')
     ax_prf.set_title('VP-SOI from {:s}, SOI={:s}\n'.format(run_id, soi_name) +
                      '#read (#roiFrg>{:d}, ex. vp)={:,d}, #pos={:d}, '.format(min_n_frg - 1, n_read, n_pos) +
-                     'method={:s}\nsigma={:0.2f}; '.format(configs['test_method'], sigma) +
+                     'correction={:s}\nsigma={:0.2f}; '.format(configs['cmd_args'].correction, configs['cmd_args'].sigma) +
                      'bin-w={:0.0f}; soi-w={:0.0f}; '.format(bin_w, ant_bnd[0, 1] - ant_bnd[0, 0]) +
-                     '#perm={:d}\n\n\n'.format(n_perm)
+                     '#perm={:d}\n\n\n'.format(configs['cmd_args'].n_perm)
                      )
     plt.savefig(configs['output_file'], bbox_inches='tight')
     return ant_pd
@@ -709,7 +709,7 @@ def perform_soisoi_analysis(config_lst, min_n_frg, n_perm):
     plt.savefig(config_lst[0]['output_file'], bbox_inches='tight')
 
 
-def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, downsample=None):
+def perform_at_across_roi(config_lst, min_n_frg):
     import platform
     import matplotlib
     if platform.system() == 'Linux':
@@ -724,13 +724,13 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     configs = config_lst[0]
     roi_w = configs['roi_end'] - configs['roi_start']
     if configs['output_file'] is None:
-        if downsample:
-            run_id += '_ds{:d}'.format(downsample)
+        if configs['cmd_args'].downsample:
+            run_id += '_ds{:d}'.format(configs['cmd_args'].downsample)
         configs['output_file'] = path.join(configs['output_dir'],
                                            'analysis_atAcrossROI_{:s}_'.format(run_id) +
-                                           'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, sigma) +
-                                           'nrm-{:s}_mth-{:s}_'.format(configs['cmd_args'].cvg_norm, configs['test_method']) +
-                                           'np{:0.2f}k_zlm{:0.0f}.pdf'.format(n_perm / 1e3, configs['zscr_lim'][1]))
+                                           'rw{:0.1f}kb_sig{:0.2f}_'.format(roi_w / 1e3, configs['cmd_args'].sigma) +
+                                           'nrm-{:s}_corr-{:s}_'.format(configs['cmd_args'].cvg_norm, configs['cmd_args'].correction) +
+                                           'np{:0.2f}k_zlm{:0.0f}.pdf'.format(configs['cmd_args'].n_perm / 1e3, configs['cmd_args'].zscr_lim))
 
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
@@ -798,10 +798,10 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     ant_bnd = np.hstack([ant_pd[['ant_pos']].values, ant_pd[['ant_pos']].values])
 
     # choose the model
-    print('Computing expected profile using "{:s}" model, '.format(configs['test_method']), end='')
-    if configs['cmd_args'].test_method == 'decayCorrector':
+    print('Computing expected profile using "{:s}" model, '.format(configs['correction']), end='')
+    if configs['cmd_args'].correction == 'decay':
         print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, args=configs['cmd_args'])
+        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
     else:
         print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
 
@@ -840,7 +840,7 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
         blk_smt = blk_obs.copy()
 
     # export to excel file
-    if tsv_export:
+    if configs['cmd_args'].to_tsv:
         import pandas as pd
 
         tsv_fname = configs['output_file'][:-4] + '.tsv'
@@ -905,8 +905,8 @@ def perform_at_across_roi(config_lst, min_n_frg, n_perm, tsv_export, sigma, down
     # final adjustments
     plt.suptitle('Association matrix from {:s}\n'.format(run_id) +
                  '#read (#roiFrg>{:d}, ex. vp)={:,d}; '.format(min_n_frg - 1, n_read) +
-                 'sigma={:0.2f}; cvg_norm={:s}, corr_method={:s}\n'.format(sigma, configs['cmd_args'].cvg_norm, configs['test_method']) +
-                 'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, n_perm)
+                 'sigma={:0.2f}; cvg_norm={:s}, correction={:s}\n'.format(configs['cmd_args'].sigma, configs['cmd_args'].cvg_norm, configs['cmd_args'].correction) +
+                 'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, configs['cmd_args'].n_perm)
                  )
     plt.subplots_adjust(wspace=0.25, hspace=0.15, top=0.91)
     plt.savefig(configs['output_file'], bbox_inches='tight')
