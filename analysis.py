@@ -88,7 +88,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
     frg2bin = []
     rds2bin = [list() for _ in range(n_read)]
     bin2rds = [list() for _ in range(n_bin)]
-    assert len(np.unique(frg_inf[:, 1])) == 1
+    assert len(np.unique(frg_inf[:, 1])) == 1  # make sure its cis-frags only, note: not cheking for cis=vp_chr
     for fi in range(n_frg):
         ov_bdxs = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0].tolist()
         frg2bin.append(ov_bdxs)
@@ -101,13 +101,13 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
     # compute observed coverage
     print('Calculating observed coverage ...')
     obs_org = np.zeros([n_bin, n_bin])
-    pos_rids = [list() for _ in range(n_bin)]
+    bin_pids = [list() for _ in range(n_bin)]
     bin_npos = np.zeros(n_bin)
     for soi_bdx in np.arange(n_bin):
         is_pos = hasOL(bin_bnd[soi_bdx, :], frg_inf[:, 2:4], offset=bin_w)
-        pos_rids[soi_bdx] = np.unique(read_idxs[is_pos]).tolist()
-        bin_npos[soi_bdx] = len(pos_rids[soi_bdx])
-        for rd_idx in pos_rids[soi_bdx]:
+        bin_pids[soi_bdx] = np.unique(read_idxs[is_pos]).tolist()
+        bin_npos[soi_bdx] = len(bin_pids[soi_bdx])
+        for rd_idx in bin_pids[soi_bdx]:
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
     print('Smoothing observed profiles using sig={:0.1f}'.format(cmd_args.sigma))
@@ -119,6 +119,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
         obs_smt[bi, :] = np.convolve(obs_org[bi, :], kernel, mode='same')
 
     if cmd_args.cvg_norm == 'none':
+        print('No normalization is performed')
         def norm_func(x): return x.copy()
     else:
         print('Coverage normalization using: {:s}'.format(cmd_args.cvg_norm))
@@ -151,8 +152,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
         for soi_bdx in range(n_bin):
 
             # select pos/neg reads
-            neg_rids = all_rids[~np.isin(all_rids, pos_rids[soi_bdx])]
-            n_pos = len(pos_rids[soi_bdx])
+            neg_rids = all_rids[~np.isin(all_rids, bin_pids[soi_bdx])]
+            n_pos = len(bin_pids[soi_bdx])
             n_neg = len(neg_rids)
 
             # assign probability to neg fragments
@@ -164,9 +165,9 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
                 rnd_frgs = [[]] * n_pos
 
             # make background coverage
-            rnd_negs = np.random.randint(n_neg, size=n_pos)
+            rnd_idxs = np.random.randint(n_neg, size=n_pos)
             for ni in range(n_pos):
-                rnd_read = rds2bin[neg_rids[rnd_negs[ni]]]
+                rnd_read = rds2bin[neg_rids[rnd_idxs[ni]]]
                 rnd_nfrg = len(rnd_read)
                 del_idx = np.random.randint(rnd_nfrg)
                 for fi in range(rnd_nfrg):
@@ -174,6 +175,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
                         bkg_org[soi_bdx, rnd_frgs[ni]] += 1
                     else:
                         bkg_org[soi_bdx, rnd_read[fi]] += 1
+
+        # smoothing/normalizing background
         # bkg_smt = ndimage.convolve(bkg_org, kernel_2d, mode='constant')
         bkg_smt = np.zeros([n_bin, n_bin])
         for bi in range(n_bin):
