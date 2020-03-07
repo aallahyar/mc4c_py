@@ -65,7 +65,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
 
 def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
-    import scipy.ndimage as ndimage
+    # import scipy.ndimage as ndimage
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
 
@@ -95,19 +95,18 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
         rds2bin[read_idxs[fi]].append(ov_bdxs)
         for bin_idx in ov_bdxs:
             bin2rds[bin_idx].append(read_idxs[fi])
-    # for ri in range(n_read):
-    #     rds2bin[ri] = np.unique(rds2bin[ri])
     for bi in range(n_bin):
         bin2rds[bi] = np.unique(bin2rds[bi])
-    # del frg_inf
 
     # compute observed coverage
     print('Calculating observed coverage ...')
     obs_org = np.zeros([n_bin, n_bin])
     pos_rids = [list() for _ in range(n_bin)]
-    for soi_bdx in range(n_bin):
+    bin_npos = np.zeros(n_bin)
+    for soi_bdx in np.arange(n_bin):
         is_pos = hasOL(bin_bnd[soi_bdx, :], frg_inf[:, 2:4], offset=bin_w)
         pos_rids[soi_bdx] = np.unique(read_idxs[is_pos]).tolist()
+        bin_npos[soi_bdx] = len(pos_rids[soi_bdx])
         for rd_idx in pos_rids[soi_bdx]:
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
@@ -133,7 +132,8 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
 
     # estimate decay profile
     print('Estimating decay profile ...')
-    decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=cmd_args.sigma)
+    if cmd_args.correction == 'decay':
+        decay_prob = estimate_decay_effect(rds2bin, n_bin, sigma=cmd_args.sigma)
 
     # estimate expected distributions
     print('Estimating expected distributions:')
@@ -156,11 +156,14 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
             n_neg = len(neg_rids)
 
             # assign probability to neg fragments
-            frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
-            frg_prob = frg_prob / np.sum(frg_prob)
+            if cmd_args.correction == 'decay':
+                frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
+                frg_prob = frg_prob / np.sum(frg_prob)
+                rnd_frgs = [frg2bin[i] for i in np.random.choice(all_fids, p=frg_prob, size=n_pos)]
+            else:
+                rnd_frgs = [[]] * n_pos
 
             # make background coverage
-            rnd_frgs = np.random.choice(all_fids, p=frg_prob, size=n_pos)  # TODO: selection from neg, instead of all?
             rnd_negs = np.random.randint(n_neg, size=n_pos)
             for ni in range(n_pos):
                 rnd_read = rds2bin[neg_rids[rnd_negs[ni]]]
@@ -168,7 +171,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
                 del_idx = np.random.randint(rnd_nfrg)
                 for fi in range(rnd_nfrg):
                     if fi == del_idx:
-                        bkg_org[soi_bdx, frg2bin[rnd_frgs[ni]]] += 1
+                        bkg_org[soi_bdx, rnd_frgs[ni]] += 1
                     else:
                         bkg_org[soi_bdx, rnd_read[fi]] += 1
         # bkg_smt = ndimage.convolve(bkg_org, kernel_2d, mode='constant')
@@ -182,47 +185,15 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
             for bj in range(n_bin):
                 exp_obj[bi][bj].include(bkg_nrm[bi, bj])
 
-    # collect expected values
-    exp_avg = np.zeros([n_bin, n_bin])
-    exp_std = np.zeros([n_bin, n_bin])
+    # collect background values
+    bkg_avg = np.zeros([n_bin, n_bin])
+    bkg_std = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         for bj in range(n_bin):
-            exp_avg[bi, bj] = exp_obj[bi][bj].mean
-            exp_std[bi, bj] = exp_obj[bi][bj].std
-    del exp_obj
+            bkg_avg[bi, bj] = exp_obj[bi][bj].mean
+            bkg_std[bi, bj] = exp_obj[bi][bj].std
 
-    # compute z-scores
-    zscr_mat = np.full([n_bin, n_bin], fill_value=np.nan)
-    for bi in range(n_bin):
-        if len(pos_rids[bi]) < 100:
-            continue
-        for bj in range(n_bin):
-            if np.abs(bi - bj) <= 3:
-                continue
-            if exp_std[bi, bj] != 0:
-                zscr_mat[bi, bj] = (obs_nrm[bi, bj] - exp_avg[bi, bj]) / exp_std[bi, bj]
-
-    # plot
-    # from matplotlib import pyplot as plt, cm
-    # from matplotlib.colors import LinearSegmentedColormap
-    # plt.close('all')
-    # plt.figure(figsize=[15, 13])
-    # cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
-    #             LinearSegmentedColormap.from_list('rwwb', ['#ff0000', '#ffffff', '#ffffff', '#0000ff']),
-    #             ]
-    # for pi, mat in enumerate([obs_smt, exp_avg, exp_std, zscr_mat]):
-    #     ax = plt.subplot(2, 2, pi + 1)
-    #     img_h = ax.imshow(mat, cmap=cmap_lst[pi])
-    #     if pi == 3:
-    #         img_h.set_clim([-6, 6])
-    #     elif pi < 2:
-    #         img_h.set_clim([0, np.percentile(obs_smt, 96)])
-    #     plt.colorbar(ax=ax, mappable=img_h)
-    # out_fname = './plt_sig{:0.2f}_'.format(sigma) + \
-    #             'prm{:d}_rnd{:03d}.pdf'.format(n_perm, np.random.randint(1000))
-    # plt.savefig(out_fname, bbox_inches='tight')
-
-    return obs_org, obs_smt, obs_nrm, exp_avg, exp_std, zscr_mat
+    return obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos
 
 
 def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
@@ -351,7 +322,6 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
 
     # smoothing if needed
     if sigma != 0:
-        # np.set_printoptions(linewidth=250, edgeitems=50, formatter={'float_kind': lambda x: "%6.3f" % x})
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
@@ -382,7 +352,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
         configs['output_file'] = path.join(configs['output_dir'],
                                            'analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) +
                                            'sig{:0.2f}_corr-{:s}_'.format(configs['cmd_args'].sigma, configs['cmd_args'].correction) +
-                                           'np{:0.1f}k_zlm{:0.1f}.pdf'.format(configs['cmd_args'].n_perm / 1e3, configs['cmd_args'].zscr_lim))
+                                           'np{:0.2f}k_zlm{:0.1f}.pdf'.format(configs['cmd_args'].n_perm / 1e3, configs['cmd_args'].zscr_lim))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
     bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64)
@@ -799,45 +769,43 @@ def perform_at_across_roi(config_lst, min_n_frg):
 
     # choose the model
     print('Computing expected profile using "{:s}" model, '.format(configs['correction']), end='')
-    if configs['cmd_args'].correction == 'decay':
-        print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-        blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
-    else:
-        print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
+    print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
+    obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
+    # if configs['cmd_args'].correction == 'decay':
+    #     print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
+    #     obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
+    # else:
+    #     print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
+    #
+    #     # compute score for annotations
+    #     obs_org = np.full([n_blk, n_blk], fill_value=np.nan)
+    #     obs_smt = np.full([n_blk, n_blk], fill_value=np.nan)
+    #     bkg_avg = np.full([n_blk, n_blk], fill_value=np.nan)
+    #     bkg_std = np.full([n_blk, n_blk], fill_value=np.nan)
+    #     bin_npos = np.zeros(n_bin)
+    #     for bi in range(n_blk):
+    #         showprogress(bi, n_blk, n_step=20)
+    #         if hasOL(blk_crd[bi, :], vp_crd)[0]:
+    #             continue
+    #         obs_org[bi, :], obs_smt[bi, :], bkg_rnd, frg_pos = compute_mc_associations(read_inf, blk_crd[bi, :], bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma, verbose=False)[:4]
+    #         bin_npos[bi] = len(np.unique(frg_pos[:, 0]))
+    #         bkg_avg[bi, :] = np.mean(bkg_rnd, axis=0)
+    #         bkg_std[bi, :] = np.std(bkg_rnd, axis=0, ddof=0)
+    #     obs_nrm = obs_smt.copy()
 
-        # compute score for annotations
-        blk_org = np.full([n_blk, n_blk], fill_value=np.nan)
-        blk_obs = np.full([n_blk, n_blk], fill_value=np.nan)
-        blk_exp = np.full([n_blk, n_blk], fill_value=np.nan)
-        blk_std = np.full([n_blk, n_blk], fill_value=np.nan)
-        blk_zsr = np.full([n_blk, n_blk], fill_value=np.nan)
-        n_ignored = 0
-        for bi in range(n_blk):
-            showprogress(bi, n_blk, n_step=20)
-
-            # ignore if vp
-            if hasOL(blk_crd[bi, :], vp_crd)[0]:
+    # compute z-scores
+    n_ignored = 0
+    zscr_mat = np.full([n_bin, n_bin], fill_value=np.nan)
+    for bi in range(n_bin):
+        if bin_npos[bi] < 100:
+            n_ignored += 1
+            continue
+        for bj in range(n_bin):
+            if np.abs(bi - bj) <= 3:
                 continue
-
-            # compute the observe and background
-            blk_org[bi, :], blk_obs[bi, :], blk_rnd, read_pos = compute_mc_associations(read_inf, blk_crd[bi, :], bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma, verbose=False)[:4]
-            n_pos = len(np.unique(read_pos[:, 0]))
-            if n_pos < MIN_N_POS:
-                n_ignored += 1
-                continue
-
-            # compute the scores
-            blk_exp[bi, :] = np.mean(blk_rnd, axis=0)
-            blk_std[bi, :] = np.std(blk_rnd, axis=0, ddof=0)
-            np.seterr(all='ignore')
-            blk_zsr[bi, :] = np.divide(blk_obs[bi, :] - blk_exp[bi, :], blk_std[bi, :])
-            np.seterr(all=None)
-
-            # remove scores overlapping with positive set
-            is_nei = hasOL(blk_crd[bi, 1:], bin_bnd, offset=blk_w)
-            blk_zsr[bi, is_nei] = np.nan
-        print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
-        blk_smt = blk_obs.copy()
+            if bkg_std[bi, bj] != 0:
+                zscr_mat[bi, bj] = (obs_nrm[bi, bj] - bkg_avg[bi, bj]) / bkg_std[bi, bj]
+    print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # export to excel file
     if configs['cmd_args'].to_tsv:
@@ -855,7 +823,7 @@ def perform_at_across_roi(config_lst, min_n_frg):
         y_tick_lbl = [','.join(y_lbl) for y_lbl in y_tick_lbl]
 
         # storing
-        zscr_pd = pd.DataFrame(blk_zsr, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
+        zscr_pd = pd.DataFrame(zscr_mat, columns=[bin_cen.flatten(), y_tick_lbl], index=[bin_cen.flatten(), y_tick_lbl])
         zscr_pd.to_csv(tsv_fname, sep='\t', index=True, header=True)
 
     # plotting the scores
@@ -865,7 +833,7 @@ def perform_at_across_roi(config_lst, min_n_frg):
     zclr_lst = ['#ff1a1a', '#ff7575', '#ffcccc', '#ffffff', '#ffffff', '#ffffff', '#ccdfff', '#3d84ff', '#3900f5']
     cmap_lst = [cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20), cm.get_cmap('hot_r', 20),
                 cm.get_cmap('summer_r', 20), LinearSegmentedColormap.from_list('bwwr', zclr_lst, 9)]
-    for img_idx, img in enumerate([blk_org, blk_smt, blk_obs, blk_exp, blk_std, blk_zsr]):
+    for img_idx, img in enumerate([obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, zscr_mat]):
         ax = plt.subplot(2, 3, img_idx + 1)
 
         # plot the image
@@ -875,11 +843,11 @@ def perform_at_across_roi(config_lst, min_n_frg):
 
         # adjustments
         if img_names[img_idx] in ['Original', 'Smoothed']:
-            plt.clim(np.nanpercentile(blk_smt, [20, 95]))
+            plt.clim(np.nanpercentile(obs_smt, [20, 95]))
         elif img_names[img_idx] in ['Normalized/Observed', 'Expected']:
-            plt.clim([np.nanpercentile(blk_obs, 20), np.nanpercentile(blk_obs, 95)])
+            plt.clim([np.nanpercentile(obs_nrm, 20), np.nanpercentile(obs_nrm, 95)])
         elif img_names[img_idx] in ['Standard deviation']:
-            plt.clim(np.nanpercentile(blk_std, [60, 95]))
+            plt.clim(np.nanpercentile(bkg_std, [60, 95]))
         elif img_names[img_idx] in ['z-score']:
             plt.clim(configs['zscr_lim'])
 
