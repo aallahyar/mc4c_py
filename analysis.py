@@ -64,7 +64,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
     return decay_prob
 
 
-def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
+def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
     # import scipy.ndimage as ndimage
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
@@ -206,7 +206,7 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
     return obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos
 
 
-def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
+def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
     from utilities import hasOL, flatten
 
     # re-index circles
@@ -269,7 +269,8 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, cmd_args, verbos
             frg2bins_neg = rd2bins_neg[neg_lst[ni]]
             np.random.shuffle(frg2bins_neg)
             bkg_rnd[ei, flatten(frg2bins_neg[1:])] += 1  # making sure one element is randomly ignored everytime
-            bkg_rnd[ei, neg_fbdx[ni]] += 1
+            if cmd_args.correction == 'decay':
+                bkg_rnd[ei, neg_fbdx[ni]] += 1
 
     # smoothing, if needed
     if cmd_args.sigma != 0:
@@ -431,10 +432,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
-    if configs['cmd_args'].correction == 'decay':
-        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, cmd_args=configs['cmd_args'])
-    else:
-        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma)
+    prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_1d_associations(frg_inf, soi_crd, bin_bnd, cmd_args=configs['cmd_args'])
     n_pos = len(np.unique(frg_pos[:, 0]))
     prf_obs = prf_frq * 100.0 / n_pos
     print('{:,d} reads are found to cover '.format(n_pos) +
@@ -790,7 +788,7 @@ def perform_at_across_roi(config_lst, min_n_frg):
     # choose the model
     print('Computing expected profile using "{:s}" model, '.format(configs['correction']), end='')
     print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-    obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
+    obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_2d_associations(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
     # if configs['cmd_args'].correction == 'decay':
     #     print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
     #     obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
