@@ -331,6 +331,10 @@ def normalize_matrix(mat, method, scale=False):
             mat_nrm = mat_nrm / col_sum.reshape(-1, 1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / row_sum.reshape(1, -1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / col_sum.reshape(-1, 1)
+    elif method == '1d':
+        mat_avg = mat.mean(axis=1)
+        mat_avg[mat_avg == 0] = 1
+        mat_nrm = mat / mat_avg.reshape(-1, 1)
     else:
         raise
 

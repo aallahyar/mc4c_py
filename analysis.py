@@ -127,6 +127,10 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
             def norm_func(x): return normalize_matrix(x, method='iterative', scale=True)
         elif cmd_args.cvg_norm == 'KR':
             def norm_func(x): return normalize_matrix(x, method='KR', scale=True)
+        elif cmd_args.cvg_norm == '1d':
+            def norm_func(x): return normalize_matrix(x, method='1d', scale=True)
+        elif cmd_args.cvg_norm == '1dNoScale':
+            def norm_func(x): return normalize_matrix(x, method='1d', scale=False)
         else:
             raise ValueError('Unknown normalization method')
     obs_nrm = norm_func(obs_smt)
