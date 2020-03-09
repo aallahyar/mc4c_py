@@ -231,10 +231,10 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
 
     # make positive profile
     n_bin = bin_bnd.shape[0]
-    prf_org = np.zeros(n_bin)
+    obs_org = np.zeros(n_bin)
     for ri in range(n_pos):
         hit_bins = flatten(rd2bins_pos[ri])
-        prf_org[hit_bins] += 1
+        obs_org[hit_bins] += 1
 
     decay_prob = estimate_decay_effect(rd2bins, n_bin, sigma=sigma)
 
@@ -245,7 +245,7 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
     frg_prob = frg_prob / np.sum(frg_prob)
 
     # make background profile from negative set
-    prf_rnd = np.zeros([n_perm, n_bin])
+    bkg_rnd = np.zeros([n_perm, n_bin])
     neg_lst = range(n_neg)
     for ei in np.arange(n_perm):
         if verbose and (((ei + 1) % 200) == 0):
@@ -255,8 +255,8 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
         for ni in range(n_pos):
             frg2bins_neg = rd2bins_neg[neg_lst[ni]]
             np.random.shuffle(frg2bins_neg)
-            prf_rnd[ei, flatten(frg2bins_neg[1:])] += 1  # making sure one element is randomly ignored everytime
-            prf_rnd[ei, neg_fbdx[ni]] += 1
+            bkg_rnd[ei, flatten(frg2bins_neg[1:])] += 1  # making sure one element is randomly ignored everytime
+            bkg_rnd[ei, neg_fbdx[ni]] += 1
 
     # smoothing, if needed
     if sigma != 0:
@@ -264,13 +264,13 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
         kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
-        prf_pos = np.convolve(prf_org, kernel, mode='same')
+        obs_smt = np.convolve(obs_org, kernel, mode='same')
         for ei in np.arange(n_perm):
-            prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
+            bkg_rnd[ei, :] = np.convolve(bkg_rnd[ei, :], kernel, mode='same')
     else:
-        prf_pos = prf_org.copy()
+        obs_smt = obs_org.copy()
 
-    return prf_org, prf_pos, prf_rnd, frg_pos, frg_neg, decay_prob
+    return obs_org, obs_smt, bkg_rnd, frg_pos, frg_neg, decay_prob
 
 
 def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
