@@ -66,6 +66,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
 def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
     # import scipy.ndimage as ndimage
+    from copy import deepcopy
 
     from utilities import get_gauss_kernel, hasOL, OnlineStats, flatten, normalize_matrix
 
@@ -168,20 +169,15 @@ def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
                 frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
                 frg_prob = frg_prob / np.sum(frg_prob)
                 rnd_frgs = [frg2bin[i] for i in np.random.choice(all_fids, p=frg_prob, size=n_pos)]
-            else:
-                rnd_frgs = [[]] * n_pos
 
             # make background coverage
             rnd_idxs = np.random.randint(n_neg, size=n_pos)
             for ni in range(n_pos):
                 rnd_read = rds2bin[neg_rids[rnd_idxs[ni]]]
-                rnd_nfrg = len(rnd_read)
-                del_idx = np.random.randint(rnd_nfrg)
-                for fi in range(rnd_nfrg):
-                    if fi == del_idx:
-                        bkg_org[soi_bdx, rnd_frgs[ni]] += 1
-                    else:
-                        bkg_org[soi_bdx, rnd_read[fi]] += 1
+                np.random.shuffle(rnd_read)
+                bkg_org[soi_bdx, flatten(rnd_read[1:])] += 1  # making sure one element is randomly ignored everytime
+                if cmd_args.correction == 'decay':
+                    bkg_org[soi_bdx, rnd_frgs[ni]] += 1
 
         # smoothing/normalizing background
         # bkg_smt = ndimage.convolve(bkg_org, kernel_2d, mode='constant')
@@ -207,6 +203,7 @@ def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
 
 
 def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
+    from copy import deepcopy
     from utilities import hasOL, flatten
 
     # re-index circles
@@ -266,9 +263,9 @@ def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
         np.random.shuffle(neg_lst)
         neg_fbdx = [frg2bins[i] for i in np.random.choice(all_fids, p=frg_prob, size=n_pos)]
         for ni in range(n_pos):
-            frg2bins_neg = rd2bins_neg[neg_lst[ni]]
-            np.random.shuffle(frg2bins_neg)
-            bkg_rnd[ei, flatten(frg2bins_neg[1:])] += 1  # making sure one element is randomly ignored everytime
+            rnd_read = rd2bins_neg[neg_lst[ni]]
+            np.random.shuffle(rnd_read)
+            bkg_rnd[ei, flatten(rnd_read[1:])] += 1  # making sure one element is randomly ignored everytime
             if cmd_args.correction == 'decay':
                 bkg_rnd[ei, neg_fbdx[ni]] += 1
 
@@ -823,7 +820,8 @@ def perform_at_across_roi(config_lst, min_n_frg):
                 continue
             if bkg_std[bi, bj] != 0:
                 zscr_mat[bi, bj] = (obs_nrm[bi, bj] - bkg_avg[bi, bj]) / bkg_std[bi, bj]
-    print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
+    if n_ignored != 0:
+        print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
 
     # export to excel file
     if configs['cmd_args'].to_tsv:
