@@ -131,6 +131,9 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
             def norm_func(x): return normalize_matrix(x, method='1d', scale=True)
         elif cmd_args.cvg_norm == '1dNoScale':
             def norm_func(x): return normalize_matrix(x, method='1d', scale=False)
+        elif cmd_args.cvg_norm == 'nrd':
+            def norm_func(x):
+                return x / bin_npos.reshape(-1, 1)
         else:
             raise ValueError('Unknown normalization method')
     obs_nrm = norm_func(obs_smt)
@@ -203,19 +206,22 @@ def compute_mc_2d_associations_by_decay(frg_inf, bin_bnd, cmd_args):
     return obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos
 
 
-def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
+def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
     from utilities import hasOL, flatten
 
     # re-index circles
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(frg_inf[:, 0])
+    n_frg = frg_inf.shape[0]
 
     # convert fragments to bin-coverage
+    frg2bins = [list() for _ in range(n_frg)]
     rd2bins = [list() for _ in range(n_read + 1)]
     n_frg = frg_inf.shape[0]
     assert len(np.unique(frg_inf[:, 1])) == 1
     for fi in range(n_frg):
         bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
+        frg2bins[fi] = bin_idx.tolist()
         rd2bins[frg_inf[fi, 0]].append(bin_idx.tolist())
 
     # select positive/negative circles
@@ -236,22 +242,29 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
         hit_bins = flatten(rd2bins_pos[ri])
         obs_org[hit_bins] += 1
 
-    decay_prob = estimate_decay_effect(rd2bins, n_bin, sigma=sigma)
+    # find fragment bin index
+    frg_bdx = np.zeros(n_frg, dtype=np.int64)
+    is_fw = frg_inf[:, 4] == 1
+    frg_bdx[ is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[ is_fw, 2], side='right') - 1
+    frg_bdx[~is_fw] = np.searchsorted(bin_bnd[:, 0], frg_inf[~is_fw, 3], side='right') - 1
+    frg_bdx[frg_bdx == -1] = 0  # TODO: Better correction for out of bounds fragments
+    del is_fw
 
     # assign probability to neg fragments
+    decay_prob = estimate_decay_effect(rd2bins, n_bin, sigma=cmd_args.sigma)
     soi_bdx = int(np.mean(np.where(hasOL(pos_crd[1:], bin_bnd))[0]))
-    frg_bdx = np.searchsorted(bin_bnd[:, 0], frg_inf[:, 2], side='right') - 1  # selection from all reads, should be from neg reads
     frg_prob = decay_prob[np.abs(soi_bdx - frg_bdx)]
     frg_prob = frg_prob / np.sum(frg_prob)
 
     # make background profile from negative set
-    bkg_rnd = np.zeros([n_perm, n_bin])
+    all_fids = np.arange(n_frg)
+    bkg_rnd = np.zeros([cmd_args.n_perm, n_bin])
     neg_lst = range(n_neg)
-    for ei in np.arange(n_perm):
+    for ei in np.arange(cmd_args.n_perm):
         if verbose and (((ei + 1) % 200) == 0):
             print('\t{:d} randomized profiles are computed.'.format(ei + 1))
         np.random.shuffle(neg_lst)
-        neg_fbdx = np.random.choice(frg_bdx, p=frg_prob, size=n_pos)
+        neg_fbdx = [frg2bins[i] for i in np.random.choice(all_fids, p=frg_prob, size=n_pos)]
         for ni in range(n_pos):
             frg2bins_neg = rd2bins_neg[neg_lst[ni]]
             np.random.shuffle(frg2bins_neg)
@@ -259,13 +272,13 @@ def compute_mc_associations_by_decay(frg_inf, pos_crd, bin_bnd, n_perm, sigma, v
             bkg_rnd[ei, neg_fbdx[ni]] += 1
 
     # smoothing, if needed
-    if sigma != 0:
+    if cmd_args.sigma != 0:
         if verbose:
-            print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
+            print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(cmd_args.sigma))
         from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
+        kernel = get_gauss_kernel(size=11, sigma=cmd_args.sigma, ndim=1)
         obs_smt = np.convolve(obs_org, kernel, mode='same')
-        for ei in np.arange(n_perm):
+        for ei in np.arange(cmd_args.n_perm):
             bkg_rnd[ei, :] = np.convolve(bkg_rnd[ei, :], kernel, mode='same')
     else:
         obs_smt = obs_org.copy()
@@ -369,7 +382,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
 
     # load MC-4C data
     frg_dp = load_mc4c(config_lst, unique_only=True, valid_only=True, min_mq=20, reindex_reads=True, verbose=True)
-    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd']].values
+    frg_np = frg_dp[['ReadID', 'Chr', 'ExtStart', 'ExtEnd', 'Strand']].values
     del frg_dp
 
     # select within roi fragments
@@ -419,7 +432,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
     if configs['cmd_args'].correction == 'decay':
-        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma)
+        prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_mc_associations_by_decay(frg_inf, soi_crd, bin_bnd, cmd_args=configs['cmd_args'])
     else:
         prf_org, prf_frq, prf_rnd, frg_pos, frg_neg = compute_mc_associations(frg_inf, soi_crd, bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma)
     n_pos = len(np.unique(frg_pos[:, 0]))
