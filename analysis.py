@@ -133,8 +133,9 @@ def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
         elif cmd_args.cvg_norm == '1dNoScale':
             def norm_func(x): return normalize_matrix(x, method='1d', scale=False)
         elif cmd_args.cvg_norm == 'nrd':
-            def norm_func(x):
-                return x / bin_npos.reshape(-1, 1)
+            def norm_func(x): return x / bin_npos.reshape(-1, 1)
+        elif cmd_args.cvg_norm == 'nrd2d':
+            def norm_func(x): return x / bin_npos.reshape(-1, 1) / bin_npos.reshape(1, -1)
         else:
             raise ValueError('Unknown normalization method')
     obs_nrm = norm_func(obs_smt)
@@ -281,7 +282,7 @@ def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
     else:
         obs_smt = obs_org.copy()
 
-    return obs_org, obs_smt, bkg_rnd, frg_pos, frg_neg, decay_prob
+    return obs_org, obs_smt, bkg_rnd, n_pos, decay_prob
 
 
 def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=True):
@@ -429,8 +430,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
 
     # compute positive profile and backgrounds
     print('Computing expected profile for bins:')
-    prf_org, prf_frq, prf_rnd, frg_pos, frg_neg, decay_prob = compute_1d_associations(frg_inf, soi_crd, bin_bnd, cmd_args=configs['cmd_args'])
-    n_pos = len(np.unique(frg_pos[:, 0]))
+    prf_org, prf_frq, prf_rnd, n_pos, decay_prob = compute_1d_associations(frg_inf, soi_crd, bin_bnd, cmd_args=configs['cmd_args'])
     prf_obs = prf_frq * 100.0 / n_pos
     print('{:,d} reads are found to cover '.format(n_pos) +
           '{:s} area ({:s}:{:d}-{:d})'.format(soi_pd['ant_name'], soi_pd['ant_chr'], soi_crd[1], soi_crd[2]))
@@ -786,27 +786,6 @@ def perform_at_across_roi(config_lst, min_n_frg):
     print('Computing expected profile using "{:s}" model, '.format(configs['correction']), end='')
     print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
     obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_2d_associations(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
-    # if configs['cmd_args'].correction == 'decay':
-    #     print('over {:d} bins, required coverage: {:d} reads'.format(n_bin, MIN_N_POS))
-    #     obs_org, obs_smt, obs_nrm, bkg_avg, bkg_std, bin_npos = compute_mc_2d_associations_by_decay(read_inf, bin_bnd, cmd_args=configs['cmd_args'])
-    # else:
-    #     print('over {:d} blocks, required coverage: {:d} reads'.format(n_blk, MIN_N_POS))
-    #
-    #     # compute score for annotations
-    #     obs_org = np.full([n_blk, n_blk], fill_value=np.nan)
-    #     obs_smt = np.full([n_blk, n_blk], fill_value=np.nan)
-    #     bkg_avg = np.full([n_blk, n_blk], fill_value=np.nan)
-    #     bkg_std = np.full([n_blk, n_blk], fill_value=np.nan)
-    #     bin_npos = np.zeros(n_bin)
-    #     for bi in range(n_blk):
-    #         showprogress(bi, n_blk, n_step=20)
-    #         if hasOL(blk_crd[bi, :], vp_crd)[0]:
-    #             continue
-    #         obs_org[bi, :], obs_smt[bi, :], bkg_rnd, frg_pos = compute_mc_associations(read_inf, blk_crd[bi, :], bin_bnd, n_perm=configs['cmd_args'].n_perm, sigma=configs['cmd_args'].sigma, verbose=False)[:4]
-    #         bin_npos[bi] = len(np.unique(frg_pos[:, 0]))
-    #         bkg_avg[bi, :] = np.mean(bkg_rnd, axis=0)
-    #         bkg_std[bi, :] = np.std(bkg_rnd, axis=0, ddof=0)
-    #     obs_nrm = obs_smt.copy()
 
     # compute z-scores
     n_ignored = 0

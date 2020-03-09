@@ -240,7 +240,7 @@ def main():
     parser_analysis.add_argument('--to_tsv', action="store_true", help='Store the z-scores to a tab-separated file')
     parser_analysis.add_argument('--zscr_lim', default=6, type=float)
     parser_analysis.add_argument('--correction', default='none', type=str, choices=['none', 'decay'])
-    parser_analysis.add_argument('--cvg_norm', default='none', type=str, choices=['none', 'iter', 'KR', '1d', '1dNoScale', 'nrd'])
+    parser_analysis.add_argument('--cvg_norm', default='none', type=str, choices=['none', 'iter', 'KR', '1d', '1dNoScale', 'nrd', 'nrd2d'])
     parser_analysis.set_defaults(func=perform_analysis)
 
     #if hasattr(sys.stderr, "isatty") and sys.stderr.isatty():
@@ -288,7 +288,7 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', 'Prdm14_Slc_LB-DEL']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=2.0', 'K562_C4-Enh-1627_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--cvg_norm=iter', '--correction=decay', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
-        # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--correction=decay', '--zscr_lim=6', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--cvg_norm=nrd2d', '--correction=decay', '--sigma=1.0', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=10', '--sigma=1.0', '--cvg_norm=iter', '--correction=none', 'BMaj-test,BMaj-test']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=100', '--sigma=0.0', '--correction=decay', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atAcrossROI', '--n-perm=2', '--cvg_norm=iter', '--sigma=1.0', '--correction=decay', 'LVR-BMaj-96x,LVR-BMaj-NP']
@@ -297,14 +297,14 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--cvg_norm=iter', '--correction=decay', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--cvg_norm=1d', '--correction=decay', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_RB_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=tmp', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=tmp', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=Prdm', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=Prdm', 'Prdm14_LB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=tmp', 'Prdm14_RB_LB-DEL,Prdm14_RB_LB-DEL2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=tmp', 'Prdm14_Slc_LB-INV']
-
+        np.set_printoptions(linewidth=230, threshold=300, edgeitems=30, formatter={'float_kind': lambda x: "%8.3f" % x})
 
     args = parser.parse_args(sys.argv[1:])
     args.func(args)
