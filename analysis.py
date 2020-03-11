@@ -124,12 +124,10 @@ def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
         def norm_func(x): return x.copy()
     else:
         print('Coverage normalization using: {:s}'.format(cmd_args.cvg_norm))
-        if cmd_args.cvg_norm == 'iter':
-            def norm_func(x): return normalize_matrix(x, method='iterative', scale=True)
-        elif cmd_args.cvg_norm == 'KR':
-            def norm_func(x): return normalize_matrix(x, method='KR', scale=True)
-        elif cmd_args.cvg_norm == '1d':
-            def norm_func(x): return normalize_matrix(x, method='1d', scale=True)
+        if cmd_args.cvg_norm in ['iter', 'KR', '1d']:
+            def norm_func(x): return normalize_matrix(x, method=cmd_args.cvg_norm, scale=True)
+        elif cmd_args.cvg_norm in ['iterNS']:
+            def norm_func(x): return normalize_matrix(x, method='iter', scale=False)
         elif cmd_args.cvg_norm == '1dNoScale':
             def norm_func(x): return normalize_matrix(x, method='1d', scale=False)
         elif cmd_args.cvg_norm == 'nrd':

@@ -304,7 +304,7 @@ class OnlineStats(object):
         return np.sqrt(self.variance)
 
 
-def normalize_matrix(mat, method, scale=False):
+def normalize_matrix(mat, method, scale=False, vector=None):
     if method == 'KR':
         from krbalancing import kr_balancing
         from scipy import sparse
@@ -318,7 +318,7 @@ def normalize_matrix(mat, method, scale=False):
         kr.computeKR()
         mat_nrm = kr.get_normalised_matrix(True).toarray()
         mat_nrm += np.triu(mat_nrm, 1).T
-    elif method == 'iterative':
+    elif method == 'iter':
         n_epoch = 100
         # p = np.ones(n_epoch, dtype=np.float)
         # p = np.linspace(0, 1, n_epoch, dtype=np.float)
@@ -331,6 +331,19 @@ def normalize_matrix(mat, method, scale=False):
             mat_nrm = mat_nrm / col_sum.reshape(-1, 1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / row_sum.reshape(1, -1)
             # mat_nrm = (1 - p[ei]) * mat_nrm + p[ei] * mat_nrm / col_sum.reshape(-1, 1)
+    elif method == 'by_vec':
+        n_epoch = 2
+        # def get_ref(x): return np.nanpercentile(x, 95)
+        # def get_ref(x): return np.nanmedian(x)
+        # org_95p = get_ref(mat)
+        mat_nrm = mat.copy()
+        for ei in range(n_epoch):
+            # mat_nrm = mat_nrm / vector.reshape(-1, 1) * np.median(vector)
+            mat_nrm = mat_nrm / vector.reshape(-1, 1)
+            # mat_nrm = mat_nrm / get_ref(mat_nrm) * org_95p
+            # mat_nrm = mat_nrm / vector.reshape(1, -1) * np.median(vector)
+            mat_nrm = mat_nrm / vector.reshape(1, -1)
+            # mat_nrm = mat_nrm / get_ref(mat_nrm) * org_95p
     elif method == '1d':
         mat_avg = mat.mean(axis=1)
         mat_avg[mat_avg == 0] = 1
