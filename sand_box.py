@@ -22,3 +22,25 @@ for img_idx, img in enumerate([obs_smt, bkg_smt,
     img_h = plt.imshow(img)
     plt.colorbar(img_h)
     plt.clim(np.nanpercentile(img, [20, 95]))
+
+
+# obs_org, obs_smt, bkg_rnd, n_pos, decay_prob
+plt.close('all')
+plt.figure(figsize=[16, 5])
+plt.plot(obs_org, label='original', color='gray', alpha=0.5)
+plt.plot(obs_smt, label='smoooth', color='green')
+# plt.plot(np.arange(n_bin) + 122, decay_prob * n_pos, label='smoooth', color='yellow')
+plt.plot(np.mean(bkg_rnd, axis=0), label='bkg_avg', color='red')
+plt.ylim([0, n_pos * 0.1])
+plt.legend()
+
+
+plt.close('all')
+plt.figure(figsize=[16, 5])
+plt.plot(obs_org / bin_nrd, label='original', color='gray', alpha=0.5)
+plt.plot(obs_smt / bin_nrd, label='smoooth', color='green')
+# plt.plot(np.arange(n_bin) + 122, decay_prob * n_pos, label='smoooth', color='yellow')
+plt.plot(np.mean(bkg_rnd, axis=0) / bin_nrd, label='bkg_avg', color='red')
+# plt.ylim([0, n_pos * 0.1])
+plt.legend()
+

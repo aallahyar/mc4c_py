@@ -239,7 +239,7 @@ def main():
     parser_analysis.add_argument('--downsample', default=None, type=int, help='Downsample dataset before the analysis')
     parser_analysis.add_argument('--to_tsv', action="store_true", help='Store the z-scores to a tab-separated file')
     parser_analysis.add_argument('--zscr_lim', default=6, type=float)
-    parser_analysis.add_argument('--correction', default='none', type=str, choices=['none', 'decay'])
+    parser_analysis.add_argument('--correction', default='decay', type=str, choices=['none', 'r1f', 'decay'])
     parser_analysis.add_argument('--cvg_norm', default='none', type=str, choices=['none', 'iter', 'iterNS', 'KR', '1d', '1dNoScale', 'nrd', 'nrd2d', 'nrdIter'])
     parser_analysis.set_defaults(func=perform_analysis)
 
@@ -301,7 +301,9 @@ def main():
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--cvg_norm=1d', '--correction=decay', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=Slc', 'Prdm14_LB_WT']
-        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=100', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=900', '--cvg_norm=nrd', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_Slc_WT,Prdm14_Slc_WT2,Prdm14_Slc_WT3']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=100', '--cvg_norm=nrd', '--sigma=1.0', '--correction=decay', '--ant-name=HS2', 'LVR-BMaj-96x,LVR-BMaj-NP']
+        # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--n-perm=1000', '--cvg_norm=none', '--sigma=1.0', '--correction=decay', '--ant-name=HS2', 'BRN-BMaj-96x,BRN-BMaj-96x2']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=Prdm', 'Prdm14_RB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=Prdm', 'Prdm14_LB_WT']
         # sys.argv = ['./mc4c.py', 'analysis', 'atVpSoi', '--sigma=1.0', '--correction=decay', '--ant-name=LB', 'Prdm14_RB_WT']

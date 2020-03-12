@@ -38,7 +38,7 @@ def estimate_decay_effect(rd2bins, n_bin, sigma):
 
     # smoothening the profiles
     cvg_smooth = np.zeros([n_row, n_bin])
-    kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
+    kernel = get_gauss_kernel(size=7, sigma=sigma, ndim=1)
     print('Smoothing ROI decay profiles by: {:s}'.format(', '.join(['{:0.4f}'.format(k) for k in kernel])))
     for ri in range(n_row):
         cvg_smooth[ri, :] = np.convolve(cvg_rolled[ri, :], kernel, mode='same')
@@ -112,9 +112,9 @@ def compute_2d_associations(frg_inf, bin_bnd, cmd_args):
             obs_org[soi_bdx, flatten(rds2bin[rd_idx])] += 1
 
     print('Smoothing observed profiles using sig={:0.1f}'.format(cmd_args.sigma))
-    # kernel_2d = get_gauss_kernel(size=11, sigma=args.sigma, ndim=2)
+    # kernel_2d = get_gauss_kernel(size=7, sigma=args.sigma, ndim=2)
     # obs_smt = ndimage.convolve(obs_org, kernel_2d, mode='constant')
-    kernel = get_gauss_kernel(size=11, sigma=cmd_args.sigma, ndim=1)
+    kernel = get_gauss_kernel(size=7, sigma=cmd_args.sigma, ndim=1)
     obs_smt = np.zeros([n_bin, n_bin])
     for bi in range(n_bin):
         obs_smt[bi, :] = np.convolve(obs_org[bi, :], kernel, mode='same')
@@ -270,19 +270,27 @@ def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
         for ni in range(n_pos):
             rnd_read = rd2bins_neg[neg_lst[ni]]
             np.random.shuffle(rnd_read)
-            bkg_rnd[ei, flatten(rnd_read[1:])] += 1  # making sure one element is randomly ignored everytime
-            if cmd_args.correction == 'decay':
-                bkg_rnd[ei, neg_fbdx[ni]] += 1
+            if cmd_args.correction == 'none':
+                bkg_rnd[ei, flatten(rnd_read)] += 1
+            else:
+                bkg_rnd[ei, flatten(rnd_read[1:])] += 1  # making sure one element is randomly ignored everytime
+                if cmd_args.correction == 'decay':
+                    bkg_rnd[ei, neg_fbdx[ni]] += 1
 
     # smoothing, if needed
+    if cmd_args.cvg_norm == 'nrd':
+        nrm_factor = bin_nrd.copy() / n_pos
+        # nrm_factor[nrm_factor == 0] = 1
+    else:
+        nrm_factor = np.ones(n_bin)
     if cmd_args.sigma != 0:
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(cmd_args.sigma))
         from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=11, sigma=cmd_args.sigma, ndim=1)
-        obs_smt = np.convolve(obs_org, kernel, mode='same')
+        kernel = get_gauss_kernel(size=7, sigma=cmd_args.sigma, ndim=1)
+        obs_smt = np.convolve(obs_org / nrm_factor, kernel, mode='same')
         for ei in np.arange(cmd_args.n_perm):
-            bkg_rnd[ei, :] = np.convolve(bkg_rnd[ei, :], kernel, mode='same')
+            bkg_rnd[ei, :] = np.convolve(bkg_rnd[ei, :] / nrm_factor, kernel, mode='same')
     else:
         obs_smt = obs_org.copy()
 
@@ -348,7 +356,7 @@ def compute_mc_associations(frg_inf, pos_crd, bin_bnd, n_perm, sigma, verbose=Tr
         if verbose:
             print('Smoothing profiles using Gaussian (sig={:0.2f}) ...'.format(sigma))
         from utilities import get_gauss_kernel
-        kernel = get_gauss_kernel(size=11, sigma=sigma, ndim=1)
+        kernel = get_gauss_kernel(size=7, sigma=sigma, ndim=1)
         prf_smt = np.convolve(prf_org, kernel, mode='same')
         for ei in np.arange(n_perm):
             prf_rnd[ei, :] = np.convolve(prf_rnd[ei, :], kernel, mode='same')
@@ -374,7 +382,7 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
     if configs['output_file'] is None:
         configs['output_file'] = path.join(configs['output_dir'],
                                            'analysis_atVP-SOI_{:s}_{:s}_'.format(run_id, soi_name) +
-                                           'sig{:0.2f}_corr-{:s}_'.format(configs['cmd_args'].sigma, configs['cmd_args'].correction) +
+                                           'sig{:0.2f}_nrm-{:s}_corr-{:s}_'.format(configs['cmd_args'].sigma, configs['cmd_args'].cvg_norm, configs['cmd_args'].correction) +
                                            'np{:0.2f}k_zlm{:0.1f}.pdf'.format(configs['cmd_args'].n_perm / 1e3, configs['cmd_args'].zscr_lim))
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])

@@ -386,7 +386,7 @@ def plot_overallProfile(config_lst, min_n_frg=2):
     # initialization
     configs = config_lst[0]
     run_id = ','.join([config['run_id'] for config in config_lst])
-    kernel = get_gauss_kernel(size=11, sigma=configs['sigma'], ndim=1)
+    kernel = get_gauss_kernel(size=7, sigma=configs['sigma'], ndim=1)
     if configs['output_file'] is None:
         roi_w = configs['roi_end'] - configs['roi_start']
         configs['output_file'] = path.join(configs['output_dir'],
