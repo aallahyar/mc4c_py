@@ -209,16 +209,22 @@ def compute_1d_associations(frg_inf, pos_crd, bin_bnd, cmd_args, verbose=True):
     frg_inf[:, 0] = np.unique(frg_inf[:, 0], return_inverse=True)[1] + 1
     n_read = np.max(frg_inf[:, 0])
     n_frg = frg_inf.shape[0]
+    n_bin = bin_bnd.shape[0]
 
     # convert fragments to bin-coverage
+    bin2rids = [list() for _ in range(n_frg)]
     frg2bins = [list() for _ in range(n_frg)]
     rd2bins = [list() for _ in range(n_read + 1)]
-    n_frg = frg_inf.shape[0]
     assert len(np.unique(frg_inf[:, 1])) == 1
     for fi in range(n_frg):
-        bin_idx = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0]
-        frg2bins[fi] = bin_idx.tolist()
-        rd2bins[frg_inf[fi, 0]].append(bin_idx.tolist())
+        frg2bins[fi] = np.where(hasOL(frg_inf[fi, 2:4], bin_bnd))[0].tolist()
+        for bi in frg2bins[fi]:
+            bin2rids[bi].append(frg_inf[fi, 0])
+        rd2bins[frg_inf[fi, 0]].append(frg2bins[fi])
+    bin_nrd = np.zeros(n_bin)
+    for bi in range(n_bin):
+        bin2rids[bi] = np.unique(bin2rids[bi])
+        bin_nrd[bi] = len(bin2rids[bi])
 
     # select positive/negative circles
     is_pos = hasOL(pos_crd, frg_inf[:, 1:4])
@@ -839,6 +845,8 @@ def perform_at_across_roi(config_lst, min_n_frg):
             plt.clim(np.nanpercentile(obs_smt, [20, 95]))
         elif img_names[img_idx] in ['Normalized/Observed', 'Expected']:
             plt.clim([np.nanpercentile(obs_nrm, 20), np.nanpercentile(obs_nrm, 95)])
+            # img_h.set_cmap(LinearSegmentedColormap.from_list('gw', ['#ffffff', '#F99629'], 9))  # o=#F99629, g=#288528
+            # plt.clim([np.nanpercentile(obs_nrm, 20), np.nanpercentile(obs_nrm, 90)])
         elif img_names[img_idx] in ['Standard deviation']:
             plt.clim(np.nanpercentile(bkg_std, [60, 95]))
         elif img_names[img_idx] in ['z-score']:
