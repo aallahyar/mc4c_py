@@ -475,6 +475,9 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
         ov_idxs = np.where(hasOL(ant_bnd[ai, :], bin_bnd))[0]
         ov_idxs = ov_idxs[~np.isnan(bin_scr[ov_idxs])]
         ov_sim = 1 / np.abs(np.mean(ant_bnd[ai, :]) - bin_cen[ov_idxs])
+        if np.any(np.isinf(ov_sim)):  # happens when annotation is exactly on the top of a bin
+            ov_sim[~np.isinf(ov_sim)] = 0
+            ov_sim[ np.isinf(ov_sim)] = 1
         ov_sim = ov_sim / np.sum(ov_sim)
         ant_scr[ai] = np.sum(bin_scr[ov_idxs] * ov_sim)
 
@@ -524,13 +527,15 @@ def perform_vpsoi_analysis(config_lst, soi_name, min_n_frg):
     # ax_scr.spines['top'].set_color('none')
 
     # add annotations
+    cmap_normed = matplotlib.cm.ScalarMappable(norm=norm, cmap=clr_map)
     for ai in range(n_ant):
-        cmap_normed = matplotlib.cm.ScalarMappable(norm=norm, cmap=clr_map)
-        ax_prf.text(ant_pos[ai], y_lim[1], ant_pd.loc[ai, 'ant_name'],
-                    horizontalalignment='center', verticalalignment='bottom', rotation=60)
-        ax_prf.plot(ant_pos[[ai, ai]], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
-
-        if not np.isnan(ant_scr[ai]):
+        if hasOL(vp_bnd, ant_bnd[ai])[0] or (soi_pd['ant_pos'] == ant_pos[ai]):
+            ax_prf.text(ant_pos[ai], y_lim[1], ant_pd.loc[ai, 'ant_name'],
+                        horizontalalignment='center', verticalalignment='bottom', rotation=60)
+        elif not np.isnan(ant_scr[ai]):
+            ax_prf.text(ant_pos[ai], y_lim[1], ant_pd.loc[ai, 'ant_name'],
+                        horizontalalignment='center', verticalalignment='bottom', rotation=60)
+            ax_prf.plot(ant_pos[[ai, ai]], y_lim, ':', color='#bfbfbf', linewidth=1, alpha=0.4)
             ax_prf.add_patch(patches.Rectangle([ant_bnd[ai, 0], y_lim[1] - 0.15], ant_bnd[ai, 1] - ant_bnd[ai, 0], 0.15,
                                                edgecolor='None', facecolor=cmap_normed.to_rgba(ant_scr[ai]), zorder=10))
             ax_prf.text(ant_pos[ai], y_lim[1] - 0.2, '{:+0.1f}'.format(ant_scr[ai]),
