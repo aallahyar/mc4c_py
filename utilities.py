@@ -358,7 +358,8 @@ def normalize_matrix(mat, method, scale=False, vector=None):
 
 ################### MC-4C related functions #########################
 
-def load_annotation(genome_str, roi_crd=None):
+
+def load_annotation(genome_str, roi_crd=None, sort=True):
     import pandas as pd
 
     # load annotation
@@ -376,6 +377,10 @@ def load_annotation(genome_str, roi_crd=None):
                 (ant_pd['ant_pos'] >= roi_crd[1]) & \
                 (ant_pd['ant_pos'] <= roi_crd[2])
         ant_pd = ant_pd.loc[is_in]
+
+    # sorting
+    if sort:
+        ant_pd = ant_pd.sort_values(by=['ant_cnum', 'ant_pos'])
 
     return ant_pd.reset_index(drop=True)
 

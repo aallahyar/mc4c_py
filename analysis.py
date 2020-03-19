@@ -732,14 +732,9 @@ def perform_at_across_roi(config_lst, min_n_frg):
     # create bin list
     edge_lst = np.linspace(configs['roi_start'], configs['roi_end'], num=201, dtype=np.int64).reshape(-1, 1)
     bin_bnd = np.hstack([edge_lst[:-1], edge_lst[1:] - 1])
+    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64).reshape(-1, 1)
     bin_w = bin_bnd[0, 1] - bin_bnd[0, 0]
     n_bin = bin_bnd.shape[0]
-
-    # make block list
-    bin_cen = np.mean(bin_bnd, axis=1, dtype=np.int64).reshape(-1, 1)
-    blk_crd = np.hstack([np.repeat(configs['vp_cnum'], n_bin).reshape(-1, 1), bin_cen - int(bin_w * 1.5), bin_cen + int(bin_w * 1.5) - 1])
-    blk_w = blk_crd[0, 2] - blk_crd[0, 1]
-    n_blk = blk_crd.shape[0]
     del edge_lst
 
     # define areas
@@ -812,7 +807,7 @@ def perform_at_across_roi(config_lst, min_n_frg):
             if bkg_std[bi, bj] != 0:
                 zscr_mat[bi, bj] = (obs_nrm[bi, bj] - bkg_avg[bi, bj]) / bkg_std[bi, bj]
     if n_ignored != 0:
-        print('[w] {:d}/{:d} blocks are ignored due to low coverage.'.format(n_ignored, n_blk))
+        print('[w] {:d}/{:d} bins are ignored due to low coverage.'.format(n_ignored, n_bin))
 
     # export to excel file
     if configs['cmd_args'].to_tsv:
@@ -883,7 +878,7 @@ def perform_at_across_roi(config_lst, min_n_frg):
     plt.suptitle('Association matrix from {:s}\n'.format(run_id) +
                  '#read (#roiFrg>{:d}, ex. vp)={:,d}; '.format(min_n_frg - 1, n_read) +
                  'sigma={:0.2f}; cvg_norm={:s}, correction={:s}\n'.format(configs['cmd_args'].sigma, configs['cmd_args'].cvg_norm, configs['cmd_args'].correction) +
-                 'bin-w={:0.0f}; block-w={:0.0f}; #perm={:d}'.format(bin_w, blk_w, configs['cmd_args'].n_perm)
+                 'bin-w={:0.0f}; #perm={:d}'.format(bin_w, configs['cmd_args'].n_perm)
                  )
     plt.subplots_adjust(wspace=0.25, hspace=0.15, top=0.91)
     plt.savefig(configs['output_file'], bbox_inches='tight')
